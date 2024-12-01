@@ -1,0 +1,42 @@
+#!/bin/bash
+
+export GO_ROOT_FOLDER="/opt/go"
+
+#export GOVERSION="1.22.6"
+export GOTAG="v${GOVERSION}"
+#export GOPATH="/opt/go/${GOVERSION}/bin/go"
+#export GOROOT="/opt/go/${GOVERSION}"
+
+export GOVERSION="1.23.3"
+export GOTAG="v${GOVERSION}"
+export GOPATH="/opt/go/${GOVERSION}/bin/go"
+export GOROOT="/opt/go/${GOVERSION}"
+
+export PODMAN_VERSION="5.3.1"
+export PODMAN_VERSION="v${PODMAN_VERSION}"
+
+export BUILDAH_VERSION="1.38.0"
+export BUILDAH_TAG="v${BUILDAH_VERSION}"
+
+export RUNC_VERSION="1.2.2"
+export RUNC_TAG="v${RUNC_VERSION}"
+
+export NETAVARK_VERSION="1.13.0"
+export NETAVARK_TAG="v${NETAVARK_VERSION}"
+
+export AARDVARK_DNS_VERSION="1.13.1"
+export AARDVARK_DNS_TAG="v${AARDVARK_DNS_VERSION}"
+
+export SKOPEO_VERSION="1.17.0"
+export SKOPEO_TAG="v${SKOPEO_VERSION}"
+
+export GOMD2MAN_VERSION="2.0.5"
+export GOMD2MAN_TAG="v${GOMD2MAN_VERSION}"
+
+
+export PROTOC_VERSION="29.0"
+export PROTOC_TAG="v${PROTOC_VERSION}"
+
+export PROTOC_ROOT_FOLDER="/opt/protoc"
+
+export PROTOC_PATH="${PROTOC_ROOT_FOLDER}/${PROTOC_VERSION}/bin/protoc"

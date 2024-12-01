@@ -1,0 +1,14 @@
+*.tar.gz
+*.tar*
+*.zip*
+rustup*
+passt/
+podman/
+buildah/
+netavark/
+go-md2man/
+go/
+conmon/
+aardvark-dns/
+runc/
+skopeo/
