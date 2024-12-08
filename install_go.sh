@@ -15,4 +15,4 @@ mkdir -p ${GOROOT}
 
 # Download a Binary Distribution
 wget https://go.dev/dl/${GOTAG}.linux-amd64.tar.gz -O ${GOTAG}.linux-amd64.tar.gz
-tar xvf ${GOTAG}.linux-amd64.tar.gz -C ${GOROOT}
+tar xvf ${GOTAG}.linux-amd64.tar.gz --strip-components=1 -C ${GOROOT}
