@@ -58,3 +58,6 @@ export PROTOC_VERSION="29.0"
 export PROTOC_TAG="v${PROTOC_VERSION}"
 export PROTOC_ROOT_FOLDER="/opt/protoc"
 export PROTOC_PATH="${PROTOC_ROOT_FOLDER}/${PROTOC_VERSION}/bin/protoc"
+
+# Create Build Folder Root
+mkdir -p "${BUILD_ROOT}"
