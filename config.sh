@@ -8,13 +8,13 @@ export GO_ROOT_FOLDER="/opt/go"
 
 # Go Version and Path
 #export GOVERSION="1.22.6"
-export GOTAG="go${GOVERSION}"
-#export GOPATH="/opt/go/${GOVERSION}/bin/go"
+#export GOTAG="go${GOVERSION}"
+#export GOPATH="/opt/go/${GOVERSION}/bin"
 #export GOROOT="/opt/go/${GOVERSION}"
 
 export GOVERSION="1.23.3"
 export GOTAG="go${GOVERSION}"
-export GOPATH="/opt/go/${GOVERSION}/bin/go"
+export GOPATH="/opt/go/${GOVERSION}/bin"
 export GOROOT="/opt/go/${GOVERSION}"
 
 # Podman Version
