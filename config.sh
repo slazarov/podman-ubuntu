@@ -19,7 +19,7 @@ export GOROOT="/opt/go/${GOVERSION}"
 
 # Podman Version
 export PODMAN_VERSION="5.3.1"
-export PODMAN_VERSION="v${PODMAN_VERSION}"
+export PODMAN_TAG="v${PODMAN_VERSION}"
 
 # Buildah Version
 export BUILDAH_VERSION="1.38.0"
