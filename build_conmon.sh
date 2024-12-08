@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Abort on Error
-set -e
+# set -e
 
 # Determine toolpath if not set already
 relativepath="./" # Define relative path to go from this script to the root level of the tool
@@ -16,6 +16,16 @@ cd "${BUILD_ROOT}" || exit
 
 git clone https://github.com/containers/conmon
 cd conmon
+
+if [[ -n "${CONMON_TAG}" ]]
+then
+   git checkout "${CONMON_TAG}"
+else
+   git checkout $(git describe --tags --abbrev=0)
+fi
+
+
+
 export GOCACHE="$(mktemp -d)"
 make
 sudo make podman

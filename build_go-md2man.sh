@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Abort on Error
-set -e
+# set -e
 
 # Determine toolpath if not set already
 relativepath="./" # Define relative path to go from this script to the root level of the tool
@@ -18,7 +18,13 @@ export PATH="$GOPATH:$PATH"
 
 git clone https://github.com/cpuguy83/go-md2man.git
 cd go-md2man
-git checkout "${GOMD2MAN_TAG}"
+
+if [[ -n "${GOMD2MAN_TAG}" ]]
+then
+   git checkout "${GOMD2MAN_TAG}"
+else
+   git checkout $(git describe --tags --abbrev=0)
+fi
 
 # Must Patch 1.22.6 -> 1.23 in /usr/src/podman/buildah/go.mod
 sed -Ei "s|^go 1.22.6$|go 1.23|" go.mod

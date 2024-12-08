@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Abort on Error
-set -e
+# set -e
 
 # Determine toolpath if not set already
 relativepath="./" # Define relative path to go from this script to the root level of the tool
@@ -19,7 +19,13 @@ cd "${BUILD_ROOT}" || exit
 
 git clone https://github.com/containers/netavark
 cd netavark
-git checkout "${NETAVARK_TAG}"
+
+if [[ -n "${NETAVARK_TAG}" ]]
+then
+   git checkout "${NETAVARK_TAG}"
+else
+   git checkout $(git describe --tags --abbrev=0)
+fi
 
 make
 

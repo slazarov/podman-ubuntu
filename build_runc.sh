@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Abort on Error
-set -e
+# set -e
 
 # Determine toolpath if not set already
 relativepath="./" # Define relative path to go from this script to the root level of the tool
@@ -21,7 +21,13 @@ export PATH="$GOPATH:$PATH"
 
 git clone https://github.com/opencontainers/runc.git
 cd runc
-git checkout "${RUNC_TAG}"
+
+if [[ -n "${RUNC_TAG}" ]]
+then
+   git checkout "${RUNC_TAG}"
+else
+   git checkout $(git describe --tags --abbrev=0)
+fi
 
 make BUILDTAGS="selinux seccomp apparmor"
 sudo cp runc /usr/local/bin/runc

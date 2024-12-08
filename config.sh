@@ -33,6 +33,10 @@ export RUNC_TAG="v${RUNC_VERSION}"
 export CRUN_VERSION="1.18.2"
 export CRUN_TAG="${CRUN_VERSION}"
 
+# Conmon Version
+export CONMON_VERSION="2.1.12"
+export CONMON_TAG="v${CONMON_VERSION}"
+
 # Slirp4netns Version
 export SLIRP4NETNS_VERSION="1.3.1"
 export SLIRP4NETNS_TAG="v${SLIRP4NETNS_VERSION}"

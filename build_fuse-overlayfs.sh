@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Abort on Error
-set -e
+# set -e
 
 # Determine toolpath if not set already
 relativepath="./" # Define relative path to go from this script to the root level of the tool
@@ -18,8 +18,13 @@ export PATH="$GOPATH:$PATH"
 
 git clone https://github.com/containers/fuse-overlayfs.git
 cd fuse-overlayfs
-git checkout "${FUSE_OVERLAYFS_TAG}"
 
+if [[ -n "${FUSE_OVERLAYFS_TAG}" ]]
+then
+   git checkout "${FUSE_OVERLAYFS_TAG}"
+else
+   git checkout $(git describe --tags --abbrev=0)
+fi
 
 ./autogen.sh
 LIBS="-ldl" LDFLAGS="-static" ./configure --prefix /usr/local 

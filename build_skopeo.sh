@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Abort on Error
-set -e
+# set -e
 
 # Determine toolpath if not set already
 relativepath="./" # Define relative path to go from this script to the root level of the tool
@@ -21,7 +21,13 @@ export PATH="$GOPATH:$PATH"
 
 git clone https://github.com/containers/skopeo.git
 cd skopeo
-git checkout "${SKOPEO_TAG}"
+
+if [[ -n "${SKOPEO_TAG}" ]]
+then
+   git checkout "${SKOPEO_TAG}"
+else
+   git checkout $(git describe --tags --abbrev=0)
+fi
 
 # Must Patch 1.22.6 -> 1.23 in /usr/src/podman/podman/go.mod
 sed -Ei "s|^go 1.22.6$|go 1.23|" go.mod

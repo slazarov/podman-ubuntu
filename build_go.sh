@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Abort on Error
-set -e
+# set -e
 
 # Determine toolpath if not set already
 relativepath="./" # Define relative path to go from this script to the root level of the tool
@@ -15,7 +15,14 @@ cd "${BUILD_ROOT}" || exit
 
 git clone https://go.googlesource.com/go $GOPATH
 cd $GOPATH
-git checkout $GOVERSION
+
+if [[ -n "${GOVERSION}" ]]
+then
+   git checkout "${GOVERSION}"
+else
+   git checkout $(git describe --tags --abbrev=0)
+fi
+
 cd src
 ./all.bash
 export PATH=$GOPATH/bin:$PATH

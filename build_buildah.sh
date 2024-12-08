@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Abort on Error
-set -e
+# set -e
 
 # Determine toolpath if not set already
 relativepath="./" # Define relative path to go from this script to the root level of the tool
@@ -18,7 +18,15 @@ export PATH="$GOPATH:$PATH"
 
 git clone https://github.com/containers/buildah.git
 cd buildah
-git checkout "${BUILDAH_TAG}"
+
+if [[ -n "${BUILDAH_TAG}" ]]
+then
+   # Use Specified Tag
+   git checkout "${BUILDAH_TAG}"
+else
+   # Get Latest Tag
+   git checkout $(git describe --tags --abbrev=0)
+fi
 
 # Must Patch 1.22.6 -> 1.23 in /usr/src/podman/buildah/go.mod
 sed -Ei "s|^go 1.22.6$|go 1.23|" go.mod

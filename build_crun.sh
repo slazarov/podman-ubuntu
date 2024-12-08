@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Abort on Error
-set -e
+# set -e
 
 # Determine toolpath if not set already
 relativepath="./" # Define relative path to go from this script to the root level of the tool
@@ -18,8 +18,13 @@ export PATH="$GOPATH:$PATH"
 
 git clone https://github.com/containers/crun.git
 cd crun
-git checkout "${CRUN_TAG}"
 
+if [[ -n "${CRUN_TAG}" ]]
+then
+   git checkout "${CRUN_TAG}"
+else
+   git checkout $(git describe --tags --abbrev=0)
+fi
 
 # On Fedora the Following Flags/Features are additionally enabled compared to Debian in the built runtime: +LIBKRUN +WASM:wasmedge
 
