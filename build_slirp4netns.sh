@@ -27,7 +27,7 @@ if [[ -n "${SLIRP4NETNS_TAG}" ]]
 then
    git checkout "${SLIRP4NETNS_TAG}"
 else
-   git checkout $(git describe --tags --abbrev=0)
+   git checkout $(get_latest_tag)
 fi
 
 

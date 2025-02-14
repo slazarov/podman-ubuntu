@@ -29,7 +29,7 @@ if [[ -n "${TOOLBOX_TAG}" ]]
 then
    git checkout "${TOOLBOX_TAG}"
 else
-   git checkout $(git describe --tags --abbrev=0)
+   git checkout $(get_latest_tag)
 fi
 
 # Change into "src" Subfolder

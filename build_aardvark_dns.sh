@@ -27,7 +27,7 @@ if [[ -n "${AARDVARK_DNS_TAG}" ]]
 then
    git checkout "${AARDVARK_DNS_TAG}"
 else
-   git checkout $(git describe --tags --abbrev=0)
+   git checkout $(get_latest_tag)
 fi
 
 make

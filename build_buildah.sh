@@ -28,7 +28,7 @@ then
    git checkout "${BUILDAH_TAG}"
 else
    # Get Latest Tag
-   git checkout $(git describe --tags --abbrev=0)
+   git checkout $(get_latest_tag)
 fi
 
 # Must Patch 1.22.6 -> 1.23 in /usr/src/podman/buildah/go.mod

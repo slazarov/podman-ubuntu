@@ -24,7 +24,7 @@ if [[ -n "${CONMON_TAG}" ]]
 then
    git checkout "${CONMON_TAG}"
 else
-   git checkout $(git describe --tags --abbrev=0)
+   git checkout $(get_latest_tag)
 fi
 
 

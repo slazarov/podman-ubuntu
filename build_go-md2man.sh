@@ -26,7 +26,7 @@ if [[ -n "${GOMD2MAN_TAG}" ]]
 then
    git checkout "${GOMD2MAN_TAG}"
 else
-   git checkout $(git describe --tags --abbrev=0)
+   git checkout $(get_latest_tag)
 fi
 
 # Must Patch 1.22.6 -> 1.23 in /usr/src/podman/buildah/go.mod

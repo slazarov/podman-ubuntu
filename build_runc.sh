@@ -29,7 +29,7 @@ if [[ -n "${RUNC_TAG}" ]]
 then
    git checkout "${RUNC_TAG}"
 else
-   git checkout $(git describe --tags --abbrev=0)
+   git checkout $(get_latest_tag)
 fi
 
 make BUILDTAGS="selinux seccomp apparmor"

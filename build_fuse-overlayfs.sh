@@ -26,7 +26,7 @@ if [[ -n "${FUSE_OVERLAYFS_TAG}" ]]
 then
    git checkout "${FUSE_OVERLAYFS_TAG}"
 else
-   git checkout $(git describe --tags --abbrev=0)
+   git checkout $(get_latest_tag)
 fi
 
 ./autogen.sh

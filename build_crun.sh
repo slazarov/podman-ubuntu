@@ -26,7 +26,7 @@ if [[ -n "${CRUN_TAG}" ]]
 then
    git checkout "${CRUN_TAG}"
 else
-   git checkout $(git describe --tags --abbrev=0)
+   git checkout $(get_latest_tag)
 fi
 
 # On Fedora the Following Flags/Features are additionally enabled compared to Debian in the built runtime: +LIBKRUN +WASM:wasmedge
