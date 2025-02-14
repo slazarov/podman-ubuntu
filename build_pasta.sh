@@ -8,7 +8,10 @@ relativepath="./" # Define relative path to go from this script to the root leve
 if [[ ! -v toolpath ]]; then scriptpath=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ); toolpath=$(realpath --canonicalize-missing ${scriptpath}/${relativepath}); fi
 
 # Load Configuration
-source ${toolpath}/config.sh
+source "${toolpath}/config.sh"
+
+# Load Functions
+source "${toolpath}/functions.sh"
 
 # Change Folder to Build Root
 cd "${BUILD_ROOT}" || exit

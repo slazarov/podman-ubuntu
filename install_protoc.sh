@@ -8,8 +8,12 @@ relativepath="./" # Define relative path to go from this script to the root leve
 if [[ ! -v toolpath ]]; then scriptpath=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ); toolpath=$(realpath --canonicalize-missing ${scriptpath}/${relativepath}); fi
 
 # Load Configuration
-source ${toolpath}/config.sh
+source "${toolpath}/config.sh"
 
+# Load Functions
+source "${toolpath}/functions.sh"
+
+# Download Protoc
 wget https://github.com/protocolbuffers/protobuf/releases/download/${PROTOC_TAG}/protoc-${PROTOC_VERSION}-linux-x86_64.zip -O protoc-${PROTOC_VERSION}-linux-x86_64.zip
 
 mkdir -p ${PROTOC_ROOT_FOLDER}/${PROTOC_VERSION}

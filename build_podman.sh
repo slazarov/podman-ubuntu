@@ -8,7 +8,10 @@ relativepath="./" # Define relative path to go from this script to the root leve
 if [[ ! -v toolpath ]]; then scriptpath=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ); toolpath=$(realpath --canonicalize-missing ${scriptpath}/${relativepath}); fi
 
 # Load Configuration
-source ${toolpath}/config.sh
+source "${toolpath}/config.sh"
+
+# Load Functions
+source "${toolpath}/functions.sh"
 
 # Change Folder to Build Root
 cd "${BUILD_ROOT}" || exit
@@ -26,7 +29,7 @@ if [[ -n "${PODMAN_TAG}" ]]
 then
    git checkout "${PODMAN_TAG}"
 else
-   git checkout $(git describe --tags --abbrev=0)
+   git checkout $(get_latest_tag)
 fi
 
 # Must Patch 1.22.6 -> 1.23 in /usr/src/podman/podman/go.mod
