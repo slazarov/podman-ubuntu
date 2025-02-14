@@ -63,5 +63,8 @@ sudo apt-get install libglib2.0-dev libslirp-dev libcap-dev libseccomp-dev
 # Dependencies for fuse-overlayfs
 apt install libfuse3-dev
 
+# Dependencies to build Toolbox
+apt install libsubid-dev
+
 # Dependencies to install Protoc
 apt install unzip

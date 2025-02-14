@@ -57,7 +57,11 @@ export SKOPEO_TAG="v${SKOPEO_VERSION}"
 export GOMD2MAN_VERSION="2.0.5"
 export GOMD2MAN_TAG="v${GOMD2MAN_VERSION}"
 
-# Protoc version and Path
+# Toolbox Version
+export TOOLBOX_VERSION="0.1.1"
+export TOOLBOX_TAG="${TOOLBOX_VERSION}"
+
+# Protoc Version and Path
 export PROTOC_VERSION="29.0"
 export PROTOC_TAG="v${PROTOC_VERSION}"
 export PROTOC_ROOT_FOLDER="/opt/protoc"

@@ -16,6 +16,15 @@ cd "${BUILD_ROOT}" || exit
 git clone https://passt.top/passt
 cd passt
 make
-cp passt* /usr/local/bin/
-cp pasta* /usr/local/bin/
+cp passt /usr/local/bin/
+cp passt.avx2 /usr/local/bin/
+cp pasta /usr/local/bin/
+cp pasta.avx2 /usr/local/bin/
 
+# Remove Files that shouldn't have been previously installed
+rm -f /usr/local/bin/passt.1
+rm -f /usr/local/bin/passt.c
+rm -f /usr/local/bin/passt.h
+rm -f /usr/local/bin/pasta.1
+rm -f /usr/local/bin/pasta.c
+rm -f /usr/local/bin/pasta.h

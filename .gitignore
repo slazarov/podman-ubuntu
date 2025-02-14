@@ -12,3 +12,6 @@ conmon/
 aardvark-dns/
 runc/
 skopeo/
+
+# Ignore Build Folder
+build/
