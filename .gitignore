@@ -15,3 +15,6 @@ skopeo/
 
 # Ignore Build Folder
 build/
+
+# Ignore Configuration
+config.sh
