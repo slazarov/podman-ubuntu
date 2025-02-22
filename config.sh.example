@@ -33,6 +33,10 @@ export RUNC_TAG="v${RUNC_VERSION}"
 export CRUN_VERSION="1.18.2"
 export CRUN_TAG="${CRUN_VERSION}"
 
+# Catatonit Version
+export CATATONIT_VERSION="0.2.1"
+export CATATONIT_TAG="v${CATATONIT_VERSION}"
+
 # Conmon Version
 export CONMON_VERSION="2.1.12"
 export CONMON_TAG="v${CONMON_VERSION}"
