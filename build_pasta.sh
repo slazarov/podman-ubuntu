@@ -16,7 +16,7 @@ source "${toolpath}/functions.sh"
 # Change Folder to Build Root
 cd "${BUILD_ROOT}" || exit
 
-git clone https://passt.top/passt
+git_clone_update https://passt.top/passt passt
 cd passt
 make
 cp passt /usr/local/bin/

@@ -22,7 +22,7 @@ export PATH="$GOPATH:$PATH"
 #git clone https://github.com/opencontainers/runc.git $GOPATH/src/github.com/opencontainers/runc
 #cd $GOPATH/src/github.com/opencontainers/runc
 
-git clone https://github.com/opencontainers/runc.git
+git_clone_update https://github.com/opencontainers/runc.git runc
 cd runc
 
 if [[ -n "${RUNC_TAG}" ]]

@@ -20,7 +20,7 @@ cd "${BUILD_ROOT}" || exit
 . "$HOME/.cargo/env"
 #export PATH="CUSTOMPATH:$PATH"
 
-git clone https://github.com/containers/netavark
+git_clone_update https://github.com/containers/netavark netavark
 cd netavark
 
 if [[ -n "${NETAVARK_TAG}" ]]

@@ -17,7 +17,7 @@ source "${toolpath}/functions.sh"
 cd "${BUILD_ROOT}" || exit
 
 
-git clone https://github.com/containers/conmon
+git_clone_update https://github.com/containers/conmon conmon
 cd conmon
 
 if [[ -n "${CONMON_TAG}" ]]

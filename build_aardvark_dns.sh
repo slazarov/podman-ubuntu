@@ -20,7 +20,7 @@ cd "${BUILD_ROOT}" || exit
 . "$HOME/.cargo/env"
 #export PATH="CUSTOMPATH:$PATH"
 
-git clone https://github.com/containers/aardvark-dns
+git_clone_update https://github.com/containers/aardvark-dns aardvark-dns
 cd aardvark-dns
 
 if [[ -n "${AARDVARK_DNS_TAG}" ]]

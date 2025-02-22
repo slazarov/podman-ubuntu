@@ -22,7 +22,7 @@ cd "${BUILD_ROOT}" || exit
 # Required Fix otherwise go complains about 1.22.6 vs 1.23 mismatch
 export PATH="$GOPATH:$PATH"
 
-git clone https://github.com/containers/podman.git
+git_clone_update https://github.com/containers/podman.git podman
 cd podman
 
 if [[ -n "${PODMAN_TAG}" ]]

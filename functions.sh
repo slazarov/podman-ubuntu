@@ -17,3 +17,26 @@ get_latest_tag() {
     # Return Result
     echo "${latest}"
 }
+
+git_clone_update() {
+    # Input Parameters
+    local lrepository="$1"
+    local lfolder="$2"
+
+    if [ -z "${lrepository}" ] || [ -z "${lfolder}" ]
+    then
+        echo "FATAL: You must specify both REPOSITORY GIT URL and TARGET FOLDER"
+        exit 1
+    else
+        if [ -d "${lfolder}" ] && [ -d "${lfolder}/.git" ]
+        then
+           # Git Repository has already been cloned
+           # Fetch latest Changes
+           git fetch --all
+        else
+           # Git Repository has NOT been cloned yet
+           # Clone Git Repository
+           git clone "${lrepository}" "${lfolder}"
+        fi
+    fi
+}

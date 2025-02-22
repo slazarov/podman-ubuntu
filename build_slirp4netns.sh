@@ -20,7 +20,7 @@ cd "${BUILD_ROOT}" || exit
 export PATH="$GOPATH:$PATH"
 
 
-git clone https://github.com/rootless-containers/slirp4netns.git
+git_clone_update https://github.com/rootless-containers/slirp4netns.git slirp4netns
 cd slirp4netns
 
 if [[ -n "${SLIRP4NETNS_TAG}" ]]

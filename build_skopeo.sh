@@ -24,7 +24,7 @@ export PATH="$GOPATH:$PATH"
 export PATH="$GOPATH/bin:$PATH"
 export PATH="$GOROOT/bin:$PATH"
 
-git clone https://github.com/containers/skopeo.git
+git_clone_update https://github.com/containers/skopeo.git skopeo
 cd skopeo
 
 if [[ -n "${SKOPEO_TAG}" ]]

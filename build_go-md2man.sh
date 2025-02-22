@@ -19,7 +19,7 @@ cd "${BUILD_ROOT}" || exit
 # Required Fix otherwise go complains about 1.22.6 vs 1.23 mismatch
 export PATH="$GOPATH:$PATH"
 
-git clone https://github.com/cpuguy83/go-md2man.git
+git_clone_update https://github.com/cpuguy83/go-md2man.git go-md2man
 cd go-md2man
 
 if [[ -n "${GOMD2MAN_TAG}" ]]
