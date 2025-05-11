@@ -21,13 +21,7 @@ export PATH="$GOPATH:$PATH"
 
 git_clone_update https://github.com/containers/fuse-overlayfs.git fuse-overlayfs
 cd fuse-overlayfs
-
-if [[ -n "${FUSE_OVERLAYFS_TAG}" ]]
-then
-   git checkout "${FUSE_OVERLAYFS_TAG}"
-else
-   git checkout $(get_latest_tag)
-fi
+git_checkout "${FUSE_OVERLAYFS_TAG}"
 
 ./autogen.sh
 LIBS="-ldl" LDFLAGS="-static" ./configure --prefix /usr/local 

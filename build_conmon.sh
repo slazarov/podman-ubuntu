@@ -19,15 +19,7 @@ cd "${BUILD_ROOT}" || exit
 
 git_clone_update https://github.com/containers/conmon conmon
 cd conmon
-
-if [[ -n "${CONMON_TAG}" ]]
-then
-   git checkout "${CONMON_TAG}"
-else
-   git checkout $(get_latest_tag)
-fi
-
-
+git_checkout "${CONMON_TAG}"
 
 export GOCACHE="$(mktemp -d)"
 make

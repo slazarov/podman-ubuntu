@@ -21,13 +21,7 @@ export PATH="$GOPATH:$PATH"
 
 git_clone_update https://github.com/cpuguy83/go-md2man.git go-md2man
 cd go-md2man
-
-if [[ -n "${GOMD2MAN_TAG}" ]]
-then
-   git checkout "${GOMD2MAN_TAG}"
-else
-   git checkout $(get_latest_tag)
-fi
+git_checkout "${GOMD2MAN_TAG}"
 
 # Must Patch 1.22.6 -> 1.23 in /usr/src/podman/buildah/go.mod
 sed -Ei "s|^go 1.22.6$|go 1.23|" go.mod

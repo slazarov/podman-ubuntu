@@ -24,13 +24,7 @@ export PATH="$GOPATH:$PATH"
 
 git_clone_update https://github.com/containers/podman.git podman
 cd podman
-
-if [[ -n "${PODMAN_TAG}" ]]
-then
-   git checkout "${PODMAN_TAG}"
-else
-   git checkout $(get_latest_tag)
-fi
+git_checkout "${PODMAN_TAG}"
 
 # Must Patch 1.22.6 -> 1.23 in /usr/src/podman/podman/go.mod
 sed -Ei "s|^go 1.22.6$|go 1.23|" go.mod

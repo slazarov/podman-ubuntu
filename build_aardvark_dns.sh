@@ -22,13 +22,7 @@ cd "${BUILD_ROOT}" || exit
 
 git_clone_update https://github.com/containers/aardvark-dns aardvark-dns
 cd aardvark-dns
-
-if [[ -n "${AARDVARK_DNS_TAG}" ]]
-then
-   git checkout "${AARDVARK_DNS_TAG}"
-else
-   git checkout $(get_latest_tag)
-fi
+git_checkout "${AARDVARK_DNS_TAG}"
 
 make
 

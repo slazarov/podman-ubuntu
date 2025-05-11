@@ -24,13 +24,7 @@ export PATH="$GOPATH:$PATH"
 
 git_clone_update https://github.com/opencontainers/runc.git runc
 cd runc
-
-if [[ -n "${RUNC_TAG}" ]]
-then
-   git checkout "${RUNC_TAG}"
-else
-   git checkout $(get_latest_tag)
-fi
+git_checkout "${RUNC_TAG}"
 
 make BUILDTAGS="selinux seccomp apparmor"
 sudo cp runc /usr/local/bin/runc

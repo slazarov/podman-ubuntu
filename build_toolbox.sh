@@ -24,13 +24,7 @@ export PATH="$GOPATH:$PATH"
 
 git_clone_update https://github.com/containers/toolbox.git toolbox
 cd toolbox
-
-if [[ -n "${TOOLBOX_TAG}" ]]
-then
-   git checkout "${TOOLBOX_TAG}"
-else
-   git checkout $(get_latest_tag)
-fi
+git_checkout "${TOOLBOX_TAG}"
 
 # Change into "src" Subfolder
 cd src || exit

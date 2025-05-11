@@ -22,14 +22,7 @@ export PATH="$GOPATH:$PATH"
 
 git_clone_update https://github.com/rootless-containers/slirp4netns.git slirp4netns
 cd slirp4netns
-
-if [[ -n "${SLIRP4NETNS_TAG}" ]]
-then
-   git checkout "${SLIRP4NETNS_TAG}"
-else
-   git checkout $(get_latest_tag)
-fi
-
+git_checkout "${SLIRP4NETNS_TAG}"
 
 ./autogen.sh
 ./configure --prefix=/usr/local

@@ -22,13 +22,7 @@ cd "${BUILD_ROOT}" || exit
 
 git_clone_update https://github.com/containers/netavark netavark
 cd netavark
-
-if [[ -n "${NETAVARK_TAG}" ]]
-then
-   git checkout "${NETAVARK_TAG}"
-else
-   git checkout $(get_latest_tag)
-fi
+git_checkout "${NETAVARK_TAG}"
 
 make
 

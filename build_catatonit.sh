@@ -21,14 +21,7 @@ export PATH="$GOPATH:$PATH"
 
 git_clone_update https://github.com/openSUSE/catatonit.git catatonit
 cd catatonit
-
-if [[ -n "${CATATONIT_TAG}" ]]
-then
-   git checkout "${CATATONIT_TAG}"
-else
-   git checkout $(get_latest_tag)
-fi
-
+git_checkout "${CATATONIT_TAG}"
 
 ./autogen.sh
 ./configure

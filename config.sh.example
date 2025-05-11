@@ -18,58 +18,54 @@ export GOPATH="/opt/go/${GOVERSION}/bin"
 export GOROOT="/opt/go/${GOVERSION}"
 
 # Podman Version
-export PODMAN_VERSION="5.3.1"
-export PODMAN_TAG="v${PODMAN_VERSION}"
+#export PODMAN_VERSION="5.3.1"
+#export PODMAN_TAG="v${PODMAN_VERSION}"
 
 # Buildah Version
-export BUILDAH_VERSION="1.38.0"
-export BUILDAH_TAG="v${BUILDAH_VERSION}"
+#export BUILDAH_VERSION="1.38.0"
+#export BUILDAH_TAG="v${BUILDAH_VERSION}"
 
 # Runc Version
-export RUNC_VERSION="1.2.2"
-export RUNC_TAG="v${RUNC_VERSION}"
+#export RUNC_VERSION="1.2.2"
+#export RUNC_TAG="v${RUNC_VERSION}"
 
 # Crun Version
-export CRUN_VERSION="1.18.2"
+export CRUN_VERSION="1.21"
 export CRUN_TAG="${CRUN_VERSION}"
 
-# Catatonit Version
-export CATATONIT_VERSION="0.2.1"
-export CATATONIT_TAG="v${CATATONIT_VERSION}"
-
 # Conmon Version
-export CONMON_VERSION="2.1.12"
-export CONMON_TAG="v${CONMON_VERSION}"
+#export CONMON_VERSION="2.1.12"
+#export CONMON_TAG="v${CONMON_VERSION}"
 
 # Slirp4netns Version
-export SLIRP4NETNS_VERSION="1.3.1"
-export SLIRP4NETNS_TAG="v${SLIRP4NETNS_VERSION}"
+#export SLIRP4NETNS_VERSION="1.3.1"
+#export SLIRP4NETNS_TAG="v${SLIRP4NETNS_VERSION}"
 
 # Netavark Veersion
-export NETAVARK_VERSION="1.13.0"
-export NETAVARK_TAG="v${NETAVARK_VERSION}"
+#export NETAVARK_VERSION="1.13.0"
+#export NETAVARK_TAG="v${NETAVARK_VERSION}"
 
 # Aardvark-DNS Version
-export AARDVARK_DNS_VERSION="1.13.1"
-export AARDVARK_DNS_TAG="v${AARDVARK_DNS_VERSION}"
+#export AARDVARK_DNS_VERSION="1.13.1"
+#export AARDVARK_DNS_TAG="v${AARDVARK_DNS_VERSION}"
 
 # Skopeo Version
-export SKOPEO_VERSION="1.17.0"
-export SKOPEO_TAG="v${SKOPEO_VERSION}"
+#export SKOPEO_VERSION="1.17.0"
+#export SKOPEO_TAG="v${SKOPEO_VERSION}"
 
 # GoMD2Man Version
-export GOMD2MAN_VERSION="2.0.5"
-export GOMD2MAN_TAG="v${GOMD2MAN_VERSION}"
+#export GOMD2MAN_VERSION="2.0.5"
+#export GOMD2MAN_TAG="v${GOMD2MAN_VERSION}"
 
 # Toolbox Version
-export TOOLBOX_VERSION="0.1.1"
-export TOOLBOX_TAG="${TOOLBOX_VERSION}"
+#export TOOLBOX_VERSION="0.1.1"
+#export TOOLBOX_TAG="${TOOLBOX_VERSION}"
 
 # Protoc Version and Path
-export PROTOC_VERSION="29.0"
-export PROTOC_TAG="v${PROTOC_VERSION}"
-export PROTOC_ROOT_FOLDER="/opt/protoc"
-export PROTOC_PATH="${PROTOC_ROOT_FOLDER}/${PROTOC_VERSION}/bin/protoc"
+#export PROTOC_VERSION="29.0"
+#export PROTOC_TAG="v${PROTOC_VERSION}"
+#export PROTOC_ROOT_FOLDER="/opt/protoc"
+#export PROTOC_PATH="${PROTOC_ROOT_FOLDER}/${PROTOC_VERSION}/bin/protoc"
 
 # Create Build Folder Root
 mkdir -p "${BUILD_ROOT}"

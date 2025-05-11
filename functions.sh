@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Load Configuration
+source config.sh
+
 get_latest_tag() {
     # Input Parameters
     # ...
@@ -39,4 +42,17 @@ git_clone_update() {
            git clone "${lrepository}" "${lfolder}"
         fi
     fi
+}
+
+git_checkout() {
+    # Input Parameters
+    local ltag=${1-""}
+
+    if [[ -n "${ltag}" ]]
+    then
+       git checkout "${ltag}"
+    else
+       git checkout $(get_latest_tag)
+    fi
+
 }
