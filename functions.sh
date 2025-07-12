@@ -85,10 +85,13 @@ log_component() {
     local lnewversion
     lnewversion="${GIT_CHECKED_OUT_TAG}"
 
+    # Create Log Folder if not existing yet
+    mkdir -p "${toolpath}/log"
+
     # Log Message to File
     if [[ -z "${loldversion}" ]]
     then
-        echo "Install ${lcomponent} with Version ${lnewversion}"
+        echo "Install ${lcomponent} with Version ${lnewversion}" >> "${toolpath}/log/${ltimestamp}.log"
     else
         echo "Update ${lcomponent} from Version ${loldversion} to Version ${lnewversion}" >> "${toolpath}/log/${ltimestamp}.log"
     fi
