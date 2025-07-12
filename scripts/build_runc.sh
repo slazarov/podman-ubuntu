@@ -4,7 +4,7 @@
 # set -e
 
 # Determine toolpath if not set already
-relativepath="./" # Define relative path to go from this script to the root level of the tool
+relativepath="../" # Define relative path to go from this script to the root level of the tool
 if [[ ! -v toolpath ]]; then scriptpath=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ); toolpath=$(realpath --canonicalize-missing ${scriptpath}/${relativepath}); fi
 
 # Load Configuration
@@ -19,13 +19,12 @@ cd "${BUILD_ROOT}" || exit
 # Required Fix otherwise go complains about 1.22.6 vs 1.23 mismatch
 export PATH="$GOPATH:$PATH"
 
-git_clone_update https://github.com/cpuguy83/go-md2man.git go-md2man
-cd go-md2man
-git_checkout "${GOMD2MAN_TAG}"
+#git clone https://github.com/opencontainers/runc.git $GOPATH/src/github.com/opencontainers/runc
+#cd $GOPATH/src/github.com/opencontainers/runc
 
-# Must Patch 1.22.6 -> 1.23 in /usr/src/podman/buildah/go.mod
-sed -Ei "s|^go 1.22.6$|go 1.23|" go.mod
+git_clone_update https://github.com/opencontainers/runc.git runc
+cd runc
+git_checkout "${RUNC_TAG}"
 
-make
-
-cp bin/go-md2man /usr/local/bin
+make BUILDTAGS="selinux seccomp apparmor"
+sudo cp runc /usr/local/bin/runc

@@ -4,7 +4,7 @@
 # set -e
 
 # Determine toolpath if not set already
-relativepath="./" # Define relative path to go from this script to the root level of the tool
+relativepath="../" # Define relative path to go from this script to the root level of the tool
 if [[ ! -v toolpath ]]; then scriptpath=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ); toolpath=$(realpath --canonicalize-missing ${scriptpath}/${relativepath}); fi
 
 # Load Configuration
@@ -16,23 +16,23 @@ source "${toolpath}/functions.sh"
 # Change Folder to Build Root
 cd "${BUILD_ROOT}" || exit
 
+# Might actually not be needed for build-only (more for Troubleshooting)
+# go install golang.org/x/tools/gopls@latest
+
 # Required Fix otherwise go complains about 1.22.6 vs 1.23 mismatch
 export PATH="$GOPATH:$PATH"
 
-git_clone_update https://github.com/containers/buildah.git buildah
-cd buildah
-git_checkout "${BUILDAH_TAG}"
+git_clone_update https://github.com/containers/podman.git podman
+cd podman
+git_checkout "${PODMAN_TAG}"
 
-# Must Patch 1.22.6 -> 1.23 in /usr/src/podman/buildah/go.mod
+# Must Patch 1.22.6 -> 1.23 in /usr/src/podman/podman/go.mod
 sed -Ei "s|^go 1.22.6$|go 1.23|" go.mod
-
-
-#make
 
 #make BUILDTAGS="selinux seccomp apparmor systemd" PREFIX=/usr
 make BUILDTAGS="seccomp apparmor systemd" PREFIX=/usr
+sudo make install PREFIX=/usr
 
 
-sudo make install
+# Copy to Target Folder
 
-#buildah --help
