@@ -30,7 +30,7 @@ git_checkout "${TOOLBOX_TAG}"
 log_component "toolbox"
 
 # Change into "src" Subfolder
-cd src || exit
+cd src
 
 # Must Patch 1.22.6 -> 1.23 in /usr/src/podman/podman/go.mod
 sed -Ei "s|^go 1.22.6$|go 1.23|" go.mod
@@ -40,8 +40,8 @@ sed -Ei "s|^go 1.22.6$|go 1.23|" go.mod
 #meson compile
 #meson test
 
-meson --prefix /usr --buildtype=plain builddir
-cd buildir || exit
+meson --prefix /usr/local --buildtype=plain builddir
+# cd buildir
 meson compile -C builddir
 meson test -C builddir
 DESTDIR=/usr/local meson install -C builddir
