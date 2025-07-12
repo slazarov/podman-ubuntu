@@ -41,7 +41,7 @@ source "${toolpath}/scripts/build_conmon.sh"
 source "${toolpath}/scripts/build_crun.sh"
 
 # Build Fuse-OverlayFS
-source "${toolpath}/scripts/build_fuse_overlayfs.sh"
+source "${toolpath}/scripts/build_fuse-overlayfs.sh"
 
 # Build Go-MD2Man
 source "${toolpath}/scripts/build_go-md5man.sh"
