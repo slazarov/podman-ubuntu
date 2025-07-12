@@ -24,6 +24,10 @@ git_clone_update https://github.com/containers/netavark netavark
 cd netavark
 git_checkout "${NETAVARK_TAG}"
 
+# Log Component
+log_component "netavark"
+
+# Build
 make
 
 #make BUILDTAGS="selinux seccomp apparmor systemd" PREFIX=/usr

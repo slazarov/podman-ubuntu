@@ -17,6 +17,11 @@ source "${toolpath}/functions.sh"
 cd "${BUILD_ROOT}" || exit
 
 git_clone_update https://passt.top/passt passt
+
+# Log Component
+log_component "pasta"
+
+# Build
 cd passt
 make
 cp passt /usr/local/bin/

@@ -28,6 +28,9 @@ git_clone_update https://github.com/containers/skopeo.git skopeo
 cd skopeo
 git_checkout "${SKOPEO_TAG}"
 
+# Log Component
+log_component "skopeo"
+
 # Must Patch 1.22.6 -> 1.23 in /usr/src/podman/podman/go.mod
 sed -Ei "s|^go 1.22.6$|go 1.23|" go.mod
 

@@ -23,6 +23,10 @@ git_clone_update https://github.com/openSUSE/catatonit.git catatonit
 cd catatonit
 git_checkout "${CATATONIT_TAG}"
 
+# Log Component
+log_component "catatonit"
+
+# Build
 ./autogen.sh
 ./configure
 make

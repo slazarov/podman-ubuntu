@@ -23,6 +23,9 @@ git_clone_update https://github.com/cpuguy83/go-md2man.git go-md2man
 cd go-md2man
 git_checkout "${GOMD2MAN_TAG}"
 
+# Log Component
+log_component "go-md2man"
+
 # Must Patch 1.22.6 -> 1.23 in /usr/src/podman/buildah/go.mod
 sed -Ei "s|^go 1.22.6$|go 1.23|" go.mod
 

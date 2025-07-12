@@ -21,6 +21,10 @@ git_clone_update https://github.com/containers/conmon conmon
 cd conmon
 git_checkout "${CONMON_TAG}"
 
+# Log Component
+log_component "conmon"
+
+# Build
 export GOCACHE="$(mktemp -d)"
 make
 sudo make podman

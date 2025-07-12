@@ -23,16 +23,16 @@ git_clone_update https://github.com/containers/buildah.git buildah
 cd buildah
 git_checkout "${BUILDAH_TAG}"
 
+# Log Component
+log_component "buildah"
+
 # Must Patch 1.22.6 -> 1.23 in /usr/src/podman/buildah/go.mod
 sed -Ei "s|^go 1.22.6$|go 1.23|" go.mod
 
-
+# Build
 #make
-
 #make BUILDTAGS="selinux seccomp apparmor systemd" PREFIX=/usr
 make BUILDTAGS="seccomp apparmor systemd" PREFIX=/usr
-
-
 sudo make install
 
 #buildah --help

@@ -23,6 +23,10 @@ git_clone_update https://github.com/containers/fuse-overlayfs.git fuse-overlayfs
 cd fuse-overlayfs
 git_checkout "${FUSE_OVERLAYFS_TAG}"
 
+# Log Component
+log_component "fuse-overlayfs"
+
+# Build
 ./autogen.sh
 LIBS="-ldl" LDFLAGS="-static" ./configure --prefix /usr/local 
 make

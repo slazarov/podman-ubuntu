@@ -23,6 +23,9 @@ git_clone_update https://github.com/containers/crun.git crun
 cd crun
 git_checkout "${CRUN_TAG}"
 
+# Log Component
+log_component "crun"
+
 # On Fedora the Following Flags/Features are additionally enabled compared to Debian in the built runtime: +LIBKRUN +WASM:wasmedge
 
 ./autogen.sh

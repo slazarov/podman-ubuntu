@@ -40,6 +40,9 @@ git_clone_update() {
            # Git Repository has already been cloned
            # Fetch latest Changes
            git fetch --all
+
+           # Also fetch Tags
+           git fetch --tags
         else
            # Git Repository has NOT been cloned yet
            # Clone Git Repository
@@ -55,8 +58,38 @@ git_checkout() {
     if [[ -n "${ltag}" ]]
     then
        git checkout "${ltag}"
+       export GIT_CHECKED_OUT_TAG="${ltag}"
     else
        git checkout $(get_latest_tag)
+       export GIT_CHECKED_OUT_TAG=$(get_latest_tag)
     fi
 
+}
+
+log_component() {
+    # Input Arguments
+    local lcomponent="$1"
+
+    # Generate Timestamp
+    local ltimestamp
+    ltimestamp=$(date +"%Y%m%d")
+
+    # If Command Exists, save Version
+    local loldversion
+    if [[ -n $(command -v "${lcomponent}") ]]
+    then
+        loldversion=$("${lcomponent}" --version | awk '{print $NF}')
+    fi
+
+    # New Version can be determined by the Checked out Branch
+    local lnewversion
+    lnewversion="${GIT_CHECKED_OUT_TAG}"
+
+    # Log Message to File
+    if [[ -z "${loldversion}" ]]
+    then
+        echo "Install ${lcomponent} with Version ${lnewversion}"
+    else
+        echo "Update ${lcomponent} from Version ${loldversion} to Version ${lnewversion}" >> "${toolpath}/log/${ltimestamp}.log"
+    fi
 }

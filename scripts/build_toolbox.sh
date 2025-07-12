@@ -26,6 +26,9 @@ git_clone_update https://github.com/containers/toolbox.git toolbox
 cd toolbox
 git_checkout "${TOOLBOX_TAG}"
 
+# Log Component
+log_component "toolbox"
+
 # Change into "src" Subfolder
 cd src || exit
 

@@ -24,6 +24,10 @@ git_clone_update https://github.com/rootless-containers/slirp4netns.git slirp4ne
 cd slirp4netns
 git_checkout "${SLIRP4NETNS_TAG}"
 
+# Log Component
+log_component "slirp4netns"
+
+# Build
 ./autogen.sh
 ./configure --prefix=/usr/local
 make

@@ -24,6 +24,10 @@ git_clone_update https://github.com/containers/aardvark-dns aardvark-dns
 cd aardvark-dns
 git_checkout "${AARDVARK_DNS_TAG}"
 
+# Log Component
+log_component "aardvark-dns"
+
+# Build
 make
 
 #make BUILDTAGS="selinux seccomp apparmor systemd" PREFIX=/usr

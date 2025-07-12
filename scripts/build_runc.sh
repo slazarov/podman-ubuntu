@@ -26,5 +26,9 @@ git_clone_update https://github.com/opencontainers/runc.git runc
 cd runc
 git_checkout "${RUNC_TAG}"
 
+# Log Component
+log_component "runc"
+
+# Build
 make BUILDTAGS="selinux seccomp apparmor"
 sudo cp runc /usr/local/bin/runc
