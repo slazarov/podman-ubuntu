@@ -44,7 +44,7 @@ source "${toolpath}/scripts/build_crun.sh"
 source "${toolpath}/scripts/build_fuse-overlayfs.sh"
 
 # Build Go-MD2Man
-source "${toolpath}/scripts/build_go-md5man.sh"
+source "${toolpath}/scripts/build_go-md2man.sh"
 
 # Build Netavark
 source "${toolpath}/scripts/build_netavark.sh"

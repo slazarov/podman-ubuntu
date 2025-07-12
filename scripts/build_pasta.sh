@@ -17,13 +17,24 @@ source "${toolpath}/functions.sh"
 cd "${BUILD_ROOT}" || exit
 
 git_clone_update https://passt.top/passt passt
+cd passt
+git fetch --all
+git fetch --tags
+git pull
+
+# Save Version
+export GIT_CHECKED_OUT_TAG=$(date +"%Y%m%d")
 
 # Log Component
 log_component "pasta"
 
 # Build
-cd passt
 make
+
+# Kill current running Processes
+ps aux | grep pasta | awk '{print $2}' | xargs -n 1 kill -9
+
+# Copy new Executable to Destination Folder
 cp passt /usr/local/bin/
 cp passt.avx2 /usr/local/bin/
 cp pasta /usr/local/bin/

@@ -37,6 +37,9 @@ git_clone_update() {
     else
         if [ -d "${lfolder}" ] && [ -d "${lfolder}/.git" ]
         then
+           # Change Working Directly to Target Folder
+           cd "${lfolder}"
+
            # Git Repository has already been cloned
            # Fetch latest Changes
            git fetch --all
