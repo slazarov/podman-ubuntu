@@ -67,7 +67,7 @@ sudo apt-get install libglib2.0-dev libslirp-dev libcap-dev libseccomp-dev
 apt install libfuse3-dev
 
 # Dependencies to build Toolbox
-apt install libsubid-dev
+apt install libsubid-dev meson codespell cmake
 
 # Dependencies to install Protoc
 apt install unzip

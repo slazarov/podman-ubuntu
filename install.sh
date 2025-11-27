@@ -19,8 +19,11 @@ source "${toolpath}/scripts/install_dependencies.sh"
 # Install RUST
 source "${toolpath}/scripts/install_rust.sh"
 
-# Install Protoc
+# Install other Dependencies
 source "${toolpath}/scripts/install_dependencies.sh"
+
+# Install Protoc
+source "${toolpath}/scripts/install_protoc.sh"
 
 # Install Go
 source "${toolpath}/scripts/install_go.sh"

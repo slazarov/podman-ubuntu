@@ -30,7 +30,8 @@ git_checkout "${TOOLBOX_TAG}"
 log_component "toolbox"
 
 # Change into "src" Subfolder
-cd src
+# This might need to be enabled/disabled (possibly depending on Version of meson being used) if meson complains about the Folder Structure
+# cd src
 
 # Must Patch 1.22.6 -> 1.23 in /usr/src/podman/podman/go.mod
 sed -Ei "s|^go 1.22.6$|go 1.23|" go.mod
