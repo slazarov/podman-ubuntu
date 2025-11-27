@@ -1,7 +1,11 @@
 #!/bin/bash
 
+# Determine toolpath if not set already
+relativepath="./" # Define relative path to go from this script to the root level of the tool
+if [[ ! -v toolpath ]]; then scriptpath=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ); toolpath=$(realpath --canonicalize-missing ${scriptpath}/${relativepath}); fi
+
 # Build Root
-export BUILD_ROOT="./build"
+export BUILD_ROOT="${toolpath}/build"
 
 # Go Root Folder
 export GO_ROOT_FOLDER="/opt/go"
@@ -30,7 +34,7 @@ export GOROOT="/opt/go/${GOVERSION}"
 #export RUNC_TAG="v${RUNC_VERSION}"
 
 # Crun Version
-export CRUN_VERSION="1.22"
+export CRUN_VERSION="1.25.1"
 export CRUN_TAG="${CRUN_VERSION}"
 
 # Conmon Version
@@ -62,10 +66,10 @@ export CRUN_TAG="${CRUN_VERSION}"
 #export TOOLBOX_TAG="${TOOLBOX_VERSION}"
 
 # Protoc Version and Path
-#export PROTOC_VERSION="31.1"
-#export PROTOC_TAG="v${PROTOC_VERSION}"
-#export PROTOC_ROOT_FOLDER="/opt/protoc"
-#export PROTOC_PATH="${PROTOC_ROOT_FOLDER}/${PROTOC_VERSION}/bin/protoc"
+export PROTOC_VERSION="33.1"
+export PROTOC_TAG="v${PROTOC_VERSION}"
+export PROTOC_ROOT_FOLDER="/opt/protoc"
+export PROTOC_PATH="${PROTOC_ROOT_FOLDER}/${PROTOC_VERSION}/bin/protoc"
 
 # Create Build Folder Root
 mkdir -p "${BUILD_ROOT}"
