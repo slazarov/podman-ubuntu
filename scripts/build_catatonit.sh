@@ -26,6 +26,9 @@ git_checkout "${CATATONIT_TAG}"
 # Log Component
 log_component "catatonit"
 
+# Run libtoolize (might be required if not done automatically by autogen.sh)
+libtoolize
+
 # Build
 ./autogen.sh
 ./configure
