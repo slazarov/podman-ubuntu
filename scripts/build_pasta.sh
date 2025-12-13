@@ -43,7 +43,7 @@ set +e
 ps aux | grep pasta | grep -v "bash" | awk '{print $2}' | xargs -n 1 kill -9
 
 # Set exit on Error if required
-if [ ${current_error_setting} -eq 0]
+if [ ${current_error_setting} -eq 0 ]
 then
     set -e
 fi
