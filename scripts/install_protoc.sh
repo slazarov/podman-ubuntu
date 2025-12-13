@@ -22,4 +22,8 @@ unzip protoc-${PROTOC_VERSION}-linux-x86_64.zip -d ${PROTOC_ROOT_FOLDER}/${PROTO
 # Required Fix otherwise go complains about 1.22.6 vs 1.23 mismatch
 export PATH="${PROTOC_PATH}:${PATH}"
 
-ln -s ${PROTOC_PATH} /usr/local/bin/protoc
+if [[ ! -L /usr/local/bin/protoc ]]
+then
+    ln -s ${PROTOC_PATH} /usr/local/bin/protoc
+fi
+
