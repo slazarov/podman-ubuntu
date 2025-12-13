@@ -23,7 +23,7 @@ cd "${BUILD_ROOT}" || exit
 export PATH="$GOPATH:$PATH"
 
 git_clone_update https://github.com/containers/podman.git podman
-cd podman
+cd "${BUILD_ROOT}/podman"
 git_checkout "${PODMAN_TAG}"
 
 # Log Component

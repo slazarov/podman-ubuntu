@@ -21,7 +21,7 @@ source "${toolpath}/functions.sh"
 cd "${BUILD_ROOT}" || exit
 
 git_clone_update https://github.com/containers/aardvark-dns aardvark-dns
-cd aardvark-dns
+cd "${BUILD_ROOT}/aardvark-dns"
 git_checkout "${AARDVARK_DNS_TAG}"
 
 # Log Component

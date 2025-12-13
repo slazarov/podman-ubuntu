@@ -21,7 +21,7 @@ source "${toolpath}/functions.sh"
 cd "${BUILD_ROOT}" || exit
 
 git_clone_update https://github.com/containers/netavark netavark
-cd netavark
+cd "${BUILD_ROOT}/netavark"
 git_checkout "${NETAVARK_TAG}"
 
 # Log Component
