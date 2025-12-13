@@ -68,6 +68,8 @@ apt install libfuse3-dev
 
 # Dependencies to build Toolbox
 apt install libsubid-dev meson codespell cmake
+apt install systemd-dev
 
 # Dependencies to install Protoc
 apt install unzip
+
