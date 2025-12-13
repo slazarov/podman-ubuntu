@@ -20,7 +20,7 @@ cd "${BUILD_ROOT}" || exit
 export PATH="$GOPATH:$PATH"
 
 git_clone_update https://github.com/containers/buildah.git buildah
-cd buildah
+cd "${BUILD_ROOT}/buildah"
 git_checkout "${BUILDAH_TAG}"
 
 # Log Component

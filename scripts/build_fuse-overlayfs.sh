@@ -20,7 +20,7 @@ cd "${BUILD_ROOT}" || exit
 export PATH="$GOPATH:$PATH"
 
 git_clone_update https://github.com/containers/fuse-overlayfs.git fuse-overlayfs
-cd fuse-overlayfs
+cd "${BUILD_ROOT}/fuse-overlayfs"
 git_checkout "${FUSE_OVERLAYFS_TAG}"
 
 # Log Component

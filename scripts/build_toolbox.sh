@@ -23,7 +23,7 @@ cd "${BUILD_ROOT}" || exit
 export PATH="$GOPATH:$PATH"
 
 git_clone_update https://github.com/containers/toolbox.git toolbox
-cd toolbox
+cd "${BUILD_ROOT}/toolbox"
 git_checkout "${TOOLBOX_TAG}"
 
 # Log Component

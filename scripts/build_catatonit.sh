@@ -20,7 +20,7 @@ cd "${BUILD_ROOT}" || exit
 export PATH="$GOPATH:$PATH"
 
 git_clone_update https://github.com/openSUSE/catatonit.git catatonit
-cd catatonit
+cd "${BUILD_ROOT}/catatonit"
 git_checkout "${CATATONIT_TAG}"
 
 # Log Component

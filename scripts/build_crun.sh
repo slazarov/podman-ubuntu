@@ -20,7 +20,7 @@ cd "${BUILD_ROOT}" || exit
 export PATH="$GOPATH:$PATH"
 
 git_clone_update https://github.com/containers/crun.git crun
-cd crun
+cd "${BUILD_ROOT}/crun"
 git_checkout "${CRUN_TAG}"
 
 # Log Component

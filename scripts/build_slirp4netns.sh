@@ -21,7 +21,7 @@ export PATH="$GOPATH:$PATH"
 
 
 git_clone_update https://github.com/rootless-containers/slirp4netns.git slirp4netns
-cd slirp4netns
+cd "${BUILD_ROOT}/slirp4netns"
 git_checkout "${SLIRP4NETNS_TAG}"
 
 # Log Component

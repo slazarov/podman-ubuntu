@@ -25,7 +25,7 @@ export PATH="$GOPATH/bin:$PATH"
 export PATH="$GOROOT/bin:$PATH"
 
 git_clone_update https://github.com/containers/skopeo.git skopeo
-cd skopeo
+cd "${BUILD_ROOT}/skopeo"
 git_checkout "${SKOPEO_TAG}"
 
 # Log Component

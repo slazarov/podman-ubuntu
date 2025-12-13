@@ -17,7 +17,7 @@ source "${toolpath}/functions.sh"
 cd "${BUILD_ROOT}" || exit
 
 git_clone_update https://passt.top/passt passt
-cd passt
+cd "${BUILD_ROOT}/passt"
 git fetch --all
 git fetch --tags
 git pull

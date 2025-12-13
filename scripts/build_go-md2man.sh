@@ -20,7 +20,7 @@ cd "${BUILD_ROOT}" || exit
 export PATH="$GOPATH:$PATH"
 
 git_clone_update https://github.com/cpuguy83/go-md2man.git go-md2man
-cd go-md2man
+cd "${BUILD_ROOT}/go-md2man"
 git_checkout "${GOMD2MAN_TAG}"
 
 # Log Component

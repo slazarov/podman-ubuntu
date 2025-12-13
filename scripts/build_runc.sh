@@ -23,7 +23,7 @@ export PATH="$GOPATH:$PATH"
 #cd $GOPATH/src/github.com/opencontainers/runc
 
 git_clone_update https://github.com/opencontainers/runc.git runc
-cd runc
+cd "${BUILD_ROOT}/runc"
 git_checkout "${RUNC_TAG}"
 
 # Log Component
