@@ -32,7 +32,21 @@ log_component "pasta"
 make
 
 # Kill current running Processes
-ps aux | grep pasta | awk '{print $2}' | xargs -n 1 kill -9
+# Save current Error Setting
+shopt -qo errexit
+current_error_setting=$?
+
+# Avoid stopping on Errors
+set +e
+
+# Kill processes (exclude this own Script)
+ps aux | grep pasta | grep -v "bash" | awk '{print $2}' | xargs -n 1 kill -9
+
+# Set exit on Error if required
+if [ ${current_error_setting} -eq 0]
+then
+    set -e
+fi
 
 # Copy new Executable to Destination Folder
 cp passt /usr/local/bin/
