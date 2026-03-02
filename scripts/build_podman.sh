@@ -44,6 +44,9 @@ sed -Ei "s|^go 1.22.6$|go 1.23|" go.mod
 make GO="$GOPATH/go" BUILDTAGS="seccomp apparmor systemd" PREFIX=/usr
 sudo make GO="$GOPATH/go" install PREFIX=/usr
 
+# Copy containers.conf to enable podman to find helper binaries in /usr/local/bin
+sudo mkdir -p /etc/containers
+sudo cp "${toolpath}/config/containers.conf" /etc/containers/containers.conf
 
 # Copy to Target Folder
 
