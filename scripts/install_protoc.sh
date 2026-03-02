@@ -39,3 +39,7 @@ then
     ln -s ${PROTOC_PATH} /usr/local/bin/protoc
 fi
 
+# Cleanup downloaded archive
+rm -f protoc.zip
+cleanup_build_artifacts
+
