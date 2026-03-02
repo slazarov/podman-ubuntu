@@ -42,9 +42,6 @@ run_script "install_dependencies.sh"
 # Install RUST
 run_script "install_rust.sh"
 
-# Install other Dependencies
-run_script "install_dependencies.sh"
-
 # Install Protoc
 run_script "install_protoc.sh"
 
