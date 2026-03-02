@@ -187,3 +187,37 @@ done 2>/dev/null || true
 remove_if_user_installed "/usr/bin/podman"
 remove_if_user_installed "/usr/bin/podman-remote"
 remove_if_user_installed "/usr/bin/podmansh"
+
+# ============================================
+# Summary Output
+# ============================================
+
+echo ""
+echo "========================================"
+echo "Uninstall Summary"
+echo "========================================"
+
+if [[ ${#REMOVED[@]} -gt 0 ]]; then
+    echo "Removed:"
+    for item in "${REMOVED[@]}"; do
+        echo "  - $item"
+    done
+else
+    echo "Removed: (nothing)"
+fi
+
+echo ""
+
+if [[ ${#SKIPPED[@]} -gt 0 ]]; then
+    echo "Skipped (not found or no target):"
+    for item in "${SKIPPED[@]}"; do
+        echo "  - $item"
+    done
+else
+    echo "Skipped: (nothing)"
+fi
+
+echo ""
+echo "========================================"
+echo "Uninstall completed."
+echo "========================================"
