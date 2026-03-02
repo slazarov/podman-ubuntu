@@ -25,21 +25,27 @@ trap 'error_handler $? $LINENO "$BASH_SOURCE"' ERR
 # Change Folder to Build Root
 cd "${BUILD_ROOT}" || exit
 
+# Initialize build logging
+log_build_output "netavark"
+
+step_start "Cloning repository"
 git_clone_update https://github.com/containers/netavark netavark
 cd "${BUILD_ROOT}/netavark"
+step_done
+
+step_start "Checking out tag"
 git_checkout "${NETAVARK_TAG}"
+step_done
 
-# Log Component
+step_start "Logging version"
 log_component "netavark"
+step_done
 
-# Build
-make
+step_start "Building"
+run_logged make
+step_done
 
-#make BUILDTAGS="selinux seccomp apparmor systemd" PREFIX=/usr
-#make BUILDTAGS="seccomp apparmor systemd" PREFIX=/usr
-
-
-#sudo make install
-
+step_start "Installing"
 cp bin/netavark /usr/local/bin/netavark
 cp bin/netavark-dhcp-proxy-client /usr/local/bin/netavark-dhcp-proxy-client
+step_done

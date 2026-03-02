@@ -33,18 +33,26 @@ trap 'error_handler $? $LINENO "$BASH_SOURCE"' ERR
 # Change Folder to Build Root
 cd "${BUILD_ROOT}" || exit
 
+# Initialize build logging
+log_build_output "aardvark-dns"
+
+step_start "Cloning repository"
 git_clone_update https://github.com/containers/aardvark-dns aardvark-dns
 cd "${BUILD_ROOT}/aardvark-dns"
+step_done
+
+step_start "Checking out tag"
 git_checkout "${AARDVARK_DNS_TAG}"
+step_done
 
-# Log Component
+step_start "Logging version"
 log_component "aardvark-dns"
+step_done
 
-# Build
-make
+step_start "Building"
+run_logged make
+step_done
 
-#make BUILDTAGS="selinux seccomp apparmor systemd" PREFIX=/usr
-#make BUILDTAGS="seccomp apparmor systemd" PREFIX=/usr
-#sudo make install
-
+step_start "Installing"
 cp bin/aardvark-dns /usr/local/bin/aardvark-dns
+step_done
