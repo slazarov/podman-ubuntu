@@ -31,8 +31,8 @@ detect_architecture() {
     esac
 }
 
-# Load Configuration
-source "${toolpath}/config.sh"
+# NOTE: config.sh is sourced at the END of this file (after all function definitions)
+# This is required because config.sh calls get_latest_protoc_version() and get_latest_go_version()
 
 get_latest_tag() {
     # Input Parameters
@@ -165,6 +165,27 @@ remove_if_user_installed() {
 }
 
 # ============================================
+# Build Artifact Cleanup
+# ============================================
+
+cleanup_build_artifacts() {
+    echo "Cleaning up build artifacts..."
+
+    # Remove downloaded archives if build directories exist
+    if [ -d "${BUILD_ROOT}/aardvark-dns" ]; then
+        rm -f "${toolpath}/build/go*.linux-${ARCH}.tar.gz"
+        rm -f "${toolpath}/build/protoc*-linux-${ARCH}.zip"
+        rm -f "${toolpath}/build/rustup-init.sh"
+    fi
+
+    # Clean up other temporary build files
+    find "${BUILD_ROOT}" -name "*.tar.*" -type f -delete 2>/dev/null || true
+    find "${BUILD_ROOT}" -name "*.zip" -type f -delete 2>/dev/null || true
+
+    echo "Cleanup completed"
+}
+
+# ============================================
 # Error Handling
 # ============================================
 
@@ -187,3 +208,11 @@ error_handler() {
 
     exit "${exit_code}"
 }
+
+# ============================================
+# Load Configuration (MUST be after all function definitions)
+# ============================================
+# This sources config.sh which calls get_latest_protoc_version() and get_latest_go_version()
+# Those functions must be defined BEFORE this line!
+
+source "${toolpath}/config.sh"

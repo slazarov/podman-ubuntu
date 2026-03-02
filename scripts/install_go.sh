@@ -38,3 +38,7 @@ tar -xzf go.tar.gz
 # Move to destination (Go tarball extracts to 'go' directory)
 rm -rf "${GOROOT}"
 mv go "${GOROOT}"
+
+# Cleanup downloaded archive
+rm -f go.tar.gz
+cleanup_build_artifacts
