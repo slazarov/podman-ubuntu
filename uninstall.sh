@@ -19,6 +19,53 @@ source "${toolpath}/functions.sh"
 # Set error trap AFTER sourcing
 trap 'error_handler $? $LINENO "$BASH_SOURCE"' ERR
 
+# ============================================
+# Uninstall Tracking
+# ============================================
+
+declare -a REMOVED=()
+declare -a SKIPPED=()
+
+# Safe directory removal with tracking
+safe_rm_dir() {
+    local dir="$1"
+    local description="$2"
+    if [[ -d "$dir" ]]; then
+        rm -rf "$dir"
+        REMOVED+=("$description: $dir")
+    else
+        SKIPPED+=("$description: $dir (not found)")
+    fi
+}
+
+# Safe file removal with tracking
+safe_rm_file() {
+    local file="$1"
+    local description="$2"
+    if [[ -f "$file" ]]; then
+        rm -f "$file"
+        REMOVED+=("$description: $file")
+    else
+        SKIPPED+=("$description: $file (not found)")
+    fi
+}
+
+# Safe make uninstall with tracking
+safe_make_uninstall() {
+    local dir="$1"
+    local component="$2"
+    if [[ -d "$dir" ]]; then
+        cd "$dir" || true
+        if make uninstall 2>/dev/null; then
+            REMOVED+=("make uninstall: $component")
+        else
+            SKIPPED+=("make uninstall: $component (no target or failed)")
+        fi
+    else
+        SKIPPED+=("build directory: $dir ($component)")
+    fi
+}
+
 # Uninstall AardvarkDNS
 cd "${BUILD_ROOT}/aardvark-dns/"
 make uninstall
