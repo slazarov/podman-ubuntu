@@ -32,7 +32,7 @@ Requirements for ARM support and non-interactive installation.
 ### User Experience
 
 - [x] **UX-01**: Progress messages show current operation
-- [ ] **UX-02**: Build output logged to files
+- [x] **UX-02**: Build output logged to files
 - [x] **UX-03**: Uninstall script exists and works
 
 ## v2 Requirements
@@ -82,7 +82,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ERRO-03 | Phase 3: Error Handling | Complete |
 | ERRO-04 | Phase 3: Error Handling | Complete |
 | UX-01 | Phase 4: User Experience | Complete |
-| UX-02 | Phase 4: User Experience | Pending |
+| UX-02 | Phase 4: User Experience | Complete |
 | UX-03 | Phase 4: User Experience | Complete |
 
 **Coverage:**
