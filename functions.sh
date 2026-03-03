@@ -98,7 +98,12 @@ git_clone_update() {
         else
            # Git Repository has NOT been cloned yet
            # Clone Git Repository
-           git clone "${lrepository}" "${lfolder}"
+           # Use shallow clone for fresh clones if enabled (reduces network transfer ~95%)
+           if [[ "${SHALLOW_CLONE:-true}" == "true" ]]; then
+               git clone --depth 1 "${lrepository}" "${lfolder}"
+           else
+               git clone "${lrepository}" "${lfolder}"
+           fi
         fi
     fi
 }
