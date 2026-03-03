@@ -91,13 +91,11 @@ Plans:
   3. Go builds use optimization flags (gcflags, ldflags, GOGC=off) for ~30% faster compilation
   4. Cargo builds use CARGO_BUILD_JOBS for 2-4x parallel speedup
   5. Users can override all optimization settings via environment variables
-**Plans**: 4 plans in 2 waves
+**Plans**: 2 plans in 1 wave
 
 Plans:
-- [ ] 05-01-PLAN.md — Add NPROC detection and shallow clone support (foundation)
-- [ ] 05-02-PLAN.md — Add parallel make to all Make-based build scripts
-- [ ] 05-03-PLAN.md — Add Go compiler optimization flags
-- [ ] 05-04-PLAN.md — Add Cargo parallel compilation support
+- [x] 05-01-PLAN.md — Foundation: NPROC, shallow clone, parallel make, Cargo optimization (VERIFIED COMPLETE)
+- [ ] 05-02-PLAN.md — Add Go compiler optimization flags to remaining build scripts
 
 ## Progress
 
@@ -110,4 +108,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Non-Interactive Mode | 1/1 | Complete | 02-01 |
 | 3. Error Handling | 3/3 | Complete | 03-01, 03-02, 03-03 |
 | 4. User Experience | 3/3 | Complete | 04-01, 04-02, 04-03 |
-| 5. Build Time Optimization | 0/4 | Planned | - |
+| 5. Build Time Optimization | 1/2 | In Progress | 05-01 (verified), 05-02 (pending) |

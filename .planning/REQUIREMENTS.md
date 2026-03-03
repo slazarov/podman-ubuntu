@@ -37,10 +37,10 @@ Requirements for ARM support and non-interactive installation.
 
 ### Build Time Optimization
 
-- [ ] **PERF-01**: All Make-based builds use parallel compilation with make -j$(nproc)
+- [x] **PERF-01**: All Make-based builds use parallel compilation with make -j$(nproc)
 - [x] **PERF-02**: Git clones use shallow clone (--depth 1) to reduce network transfer
 - [ ] **PERF-03**: Go builds use optimization flags (gcflags, ldflags, GOGC=off)
-- [ ] **PERF-04**: Cargo builds use CARGO_BUILD_JOBS for parallel compilation
+- [x] **PERF-04**: Cargo builds use CARGO_BUILD_JOBS for parallel compilation
 
 ## v2 Requirements
 
@@ -97,10 +97,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UX-01 | Phase 4: User Experience | Complete |
 | UX-02 | Phase 4: User Experience | Complete |
 | UX-03 | Phase 4: User Experience | Complete |
-| PERF-01 | Phase 5: Build Time Optimization | Planned |
-| PERF-02 | Phase 5: Build Time Optimization | Planned |
-| PERF-03 | Phase 5: Build Time Optimization | Planned |
-| PERF-04 | Phase 5: Build Time Optimization | Planned |
+| PERF-01 | Phase 5: Build Time Optimization | Complete |
+| PERF-02 | Phase 5: Build Time Optimization | Complete |
+| PERF-03 | Phase 5: Build Time Optimization | In Progress |
+| PERF-04 | Phase 5: Build Time Optimization | Complete |
 
 **Coverage:**
 - v1 requirements: 16 total
@@ -111,4 +111,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2025-02-28*
-*Last updated: 2026-03-03 - Added Phase 5 build optimization requirements*
+*Last updated: 2026-03-03 - Updated Phase 5 requirements status based on codebase verification*
