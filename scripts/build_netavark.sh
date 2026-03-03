@@ -41,6 +41,16 @@ step_start "Logging version"
 log_component "netavark"
 step_done
 
+step_start "Configuring Cargo optimization"
+# Set parallel jobs for cargo (uses NPROC by default)
+export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-$NPROC}"
+
+# Optional sccache support - uncomment if configured
+# if [[ "${SCCACHE_ENABLED:-false}" == "true" ]] && command -v sccache &>/dev/null; then
+#     export RUSTC_WRAPPER=sccache
+# fi
+step_done
+
 step_start "Building"
 run_logged make
 step_done
