@@ -115,11 +115,6 @@ export PODMAN_TAG="${PODMAN_TAG:-}"
 #export BUILDAH_TAG="v${BUILDAH_VERSION}"
 export BUILDAH_TAG="${BUILDAH_TAG:-}"
 
-# Runc Version
-#export RUNC_VERSION="1.3.0"
-#export RUNC_TAG="v${RUNC_VERSION}"
-export RUNC_TAG="${RUNC_TAG:-}"
-
 # Crun Version
 #export CRUN_VERSION="1.25.1"
 #export CRUN_TAG="${CRUN_VERSION}"
@@ -129,11 +124,6 @@ export CRUN_TAG="${CRUN_TAG:-}"
 #export CONMON_VERSION="2.1.13"
 #export CONMON_TAG="v${CONMON_VERSION}"
 export CONMON_TAG="${CONMON_TAG:-}"
-
-# Slirp4netns Version
-#export SLIRP4NETNS_VERSION="1.3.3"
-#export SLIRP4NETNS_TAG="v${SLIRP4NETNS_VERSION}"
-export SLIRP4NETNS_TAG="${SLIRP4NETNS_TAG:-}"
 
 # Netavark Version
 #export NETAVARK_VERSION="1.15.2"
