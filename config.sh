@@ -63,6 +63,21 @@ export SCCACHE_ENABLED="${SCCACHE_ENABLED:-false}"
 # Example for WebDAV: export SCCACHE_WEBDAV_ENDPOINT="https://cache.example.com"
 
 # ============================================
+# Go Build Optimization
+# ============================================
+
+# Go compiler optimization flags for faster builds
+# -gcflags='-c=16': Parallel compilation within Go compiler (~25% faster)
+# -ldflags='-s -w': Strip debug symbols for smaller binaries
+# GOGC=off: Disable GC during compilation (~30% faster, uses ~2.5x RAM)
+export GO_GCFLAGS="${GO_GCFLAGS:--c=16}"
+export GO_LDFLAGS="${GO_LDFLAGS:--s -w}"
+
+# Disable Go GC during compilation for speed (uses more RAM)
+# Set to empty string to re-enable: export GOGC_BUILD=""
+export GOGC_BUILD="${GOGC_BUILD:-off}"
+
+# ============================================
 # Build Paths
 # ============================================
 
