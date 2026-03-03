@@ -39,7 +39,7 @@ log_component "pasta"
 step_done
 
 step_start "Building"
-run_logged make
+run_logged make -j "$NPROC"
 step_done
 
 step_start "Installing"
