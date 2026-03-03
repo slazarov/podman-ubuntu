@@ -63,9 +63,6 @@ apt-get install -y make git gcc build-essential pkgconf libtool \
 #go-md2man
 
 
-# Dependencies for building slirp4netns
-apt-get install -y libglib2.0-dev libslirp-dev libcap-dev libseccomp-dev
-
 # Dependencies for fuse-overlayfs
 apt-get install -y libfuse3-dev
 
