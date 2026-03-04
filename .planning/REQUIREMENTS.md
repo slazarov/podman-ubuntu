@@ -48,22 +48,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BUILD-01 | — | Pending |
-| BUILD-02 | — | Pending |
-| BUILD-03 | — | Pending |
-| CONFIG-01 | — | Pending |
-| CONFIG-02 | — | Pending |
-| CONFIG-03 | — | Pending |
-| CONFIG-04 | — | Pending |
-| CONFIG-05 | — | Pending |
-| DOCS-01 | — | Pending |
-| UNINST-01 | — | Pending |
+| BUILD-01 | Phase 11 | Pending |
+| BUILD-02 | Phase 11 | Pending |
+| BUILD-03 | Phase 11 | Pending |
+| CONFIG-01 | Phase 12 | Pending |
+| CONFIG-02 | Phase 12 | Pending |
+| CONFIG-03 | Phase 12 | Pending |
+| CONFIG-04 | Phase 12 | Pending |
+| CONFIG-05 | Phase 12 | Pending |
+| DOCS-01 | Phase 13 | Pending |
+| UNINST-01 | Phase 13 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 10 total
-- Mapped to phases: 0
-- Unmapped: 10 ⚠️
+- Mapped to phases: 10
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-04*
-*Last updated: 2026-03-04 after initial definition*
+*Last updated: 2026-03-04 after roadmap creation*
