@@ -3,7 +3,7 @@
 ## Milestones
 
 - **v1.0 MVP** - Phases 1-5 (shipped 2026-03-03)
-- **v1.1 Ecosystem Audit** - Phases 6-9 (in progress)
+- **v1.1 Ecosystem Audit** - Phases 6-9 (completed 2026-03-04)
 
 ## Phases
 
@@ -18,7 +18,7 @@
 
 </details>
 
-### v1.1 Ecosystem Audit (In Progress)
+### v1.1 Ecosystem Audit (Complete - 2026-03-04)
 
 **Milestone Goal:** Research and optimize the Podman build ecosystem - remove deprecated components, add pre-flight validation, and implement build caching.
 
@@ -87,7 +87,7 @@ Plans:
 
 Plans:
 - [x] 09-01-PLAN.md -- Persist Go build/module cache across component builds
-- [ ] 09-02-PLAN.md -- Add ccache for C builds and mold linker for Rust builds
+- [x] 09-02-PLAN.md -- Add ccache for C builds and mold linker for Rust builds
 
 ## Progress
 
@@ -104,7 +104,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 6. Component Cleanup | v1.1 | 1/1 | Complete | 2026-03-03 |
 | 7. Pre-flight Validation | v1.1 | 1/1 | Complete | 2026-03-03 |
 | 8. Build Optimization & Configuration | v1.1 | 2/2 | Complete | 2026-03-04 |
-| 9. Build Optimization - Go Cache, ccache, mold | v1.1 | 1/2 | In Progress | - |
+| 9. Build Optimization - Go Cache, ccache, mold | v1.1 | 2/2 | Complete | 2026-03-04 |
 
 ---
 

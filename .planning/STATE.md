@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Ecosystem Audit
-status: in-progress
-stopped_at: Completed 09-01 Go cache persistence plan
-last_updated: "2026-03-04T00:45:47Z"
-last_activity: 2026-03-04 - Completed 09-01 Go cache persistence
+status: complete
+stopped_at: Completed 09-02 ccache and mold integration plan
+last_updated: "2026-03-04T00:52:32Z"
+last_activity: 2026-03-04 - Completed 09-02 ccache and mold integration
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 6
-  completed_plans: 5
-  percent: 83
+  completed_plans: 6
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 9 of 9 (Build Optimization - Go Cache, ccache, mold)
-Plan: 1 of 2 in current phase (09-01 complete)
-Status: Phase 9 in progress
-Last activity: 2026-03-04 - Completed 09-01 Go cache persistence
+Plan: 2 of 2 in current phase (09-01, 09-02 complete)
+Status: v1.1 Milestone COMPLETE
+Last activity: 2026-03-04 - Completed 09-02 ccache and mold integration
 
-Progress: [||||||||||||||||||||    ] 83% (5/6 v1.1 plans complete)
+Progress: [||||||||||||||||||||||||] 100% (6/6 v1.1 plans complete)
 
 ## Previous Milestone (v1.0)
 
@@ -71,6 +71,12 @@ v1.1 decisions will be added as phases complete.
 - Centralized GOCACHE/GOMODCACHE in config.sh -- single source of truth, no per-script overrides
 - Default disabled for existing users via ${:-} pattern -- respects user-set env vars
 
+**Phase 09-02 Decisions:**
+- ccache uses CCACHE_COMPILERCHECK=content for correct cache invalidation on GCC upgrades
+- mold configured via .cargo/config.toml (not RUSTFLAGS env var) to avoid conflicts with sccache RUSTC_WRAPPER
+- clang installed alongside mold as linker driver (GCC < 12 has mold compatibility issues)
+- Both features default to false -- zero behavior change for existing users
+
 ### Roadmap Evolution
 
 - Phase 9 added: research podman build optimization + introducing better lib/tools in the ecosystem
@@ -90,5 +96,5 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed 09-01 Go cache persistence plan
+Stopped at: Completed 09-02 ccache and mold integration plan (v1.1 milestone complete)
 Resume file: None

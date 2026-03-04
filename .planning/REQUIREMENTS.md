@@ -84,12 +84,12 @@ Requirements for ARM support and non-interactive installation.
 - [x] **CACHE-01**: Persist GOCACHE to /var/cache/go-build across Go component builds (20x faster rebuilds)
 - [x] **CACHE-02**: Persist GOMODCACHE to /var/cache/go-mod across Go component builds (skip re-downloads)
 - [x] **CACHE-03**: Remove ephemeral GOCACHE overrides from Go build scripts (podman, buildah, skopeo, conmon, go-md2man)
-- [ ] **CACHE-04**: Add CCACHE_ENABLED feature flag for C build caching (opt-in, default false)
-- [ ] **CACHE-05**: Conditionally install ccache via apt when CCACHE_ENABLED=true
-- [ ] **CACHE-06**: Activate ccache (CC=ccache gcc) in C build scripts (crun, catatonit, fuse-overlayfs, pasta)
-- [ ] **CACHE-07**: Add MOLD_ENABLED feature flag for mold linker (opt-in, default false)
-- [ ] **CACHE-08**: Conditionally install mold+clang via apt when MOLD_ENABLED=true
-- [ ] **CACHE-09**: Activate mold linker via .cargo/config.toml in Rust build scripts (netavark, aardvark-dns)
+- [x] **CACHE-04**: Add CCACHE_ENABLED feature flag for C build caching (opt-in, default false)
+- [x] **CACHE-05**: Conditionally install ccache via apt when CCACHE_ENABLED=true
+- [x] **CACHE-06**: Activate ccache (CC=ccache gcc) in C build scripts (crun, catatonit, fuse-overlayfs, pasta)
+- [x] **CACHE-07**: Add MOLD_ENABLED feature flag for mold linker (opt-in, default false)
+- [x] **CACHE-08**: Conditionally install mold+clang via apt when MOLD_ENABLED=true
+- [x] **CACHE-09**: Activate mold linker via .cargo/config.toml in Rust build scripts (netavark, aardvark-dns)
 
 ---
 
@@ -175,19 +175,19 @@ Deferred to future release.
 | CACHE-01 | Phase 9 | Complete |
 | CACHE-02 | Phase 9 | Complete |
 | CACHE-03 | Phase 9 | Complete |
-| CACHE-04 | Phase 9 | Planned |
-| CACHE-05 | Phase 9 | Planned |
-| CACHE-06 | Phase 9 | Planned |
-| CACHE-07 | Phase 9 | Planned |
-| CACHE-08 | Phase 9 | Planned |
-| CACHE-09 | Phase 9 | Planned |
+| CACHE-04 | Phase 9 | Complete |
+| CACHE-05 | Phase 9 | Complete |
+| CACHE-06 | Phase 9 | Complete |
+| CACHE-07 | Phase 9 | Complete |
+| CACHE-08 | Phase 9 | Complete |
+| CACHE-09 | Phase 9 | Complete |
 
 **Coverage:**
 - v1 requirements: 20 total (Complete)
-- v1.1 requirements: 26 total (20 complete, 6 planned)
+- v1.1 requirements: 26 total (26 complete)
 - Mapped to phases: 46
 - Unmapped: 0
 
 ---
 *Requirements defined: 2025-02-28*
-*Last updated: 2026-03-04 - CACHE-01 through CACHE-09 added (Phase 9 planning)*
+*Last updated: 2026-03-04 - CACHE-04 through CACHE-09 completed (Phase 9 plan 02)*
