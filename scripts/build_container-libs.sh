@@ -48,12 +48,14 @@ step_done
 
 step_start "Building seccomp.json"
 # Build only the seccomp.json artifact via Go codegen
-# We do NOT need `make all` or `make install` -- only the seccomp profile
-run_logged make seccomp.json
+# The seccomp.json target lives in common/Makefile, not the repo root
+# generate.go writes to common/pkg/seccomp/seccomp.json
+run_logged make -C common seccomp.json
 step_done
 
 step_start "Verifying artifact"
-# Ensure seccomp.json was generated successfully
-test -f seccomp.json || { echo "ERROR: seccomp.json was not generated" >&2; exit 1; }
-echo "  seccomp.json generated successfully ($(wc -c < seccomp.json) bytes)"
+# Ensure seccomp.json was generated successfully (output path: common/pkg/seccomp/seccomp.json)
+SECCOMP_JSON="common/pkg/seccomp/seccomp.json"
+test -f "${SECCOMP_JSON}" || { echo "ERROR: seccomp.json was not generated at ${SECCOMP_JSON}" >&2; exit 1; }
+echo "  seccomp.json generated successfully ($(wc -c < "${SECCOMP_JSON}") bytes)"
 step_done
