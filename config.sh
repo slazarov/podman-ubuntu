@@ -64,6 +64,30 @@ export SCCACHE_VERSION="${SCCACHE_VERSION:-0.14.0}"
 export SCCACHE_DIR="${SCCACHE_DIR:-/var/cache/sccache}"
 
 # ============================================
+# C/C++ Build Optimization
+# ============================================
+
+# Optional: Enable ccache for C build caching (30x faster warm-cache rebuilds)
+# Set to "true" to enable: export CCACHE_ENABLED=true
+export CCACHE_ENABLED="${CCACHE_ENABLED:-false}"
+
+# ccache cache directory and max size (only used if CCACHE_ENABLED=true)
+export CCACHE_DIR="${CCACHE_DIR:-/var/cache/ccache}"
+export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-2G}"
+
+# Hash compiler binary content for correct cache invalidation on GCC upgrades
+export CCACHE_COMPILERCHECK="${CCACHE_COMPILERCHECK:-content}"
+
+# ============================================
+# Linker Optimization
+# ============================================
+
+# Optional: Enable mold linker for Rust builds (5-10x faster linking)
+# Set to "true" to enable: export MOLD_ENABLED=true
+# Note: Requires clang as linker driver (installed automatically with mold)
+export MOLD_ENABLED="${MOLD_ENABLED:-false}"
+
+# ============================================
 # Go Build Optimization
 # ============================================
 
