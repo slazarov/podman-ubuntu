@@ -43,7 +43,7 @@ step_start "Applying pre-build fixes"
 step_done
 
 step_start "Configuring"
-run_logged meson --prefix /usr/local --buildtype=plain builddir
+run_logged meson setup --prefix /usr --buildtype=plain builddir
 step_done
 
 step_start "Building"
@@ -55,5 +55,5 @@ run_logged meson test -C builddir
 step_done
 
 step_start "Installing"
-run_logged DESTDIR=/usr/local meson install -C builddir
+run_logged meson install -C builddir
 step_done
