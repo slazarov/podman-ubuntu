@@ -33,7 +33,7 @@
 ### v1.2 Include Common Libraries (In Progress)
 
 - [x] **Phase 11: Build container-libs** - Clone, install C dependencies, build container-libs and generate seccomp.json
-- [ ] **Phase 12: Install Configuration Files** - Install all runtime config files to system paths
+- [x] **Phase 12: Install Configuration Files** - Install all runtime config files to system paths
 - [ ] **Phase 13: Man Pages and Uninstall** - Install man pages and extend uninstall to cover all new artifacts
 
 ## Phase Details
@@ -60,9 +60,9 @@ Plans:
   3. registries.d/default.yaml exists at /etc/containers/registries.d/default.yaml
   4. storage.conf exists at /etc/containers/storage.conf
   5. registries.conf exists at /etc/containers/registries.conf
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 12-01-PLAN.md -- Create install_container-configs.sh and wire into setup.sh
+- [x] 12-01-PLAN.md -- Create install_container-configs.sh and wire into setup.sh
 
 ### Phase 13: Man Pages and Uninstall
 **Goal**: Config file documentation is accessible and all new artifacts are removable via uninstall
@@ -90,7 +90,7 @@ Plans:
 | 9. Build Optimization - Go Cache, ccache, mold | v1.1 | 2/2 | Complete | 2026-03-04 |
 | 10. Tech Debt Cleanup | v1.1 | 1/1 | Complete | 2026-03-04 |
 | 11. Build container-libs | v1.2 | Complete    | 2026-03-04 | 2026-03-04 |
-| 12. Install Configuration Files | v1.2 | 0/1 | Not started | - |
+| 12. Install Configuration Files | v1.2 | 1/1 | Complete | 2026-03-04 |
 | 13. Man Pages and Uninstall | v1.2 | 0/? | Not started | - |
 
 ---
