@@ -86,7 +86,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md -- Persist Go build/module cache across component builds
+- [x] 09-01-PLAN.md -- Persist Go build/module cache across component builds
 - [ ] 09-02-PLAN.md -- Add ccache for C builds and mold linker for Rust builds
 
 ## Progress
@@ -104,7 +104,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 6. Component Cleanup | v1.1 | 1/1 | Complete | 2026-03-03 |
 | 7. Pre-flight Validation | v1.1 | 1/1 | Complete | 2026-03-03 |
 | 8. Build Optimization & Configuration | v1.1 | 2/2 | Complete | 2026-03-04 |
-| 9. Build Optimization - Go Cache, ccache, mold | v1.1 | 0/2 | Planned | - |
+| 9. Build Optimization - Go Cache, ccache, mold | v1.1 | 1/2 | In Progress | - |
 
 ---
 

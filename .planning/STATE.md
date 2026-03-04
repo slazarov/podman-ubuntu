@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Ecosystem Audit
-status: completed
-stopped_at: Completed 08-01 Sccache Integration plan
-last_updated: "2026-03-04T00:11:42.738Z"
-last_activity: 2026-03-04 - Completed 08-01 Sccache Integration
+status: in-progress
+stopped_at: Completed 09-01 Go cache persistence plan
+last_updated: "2026-03-04T00:45:47Z"
+last_activity: 2026-03-04 - Completed 09-01 Go cache persistence
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  total_plans: 6
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Compile and install Podman on any Debian/Ubuntu system without user interaction.
-**Current focus:** Phase 8 - Build Optimization & Configuration (v1.1 Ecosystem Audit) - COMPLETE
+**Current focus:** Phase 9 - Build Optimization: Go Cache, ccache, and mold (v1.1 Ecosystem Audit)
 
 ## Current Position
 
-Phase: 8 of 8 (Build Optimization & Configuration)
-Plan: 2 of 2 in current phase (all complete)
-Status: All v1.1 plans complete
-Last activity: 2026-03-04 - Completed 08-01 Sccache Integration
+Phase: 9 of 9 (Build Optimization - Go Cache, ccache, mold)
+Plan: 1 of 2 in current phase (09-01 complete)
+Status: Phase 9 in progress
+Last activity: 2026-03-04 - Completed 09-01 Go cache persistence
 
-Progress: [||||||||||||||||||||||||] 100% (4/4 v1.1 plans complete)
+Progress: [||||||||||||||||||||    ] 83% (5/6 v1.1 plans complete)
 
 ## Previous Milestone (v1.0)
 
@@ -67,6 +67,10 @@ v1.1 decisions will be added as phases complete.
 - Pre-built musl binary from GitHub releases -- no compilation needed
 - Default SCCACHE_ENABLED=false -- zero behavior change for existing users
 
+**Phase 09-01 Decisions:**
+- Centralized GOCACHE/GOMODCACHE in config.sh -- single source of truth, no per-script overrides
+- Default disabled for existing users via ${:-} pattern -- respects user-set env vars
+
 ### Roadmap Evolution
 
 - Phase 9 added: research podman build optimization + introducing better lib/tools in the ecosystem
@@ -86,5 +90,5 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed 08-01 Sccache Integration plan
+Stopped at: Completed 09-01 Go cache persistence plan
 Resume file: None
