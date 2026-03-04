@@ -126,6 +126,11 @@ for f in /usr/local/share/man/man1/fuse-overlayfs*; do
     safe_rm_file "$f" "man page"
 done 2>/dev/null || true
 
+# Remove container-libs man pages (glob pattern)
+for f in /usr/share/man/man5/containers-*.5 /usr/share/man/man5/Containerfile.5 /usr/share/man/man5/containerignore.5 /usr/share/man/man5/.containerignore.5; do
+    safe_rm_file "$f" "man page"
+done 2>/dev/null || true
+
 # Remove toolbox files
 safe_rm_file "/usr/local/lib/tmpfiles.d/toolbox.conf" "tmpfiles config"
 rmdir --ignore-fail-on-non-empty /usr/local/lib/tmpfiles.d 2>/dev/null || true
@@ -141,6 +146,10 @@ rmdir --ignore-fail-on-non-empty /usr/local/bin 2>/dev/null || true
 safe_rm_file "/usr/libexec/podman/quadlet" "binary"
 safe_rm_file "/usr/libexec/podman/rootlessport" "binary"
 safe_rm_dir "/usr/libexec/podman" "podman libexec"
+
+# Remove container-libs installed files
+safe_rm_file "/usr/share/containers/seccomp.json" "seccomp profile"
+safe_rm_dir "/usr/share/containers" "containers share"
 
 # Remove binaries
 safe_rm_file "/usr/local/bin/aardvark-dns" "binary"
@@ -161,6 +170,9 @@ safe_rm_file "/usr/local/bin/sccache" "binary"
 
 # Remove Go installation
 safe_rm_dir "/opt/go" "go installation"
+
+# Remove container-libs build directory
+safe_rm_dir "${BUILD_ROOT}/container-libs" "container-libs build"
 
 # Remove sccache cache
 safe_rm_dir "/var/cache/sccache" "sccache cache"
