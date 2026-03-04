@@ -37,7 +37,7 @@ apt-get install -y \
   libgpg-error-dev \
   libprotobuf-dev \
   libprotobuf-c-dev \
-  libseccomp-dev \  # Also required by container-libs (seccomp.json generation)
+  libseccomp-dev \
   libselinux1-dev \
   libsystemd-dev \
   make \
