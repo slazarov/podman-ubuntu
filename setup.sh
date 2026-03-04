@@ -105,3 +105,6 @@ run_script "build_toolbox.sh"
 
 # Install Container Configuration Files
 run_script "install_container-configs.sh"
+
+# Install Container Man Pages
+run_script "install_container-manpages.sh"
