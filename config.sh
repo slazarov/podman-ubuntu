@@ -190,6 +190,8 @@ export FUSE_OVERLAYFS_TAG="${FUSE_OVERLAYFS_TAG:-}"
 export CATATONIT_TAG="${CATATONIT_TAG:-}"
 
 # Container-Libs Version (containers-common config files and seccomp.json)
+# Note: container-libs uses namespaced tags: common/vX.Y.Z, image/vX.Y.Z, storage/vX.Y.Z
+# For seccomp.json builds, use a common/ tag (e.g., common/v0.67.0)
 export CONTAINER_LIBS_TAG="${CONTAINER_LIBS_TAG:-}"
 
 # Protoc Version and Path
