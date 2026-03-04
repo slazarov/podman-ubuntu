@@ -3,7 +3,7 @@
 ## Milestones
 
 - **v1.0 MVP** - Phases 1-5 (shipped 2026-03-03)
-- **v1.1 Ecosystem Audit** - Phases 6-8 (in progress)
+- **v1.1 Ecosystem Audit** - Phases 6-9 (in progress)
 
 ## Phases
 
@@ -72,10 +72,27 @@ Plans:
 - [x] 08-01: Implement sccache for Rust builds
 - [x] 08-02: Enhance and install containers.conf
 
+### Phase 9: Build Optimization - Go Cache, ccache, and mold
+**Goal**: All three toolchains (Go, Rust, C) have layered build caching for dramatically faster rebuilds
+**Depends on**: Phase 8
+**Requirements**: CACHE-01, CACHE-02, CACHE-03, CACHE-04, CACHE-05, CACHE-06, CACHE-07, CACHE-08, CACHE-09
+**Success Criteria** (what must be TRUE):
+  1. Go build cache persists across component builds (podman, buildah, skopeo share cached artifacts)
+  2. Go module cache persists across component builds (shared modules downloaded once)
+  3. User with CCACHE_ENABLED=true sees C builds (crun, catatonit, fuse-overlayfs, pasta) use ccache
+  4. User with MOLD_ENABLED=true sees Rust builds (netavark, aardvark-dns) use mold linker
+  5. Default behavior unchanged (all new features disabled by default)
+  6. All new cache directories are cleaned up during uninstall
+**Plans**: 2 plans
+
+Plans:
+- [ ] 09-01-PLAN.md -- Persist Go build/module cache across component builds
+- [ ] 09-02-PLAN.md -- Add ccache for C builds and mold linker for Rust builds
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 6 -> 7 -> 8
+Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -87,16 +104,7 @@ Phases execute in numeric order: 6 -> 7 -> 8
 | 6. Component Cleanup | v1.1 | 1/1 | Complete | 2026-03-03 |
 | 7. Pre-flight Validation | v1.1 | 1/1 | Complete | 2026-03-03 |
 | 8. Build Optimization & Configuration | v1.1 | 2/2 | Complete | 2026-03-04 |
-
-### Phase 9: research podman build optimization + introducing better lib/tools in the ecosystem
-
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 8
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (run /gsd:plan-phase 9 to break down)
+| 9. Build Optimization - Go Cache, ccache, mold | v1.1 | 0/2 | Planned | - |
 
 ---
 

@@ -79,6 +79,18 @@ Requirements for ARM support and non-interactive installation.
 - [x] **BLD-03**: Configure RUSTC_WRAPPER=sccache when SCCACHE_ENABLED=true
 - [x] **BLD-04**: Add sccache directory setup and environment configuration
 
+### Build Caching (CACHE) — Phase 9
+
+- [ ] **CACHE-01**: Persist GOCACHE to /var/cache/go-build across Go component builds (20x faster rebuilds)
+- [ ] **CACHE-02**: Persist GOMODCACHE to /var/cache/go-mod across Go component builds (skip re-downloads)
+- [ ] **CACHE-03**: Remove ephemeral GOCACHE overrides from Go build scripts (podman, buildah, skopeo, conmon, go-md2man)
+- [ ] **CACHE-04**: Add CCACHE_ENABLED feature flag for C build caching (opt-in, default false)
+- [ ] **CACHE-05**: Conditionally install ccache via apt when CCACHE_ENABLED=true
+- [ ] **CACHE-06**: Activate ccache (CC=ccache gcc) in C build scripts (crun, catatonit, fuse-overlayfs, pasta)
+- [ ] **CACHE-07**: Add MOLD_ENABLED feature flag for mold linker (opt-in, default false)
+- [ ] **CACHE-08**: Conditionally install mold+clang via apt when MOLD_ENABLED=true
+- [ ] **CACHE-09**: Activate mold linker via .cargo/config.toml in Rust build scripts (netavark, aardvark-dns)
+
 ---
 
 ## v2 Requirements
@@ -88,7 +100,7 @@ Deferred to future release.
 ### Advanced Optimization
 
 - **PERF-05**: Profile-guided optimization (PGO) for crun/podman binaries
-- **PERF-06**: mold linker integration (5x faster than ld)
+- **PERF-06**: mold linker integration (5x faster than ld) -- MOVED to v1.1 CACHE-07/CACHE-08/CACHE-09
 
 ### Documentation
 
@@ -115,6 +127,7 @@ Deferred to future release.
 | runc restoration | crun is superior in all metrics; fallback not needed |
 | slirp4netns restoration | pasta is the documented successor |
 | CNI networking | Removed in Podman 5.0 |
+| Parallel build orchestration | Complexity disproportionate to gain for personal tool |
 
 ---
 
@@ -159,13 +172,22 @@ Deferred to future release.
 | BLD-02 | Phase 8 | Complete |
 | BLD-03 | Phase 8 | Complete |
 | BLD-04 | Phase 8 | Complete |
+| CACHE-01 | Phase 9 | Planned |
+| CACHE-02 | Phase 9 | Planned |
+| CACHE-03 | Phase 9 | Planned |
+| CACHE-04 | Phase 9 | Planned |
+| CACHE-05 | Phase 9 | Planned |
+| CACHE-06 | Phase 9 | Planned |
+| CACHE-07 | Phase 9 | Planned |
+| CACHE-08 | Phase 9 | Planned |
+| CACHE-09 | Phase 9 | Planned |
 
 **Coverage:**
 - v1 requirements: 20 total (Complete)
-- v1.1 requirements: 17 total
-- Mapped to phases: 37
+- v1.1 requirements: 26 total (17 complete, 9 planned)
+- Mapped to phases: 46
 - Unmapped: 0
 
 ---
 *Requirements defined: 2025-02-28*
-*Last updated: 2026-03-04 - BLD-01 through BLD-04, CLNP-04 completed (Phase 8 Plan 1)*
+*Last updated: 2026-03-04 - CACHE-01 through CACHE-09 added (Phase 9 planning)*
