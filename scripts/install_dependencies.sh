@@ -73,3 +73,14 @@ apt-get install -y systemd-dev
 # Dependencies to install Protoc
 apt-get install -y unzip
 
+# Optional: ccache for C build caching (when CCACHE_ENABLED=true)
+if [[ "${CCACHE_ENABLED:-false}" == "true" ]]; then
+    apt-get install -y ccache
+    mkdir -p "${CCACHE_DIR:-/var/cache/ccache}"
+fi
+
+# Optional: mold linker for faster Rust linking (when MOLD_ENABLED=true)
+if [[ "${MOLD_ENABLED:-false}" == "true" ]]; then
+    apt-get install -y mold clang
+fi
+
