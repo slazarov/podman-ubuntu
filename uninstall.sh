@@ -157,9 +157,13 @@ safe_rm_file "/usr/local/bin/passt.avx2" "binary"
 safe_rm_file "/usr/local/bin/pasta" "binary"
 safe_rm_file "/usr/local/bin/pasta.avx2" "binary"
 safe_rm_file "/usr/local/bin/protoc" "binary"
+safe_rm_file "/usr/local/bin/sccache" "binary"
 
 # Remove Go installation
 safe_rm_dir "/opt/go" "go installation"
+
+# Remove sccache cache
+safe_rm_dir "/var/cache/sccache" "sccache cache"
 
 # Remove configuration directories
 safe_rm_dir "/etc/cni" "cni config"
