@@ -81,9 +81,9 @@ Requirements for ARM support and non-interactive installation.
 
 ### Build Caching (CACHE) — Phase 9
 
-- [ ] **CACHE-01**: Persist GOCACHE to /var/cache/go-build across Go component builds (20x faster rebuilds)
-- [ ] **CACHE-02**: Persist GOMODCACHE to /var/cache/go-mod across Go component builds (skip re-downloads)
-- [ ] **CACHE-03**: Remove ephemeral GOCACHE overrides from Go build scripts (podman, buildah, skopeo, conmon, go-md2man)
+- [x] **CACHE-01**: Persist GOCACHE to /var/cache/go-build across Go component builds (20x faster rebuilds)
+- [x] **CACHE-02**: Persist GOMODCACHE to /var/cache/go-mod across Go component builds (skip re-downloads)
+- [x] **CACHE-03**: Remove ephemeral GOCACHE overrides from Go build scripts (podman, buildah, skopeo, conmon, go-md2man)
 - [ ] **CACHE-04**: Add CCACHE_ENABLED feature flag for C build caching (opt-in, default false)
 - [ ] **CACHE-05**: Conditionally install ccache via apt when CCACHE_ENABLED=true
 - [ ] **CACHE-06**: Activate ccache (CC=ccache gcc) in C build scripts (crun, catatonit, fuse-overlayfs, pasta)
@@ -172,9 +172,9 @@ Deferred to future release.
 | BLD-02 | Phase 8 | Complete |
 | BLD-03 | Phase 8 | Complete |
 | BLD-04 | Phase 8 | Complete |
-| CACHE-01 | Phase 9 | Planned |
-| CACHE-02 | Phase 9 | Planned |
-| CACHE-03 | Phase 9 | Planned |
+| CACHE-01 | Phase 9 | Complete |
+| CACHE-02 | Phase 9 | Complete |
+| CACHE-03 | Phase 9 | Complete |
 | CACHE-04 | Phase 9 | Planned |
 | CACHE-05 | Phase 9 | Planned |
 | CACHE-06 | Phase 9 | Planned |
@@ -184,7 +184,7 @@ Deferred to future release.
 
 **Coverage:**
 - v1 requirements: 20 total (Complete)
-- v1.1 requirements: 26 total (17 complete, 9 planned)
+- v1.1 requirements: 26 total (20 complete, 6 planned)
 - Mapped to phases: 46
 - Unmapped: 0
 
