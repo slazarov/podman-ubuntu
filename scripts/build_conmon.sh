@@ -38,7 +38,6 @@ step_done
 step_start "Configuring Go optimization"
 # Disable GC during compilation for speed (uses more RAM but ~30% faster)
 export GOGC="${GOGC_BUILD:-off}"
-export GOCACHE="$(mktemp -d)"
 step_done
 
 step_start "Building"
