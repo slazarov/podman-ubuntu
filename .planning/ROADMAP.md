@@ -99,15 +99,15 @@ Plans:
   1. Running uninstall.sh removes mold and clang apt packages when they were installed
   2. containers.conf is installed exactly once during setup (no redundant copy)
   3. All tech debt items from v1.1 audit are resolved
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] TBD
+- [ ] 10-01-PLAN.md -- Add mold/clang uninstall cleanup and remove redundant containers.conf copy
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 6 -> 7 -> 8 -> 9
+Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -120,7 +120,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 7. Pre-flight Validation | v1.1 | 1/1 | Complete | 2026-03-03 |
 | 8. Build Optimization & Configuration | v1.1 | 2/2 | Complete | 2026-03-04 |
 | 9. Build Optimization - Go Cache, ccache, mold | v1.1 | 2/2 | Complete | 2026-03-04 |
-| 10. Tech Debt Cleanup | v1.1 | 0/0 | Planned | - |
+| 10. Tech Debt Cleanup | v1.1 | 0/1 | Planned | - |
 
 ---
 
