@@ -85,6 +85,9 @@ run_script "build_fuse-overlayfs.sh"
 # Build Go-MD2Man
 run_script "build_go-md2man.sh"
 
+# Build Container-Libs (containers-common config files)
+run_script "build_container-libs.sh"
+
 # Build Netavark
 run_script "build_netavark.sh"
 
