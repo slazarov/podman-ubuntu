@@ -22,9 +22,7 @@ cd "${BUILD_ROOT}" || exit
 # Initialize build logging
 log_build_output "skopeo"
 
-# Fix for cloud-init where GOCACHE, XDG_CACHE_HOME, and HOME are not set
-export GOCACHE="${GOCACHE:-/tmp/go-build}"
-export XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp}"
+# Fix for cloud-init where HOME is not set
 export HOME="${HOME:-/root}"
 
 # Required Fix otherwise go complains about 1.22.6 vs 1.23 mismatch
