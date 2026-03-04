@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
-milestone: none
-milestone_name: none
-status: idle
-stopped_at: v1.2 milestone completed and archived
+milestone: v2.0
+milestone_name: APT Packaging & CI/CD
+status: defining_requirements
+stopped_at: null
 last_updated: "2026-03-04"
-last_activity: 2026-03-04 -- Completed v1.2 Include Common Libraries milestone
+last_activity: 2026-03-04 -- Milestone v2.0 started
 progress:
   total_phases: 0
   completed_phases: 0
@@ -21,11 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Compile and install Podman on any Debian/Ubuntu system without user interaction.
-**Current focus:** Planning next milestone
+**Current focus:** Defining requirements for v2.0 APT Packaging & CI/CD
 
 ## Current Position
 
-No active milestone. Use `/gsd:new-milestone` to start next cycle.
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-04 — Milestone v2.0 started
 
 ## Previous Milestones
 
@@ -65,5 +68,5 @@ None
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: v1.2 milestone completed
+Stopped at: Defining v2.0 requirements
 Resume file: None

@@ -42,11 +42,16 @@ Compile and install Podman on any Debian/Ubuntu system without user interaction.
 
 ### Active
 
-(No active requirements — start next milestone to define)
+- [ ] Debian packaging for all components as individual .deb packages
+- [ ] Package prefixing (podman-*) with Conflicts/Replaces on official Ubuntu packages
+- [ ] Inter-package dependency declarations
+- [ ] GitHub Actions CI/CD for automated builds
+- [ ] APT repository hosted on GitHub Pages
+- [ ] Scheduled auto-rebuild on upstream releases + manual trigger
+- [ ] Target: Ubuntu 24.04 (amd64 + ARM64)
 
 ### Out of Scope
 
-- CI/CD pipeline integration — personal use only
 - Podman version pinning — always latest stable
 - GUI installation wizard — CLI only
 - Non-Debian/Ubuntu distributions — focus on Debian/Ubuntu
@@ -57,6 +62,18 @@ Compile and install Podman on any Debian/Ubuntu system without user interaction.
 - CNI networking — removed in Podman 5.0
 - Building container-libs Go libraries as importable packages — only config files and generated artifacts needed
 - Custom seccomp profile modifications — default upstream profile is sufficient
+
+## Current Milestone: v2.0 APT Packaging & CI/CD
+
+**Goal:** Package all compiled Podman components as .deb packages, automate builds with GitHub Actions, and distribute via a GitHub Pages APT repository.
+
+**Target features:**
+- Individual .deb packages for each component (podman-podman, podman-crun, podman-netavark, etc.)
+- Package prefix (podman-*) with Conflicts/Replaces to handle Ubuntu repo conflicts
+- Inter-package dependencies (e.g. podman-podman depends on podman-crun, podman-netavark)
+- GitHub Actions workflow with scheduled upstream checks + manual trigger
+- GitHub Pages APT repository with proper signing
+- Ubuntu 24.04 only (amd64 + ARM64)
 
 ## Context
 
@@ -69,6 +86,8 @@ Build caching layers: sccache (Rust), ccache (C), Go cache (Go), mold linker (Ru
 container-libs (https://github.com/containers/container-libs) is the monorepo for containers-common: provides seccomp.json, policy.json, default.yaml, storage.conf, and man pages needed by Podman at runtime. Build requires Go and go-md2man (both already in our toolchain).
 
 All v1.1 tech debt resolved: seccomp.json now properly built and installed.
+
+Reference: alvistack (http://download.opensuse.org/repositories/home:/alvistack/xUbuntu_24.04/) uses podman-* prefix pattern for non-conflicting package names.
 
 ## Constraints
 
@@ -103,4 +122,4 @@ All v1.1 tech debt resolved: seccomp.json now properly built and installed.
 | go-md2man for man pages | Already in toolchain from other builds | ✓ Good - No new dependencies |
 
 ---
-*Last updated: 2026-03-04 after v1.2 milestone*
+*Last updated: 2026-03-04 after v2.0 milestone started*
