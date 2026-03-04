@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Include Common Libraries
-status: completed
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-03-04T10:06:03.766Z"
-last_activity: 2026-03-04 -- Executed 11-01 (build container-libs script)
+status: in-progress
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-03-04T10:27:21Z"
+last_activity: 2026-03-04 -- Executed 12-01 (install container config files)
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 33
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
+  percent: 67
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-04)
 
 ## Current Position
 
-Phase: 11 of 13 (Build container-libs) - complete
+Phase: 12 of 13 (Install Configuration Files) - complete
 Plan: 01/01 complete
-Status: Phase 11 complete, ready for Phase 12
-Last activity: 2026-03-04 -- Executed 11-01 (build container-libs script)
+Status: Phase 12 complete, ready for Phase 13
+Last activity: 2026-03-04 -- Executed 12-01 (install container config files)
 
-Progress: [###.......] 33%
+Progress: [######....] 67%
 
 ## Previous Milestones
 
@@ -54,23 +54,26 @@ All decisions logged in PROJECT.md Key Decisions table.
 
 - Target only `make seccomp.json` for container-libs, not full build -- only the seccomp profile is needed
 - Place container-libs build after go-md2man and before netavark in setup.sh build order
+- Use install -m 0644 instead of cp for config file installation (matches upstream Makefile)
+- Seccomp.json fallback from root to common/ subdir to handle both Makefile output locations
 
 ### Tech Debt
 - Minor: install_dependencies.sh lacks DEBIAN_FRONTEND (relies on setup.sh)
 - Minor: Circular sourcing pattern config.sh <-> functions.sh (guarded but fragile)
-- Resolved: seccomp.json not installed -> v1.2 Phase 11+12 addresses this
+- Resolved: seccomp.json not installed -> resolved by Phase 11 (build) + Phase 12 (install)
 
 ### Active Debug Sessions
-- seccomp-json-missing: resolving in v1.2 Phase 12 (CONFIG-01)
+- seccomp-json-missing: RESOLVED by Phase 12 (CONFIG-01) -- seccomp.json now installed to /usr/share/containers/
 
 ## Performance Metrics
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 11 | 01 | 2min | 2 | 4 |
+| 12 | 01 | 2min | 2 | 2 |
 
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed 11-01-PLAN.md
+Stopped at: Completed 12-01-PLAN.md
 Resume file: None

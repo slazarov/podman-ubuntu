@@ -15,11 +15,11 @@ Requirements for v1.2 Include Common Libraries. Each maps to roadmap phases.
 
 ### Configuration
 
-- [ ] **CONFIG-01**: seccomp.json is installed to `/usr/share/containers/seccomp.json`
-- [ ] **CONFIG-02**: policy.json is installed to `/etc/containers/policy.json`
-- [ ] **CONFIG-03**: default.yaml is installed to `/etc/containers/registries.d/default.yaml`
-- [ ] **CONFIG-04**: storage.conf is installed to `/etc/containers/storage.conf`
-- [ ] **CONFIG-05**: registries.conf is installed to `/etc/containers/registries.conf`
+- [x] **CONFIG-01**: seccomp.json is installed to `/usr/share/containers/seccomp.json`
+- [x] **CONFIG-02**: policy.json is installed to `/etc/containers/policy.json`
+- [x] **CONFIG-03**: default.yaml is installed to `/etc/containers/registries.d/default.yaml`
+- [x] **CONFIG-04**: storage.conf is installed to `/etc/containers/storage.conf`
+- [x] **CONFIG-05**: registries.conf is installed to `/etc/containers/registries.conf`
 
 ### Documentation
 
@@ -51,11 +51,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BUILD-01 | Phase 11 | Complete |
 | BUILD-02 | Phase 11 | Complete |
 | BUILD-03 | Phase 11 | Complete |
-| CONFIG-01 | Phase 12 | Pending |
-| CONFIG-02 | Phase 12 | Pending |
-| CONFIG-03 | Phase 12 | Pending |
-| CONFIG-04 | Phase 12 | Pending |
-| CONFIG-05 | Phase 12 | Pending |
+| CONFIG-01 | Phase 12 | Complete |
+| CONFIG-02 | Phase 12 | Complete |
+| CONFIG-03 | Phase 12 | Complete |
+| CONFIG-04 | Phase 12 | Complete |
+| CONFIG-05 | Phase 12 | Complete |
 | DOCS-01 | Phase 13 | Pending |
 | UNINST-01 | Phase 13 | Pending |
 
@@ -66,4 +66,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-04*
-*Last updated: 2026-03-04 after roadmap creation*
+*Last updated: 2026-03-04 after Phase 12 completion*
