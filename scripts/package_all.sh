@@ -177,7 +177,7 @@ for component in "${COMPONENTS[@]}"; do
     export DESTDIR="${DESTDIR}"
 
     nfpm_config="/tmp/nfpm-${component}.yaml"
-    envsubst < "${NFPM_DIR}/${component}.yaml" > "${nfpm_config}"
+    envsubst '${VERSION} ${ARCH} ${DESTDIR}' < "${NFPM_DIR}/${component}.yaml" > "${nfpm_config}"
 
     nfpm pkg \
         --config "${nfpm_config}" \
@@ -204,7 +204,7 @@ export VERSION="${suite_version}"
 export ARCH="${ARCH}"
 export DESTDIR="${DESTDIR}"
 
-envsubst < "${NFPM_DIR}/suite.yaml" > "/tmp/nfpm-suite.yaml"
+envsubst '${VERSION} ${ARCH} ${DESTDIR}' < "${NFPM_DIR}/suite.yaml" > "/tmp/nfpm-suite.yaml"
 
 nfpm pkg \
     --config "/tmp/nfpm-suite.yaml" \
