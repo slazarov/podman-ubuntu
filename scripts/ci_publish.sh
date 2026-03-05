@@ -285,7 +285,9 @@ a { color: #0366d6; }
 
 <p>3. Install:</p>
 <pre><code>sudo apt-get update
-sudo apt-get install podman</code></pre>
+sudo apt-get install podman-suite</code></pre>
+<p><code>podman-suite</code> is a meta-package that installs Podman and all its dependencies
+(crun, conmon, netavark, aardvark-dns, pasta, buildah, skopeo, and more).</p>
 
 <h2>Available Suites</h2>
 HTMLEOF
