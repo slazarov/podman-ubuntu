@@ -203,7 +203,86 @@ fi
 rm -rf "${OTHER_SUITE_DEBS}"
 
 # ============================================
-# Step 5: Summary
+# Step 5: Generate index.html landing page
+# ============================================
+
+echo ">>> Generating index.html landing page..."
+
+# Collect available suites
+available_suites=()
+for s in stable edge; do
+    if [[ -d "${OUTPUT_DIR}/dists/${s}" ]]; then
+        available_suites+=("${s}")
+    fi
+done
+
+cat > "${OUTPUT_DIR}/index.html" << 'HTMLEOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Podman for Debian — APT Repository</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; line-height: 1.6; }
+h1 { border-bottom: 2px solid #333; padding-bottom: 0.5rem; }
+code, pre { background: #f4f4f4; border-radius: 4px; }
+code { padding: 0.15em 0.4em; font-size: 0.9em; }
+pre { padding: 1rem; overflow-x: auto; }
+.suite { margin: 1.5rem 0; padding: 1rem; border: 1px solid #ddd; border-radius: 6px; }
+.suite h3 { margin-top: 0; }
+a { color: #0366d6; }
+</style>
+</head>
+<body>
+<h1>Podman for Debian — APT Repository</h1>
+<p>Pre-built <code>.deb</code> packages for Podman and its dependencies on Debian (amd64 &amp; arm64).</p>
+
+<h2>Quick Setup</h2>
+<pre><code># Import the signing key
+curl -fsSL https://REPO_URL_PLACEHOLDER/podman-debian.gpg | sudo tee /usr/share/keyrings/podman-debian.gpg > /dev/null
+
+# Add the repository (stable track)
+echo "deb [signed-by=/usr/share/keyrings/podman-debian.gpg] https://REPO_URL_PLACEHOLDER stable main" \
+  | sudo tee /etc/apt/sources.list.d/podman-debian.list
+
+# Install
+sudo apt-get update
+sudo apt-get install podman</code></pre>
+
+<h2>Available Suites</h2>
+HTMLEOF
+
+# Append suite info dynamically
+for s in "${available_suites[@]}"; do
+    pkg_count=$(find "${OUTPUT_DIR}/pool" -name "*.deb" -path "*/${s}/*" 2>/dev/null | wc -l || echo "0")
+    cat >> "${OUTPUT_DIR}/index.html" << SUITEEOF
+<div class="suite">
+<h3>${s}</h3>
+<p>Packages: ${pkg_count} | <a href="dists/${s}/InRelease">InRelease</a></p>
+</div>
+SUITEEOF
+done
+
+cat >> "${OUTPUT_DIR}/index.html" << 'HTMLEOF'
+
+<h2>Resources</h2>
+<ul>
+<li><a href="podman-debian.gpg">GPG signing key</a></li>
+<li><a href="https://github.com/slazarov/podman-debian">Source repository</a></li>
+</ul>
+</body>
+</html>
+HTMLEOF
+
+# Replace placeholder with actual repo URL
+sed -i "s|REPO_URL_PLACEHOLDER|${REPO_URL#https://}|g" "${OUTPUT_DIR}/index.html"
+
+echo ">>> index.html generated"
+echo ""
+
+# ============================================
+# Step 6: Summary
 # ============================================
 
 echo "========================================"
