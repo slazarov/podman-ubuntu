@@ -26,11 +26,11 @@ Requirements for APT Packaging & CI/CD milestone. Each maps to roadmap phases.
 
 ### APT Repository
 
-- [ ] **REPO-01**: APT repository is hosted on GitHub Pages with reprepro-generated structure (dists/, pool/)
-- [ ] **REPO-02**: Repository is GPG-signed with Ed25519 key (InRelease + Release.gpg)
-- [ ] **REPO-03**: Repository serves two suites in one URL: stable and edge
-- [ ] **REPO-04**: User setup instructions document DEB822 .sources config, GPG key import via signed-by, and install commands
-- [ ] **REPO-05**: Public GPG key is published in the repository root for user download
+- [x] **REPO-01**: APT repository is hosted on GitHub Pages with reprepro-generated structure (dists/, pool/)
+- [x] **REPO-02**: Repository is GPG-signed with Ed25519 key (InRelease + Release.gpg)
+- [x] **REPO-03**: Repository serves two suites in one URL: stable and edge
+- [x] **REPO-04**: User setup instructions document DEB822 .sources config, GPG key import via signed-by, and install commands
+- [x] **REPO-05**: Public GPG key is published in the repository root for user download
 
 ### Automation
 
@@ -86,11 +86,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CICD-02 | Phase 16 | Pending |
 | CICD-03 | Phase 16 | Pending |
 | CICD-04 | Phase 16 | Pending |
-| REPO-01 | Phase 15 | Pending |
-| REPO-02 | Phase 15 | Pending |
-| REPO-03 | Phase 15 | Pending |
-| REPO-04 | Phase 15 | Pending |
-| REPO-05 | Phase 15 | Pending |
+| REPO-01 | Phase 15 | Complete |
+| REPO-02 | Phase 15 | Complete |
+| REPO-03 | Phase 15 | Complete |
+| REPO-04 | Phase 15 | Complete |
+| REPO-05 | Phase 15 | Complete |
 | AUTO-01 | Phase 17 | Pending |
 | AUTO-02 | Phase 17 | Pending |
 | AUTO-03 | Phase 17 | Pending |
