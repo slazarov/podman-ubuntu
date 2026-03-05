@@ -47,18 +47,20 @@ contents:
     dst: /usr/libexec/podman/rootlessport
     file_info:
       mode: 0755
-  - src: "${DESTDIR}/usr/share/man/man1/"
+  # Man pages (podman-specific only; glob avoids pulling in other components' pages)
+  - src: "${DESTDIR}/usr/share/man/man1/podman*"
     dst: /usr/share/man/man1/
+  # Man section 7 (podman-rootless, podman-troubleshooting)
+  - src: "${DESTDIR}/usr/share/man/man7/"
+    dst: /usr/share/man/man7/
     type: tree
   - src: "${DESTDIR}/usr/lib/systemd/"
     dst: /usr/lib/systemd/
     type: tree
-  - src: "${DESTDIR}/usr/share/bash-completion/"
-    dst: /usr/share/bash-completion/
-    type: tree
-  - src: "${DESTDIR}/usr/share/fish/"
-    dst: /usr/share/fish/
-    type: tree
-  - src: "${DESTDIR}/usr/share/zsh/"
-    dst: /usr/share/zsh/
-    type: tree
+  # Shell completions (podman-specific; glob avoids pulling in other components')
+  - src: "${DESTDIR}/usr/share/bash-completion/completions/podman*"
+    dst: /usr/share/bash-completion/completions/
+  - src: "${DESTDIR}/usr/share/fish/vendor_completions.d/podman*"
+    dst: /usr/share/fish/vendor_completions.d/
+  - src: "${DESTDIR}/usr/share/zsh/site-functions/_podman*"
+    dst: /usr/share/zsh/site-functions/

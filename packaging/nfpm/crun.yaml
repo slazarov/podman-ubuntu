@@ -25,6 +25,6 @@ contents:
     dst: /usr/bin/crun
     file_info:
       mode: 0755
-  - src: "${DESTDIR}/usr/share/man/man1/"
+  # Man pages (crun-specific only; glob avoids pulling in other components' pages)
+  - src: "${DESTDIR}/usr/share/man/man1/crun*"
     dst: /usr/share/man/man1/
-    type: tree

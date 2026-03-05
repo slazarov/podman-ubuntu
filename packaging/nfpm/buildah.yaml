@@ -28,9 +28,9 @@ contents:
     dst: /usr/bin/buildah
     file_info:
       mode: 0755
-  - src: "${DESTDIR}/usr/share/man/man1/"
+  # Man pages (buildah-specific only; glob avoids pulling in other components' pages)
+  - src: "${DESTDIR}/usr/share/man/man1/buildah*"
     dst: /usr/share/man/man1/
-    type: tree
-  - src: "${DESTDIR}/usr/share/bash-completion/"
-    dst: /usr/share/bash-completion/
-    type: tree
+  # Shell completions (buildah-specific)
+  - src: "${DESTDIR}/usr/share/bash-completion/completions/buildah*"
+    dst: /usr/share/bash-completion/completions/
