@@ -68,6 +68,11 @@ run_logged make
 step_done
 
 step_start "Installing"
-cp bin/netavark /usr/local/bin/netavark
-cp bin/netavark-dhcp-proxy-client /usr/local/bin/netavark-dhcp-proxy-client
+if [[ -n "${DESTDIR:-}" ]]; then
+    install -D -m 0755 bin/netavark "${DESTDIR}/usr/bin/netavark"
+    install -D -m 0755 bin/netavark-dhcp-proxy-client "${DESTDIR}/usr/bin/netavark-dhcp-proxy-client"
+else
+    sudo install -D -m 0755 bin/netavark /usr/bin/netavark
+    sudo install -D -m 0755 bin/netavark-dhcp-proxy-client /usr/bin/netavark-dhcp-proxy-client
+fi
 step_done

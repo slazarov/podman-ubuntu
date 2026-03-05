@@ -1,0 +1,30 @@
+name: podman-crun
+arch: "${ARCH}"
+platform: linux
+version: "${VERSION}"
+version_schema: none
+maintainer: "Podman Debian <noreply@github.com>"
+description: "Fast and lightweight OCI container runtime (compiled from source)"
+vendor: "podman-debian"
+homepage: "https://github.com/containers/crun"
+license: "GPL-2.0-or-later"
+section: admin
+priority: optional
+
+conflicts:
+  - crun
+
+replaces:
+  - crun
+
+provides:
+  - crun
+
+contents:
+  - src: "${DESTDIR}/usr/bin/crun"
+    dst: /usr/bin/crun
+    file_info:
+      mode: 0755
+  # Man pages (crun-specific only; glob avoids pulling in other components' pages)
+  - src: "${DESTDIR}/usr/share/man/man1/crun*"
+    dst: /usr/share/man/man1/

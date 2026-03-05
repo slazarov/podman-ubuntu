@@ -51,24 +51,26 @@ run_logged make -j "$NPROC"
 step_done
 
 step_start "Installing"
-# Kill current running Processes (ignore errors)
-shopt -qo errexit
-current_error_setting=$?
-set +e
-ps aux | grep pasta | grep -v "bash" | awk '{print $2}' | xargs -r -n 1 kill -9 || true
-if [ ${current_error_setting} -eq 0 ]; then set -e; fi
+if [[ -n "${DESTDIR:-}" ]]; then
+    install -D -m 0755 passt "${DESTDIR}/usr/bin/passt"
+    [[ -f passt.avx2 ]] && install -D -m 0755 passt.avx2 "${DESTDIR}/usr/bin/passt.avx2"
+    install -D -m 0755 pasta "${DESTDIR}/usr/bin/pasta"
+    [[ -f pasta.avx2 ]] && install -D -m 0755 pasta.avx2 "${DESTDIR}/usr/bin/pasta.avx2"
+else
+    # Kill current running processes (ignore errors)
+    shopt -qo errexit
+    current_error_setting=$?
+    set +e
+    ps aux | grep pasta | grep -v "bash" | awk '{print $2}' | xargs -r -n 1 kill -9 || true
+    if [ ${current_error_setting} -eq 0 ]; then set -e; fi
 
-# Copy new Executable to Destination Folder
-cp passt /usr/local/bin/
-[[ -f passt.avx2 ]] && cp passt.avx2 /usr/local/bin/
-cp pasta /usr/local/bin/
-[[ -f pasta.avx2 ]] && cp pasta.avx2 /usr/local/bin/
+    sudo install -D -m 0755 passt /usr/bin/passt
+    [[ -f passt.avx2 ]] && sudo install -D -m 0755 passt.avx2 /usr/bin/passt.avx2
+    sudo install -D -m 0755 pasta /usr/bin/pasta
+    [[ -f pasta.avx2 ]] && sudo install -D -m 0755 pasta.avx2 /usr/bin/pasta.avx2
 
-# Remove Files that shouldn't have been previously installed
-rm -f /usr/local/bin/passt.1
-rm -f /usr/local/bin/passt.c
-rm -f /usr/local/bin/passt.h
-rm -f /usr/local/bin/pasta.1
-rm -f /usr/local/bin/pasta.c
-rm -f /usr/local/bin/pasta.h
+    # Remove files that shouldn't have been previously installed
+    rm -f /usr/local/bin/passt.1 /usr/local/bin/passt.c /usr/local/bin/passt.h
+    rm -f /usr/local/bin/pasta.1 /usr/local/bin/pasta.c /usr/local/bin/pasta.h
+fi
 step_done

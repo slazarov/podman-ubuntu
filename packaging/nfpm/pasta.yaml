@@ -1,0 +1,31 @@
+name: podman-pasta
+arch: "${ARCH}"
+platform: linux
+version: "${VERSION}"
+version_schema: none
+maintainer: "Podman Debian <noreply@github.com>"
+description: "User-mode networking for rootless containers (compiled from source)"
+vendor: "podman-debian"
+homepage: "https://passt.top/"
+license: "GPL-2.0-or-later"
+section: admin
+priority: optional
+
+conflicts:
+  - passt
+
+replaces:
+  - passt
+
+provides:
+  - passt
+
+contents:
+  - src: "${DESTDIR}/usr/bin/passt"
+    dst: /usr/bin/passt
+    file_info:
+      mode: 0755
+  - src: "${DESTDIR}/usr/bin/pasta"
+    dst: /usr/bin/pasta
+    file_info:
+      mode: 0755
