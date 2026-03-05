@@ -176,7 +176,7 @@ for component in "${COMPONENTS[@]}"; do
     export ARCH="${ARCH}"
     export DESTDIR="${DESTDIR}"
 
-    local nfpm_config="/tmp/nfpm-${component}.yaml"
+    nfpm_config="/tmp/nfpm-${component}.yaml"
     envsubst < "${NFPM_DIR}/${component}.yaml" > "${nfpm_config}"
 
     nfpm pkg \
