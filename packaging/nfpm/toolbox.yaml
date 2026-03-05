@@ -1,0 +1,42 @@
+name: podman-toolbox
+arch: "${ARCH}"
+platform: linux
+version: "${VERSION}"
+version_schema: none
+maintainer: "Podman Debian <noreply@github.com>"
+description: "Tool for interactive command line environments on Linux (compiled from source)"
+vendor: "podman-debian"
+homepage: "https://github.com/containers/toolbox"
+license: "Apache-2.0"
+section: admin
+priority: optional
+
+depends:
+  - podman-podman
+
+conflicts:
+  - toolbox
+
+replaces:
+  - toolbox
+
+provides:
+  - toolbox
+
+contents:
+  - src: "${DESTDIR}/usr/bin/toolbox"
+    dst: /usr/bin/toolbox
+    file_info:
+      mode: 0755
+  # Man pages (toolbox-specific)
+  - src: "${DESTDIR}/usr/share/man/man1/toolbox*"
+    dst: /usr/share/man/man1/
+  # Shell completions (toolbox-specific)
+  # NOTE: bash completion should exist from meson install; fish/zsh may be
+  # added in later toolbox versions -- add glob entries when available.
+  - src: "${DESTDIR}/usr/share/bash-completion/completions/toolbox*"
+    dst: /usr/share/bash-completion/completions/
+  # Toolbox profile scripts
+  - src: "${DESTDIR}/usr/share/toolbox/"
+    dst: /usr/share/toolbox/
+    type: tree

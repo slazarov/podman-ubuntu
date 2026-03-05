@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Prevent recursive sourcing
+# Prevent recursive sourcing (not exported — child processes must source independently)
 [[ -n "${_CONFIG_SH_SOURCED:-}" ]] && return 0
-export _CONFIG_SH_SOURCED=1
+_CONFIG_SH_SOURCED=1
 
 # Determine toolpath if not set already
 relativepath="./" # Define relative path to go from this script to the root level of the tool
@@ -107,8 +107,9 @@ export GOGC_BUILD="${GOGC_BUILD:-off}"
 export GOCACHE="${GOCACHE:-/var/cache/go-build}"
 export GOMODCACHE="${GOMODCACHE:-/var/cache/go-mod}"
 
-# Create cache directories
-mkdir -p "${GOCACHE}" "${GOMODCACHE}"
+# Create cache directories (may fail as non-root if using /var/cache paths;
+# the build step runs as root and creates these, packaging step only reads config)
+mkdir -p "${GOCACHE}" "${GOMODCACHE}" 2>/dev/null || true
 
 # ============================================
 # Build Paths
