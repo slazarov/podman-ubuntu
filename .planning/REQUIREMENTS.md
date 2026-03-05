@@ -9,13 +9,13 @@ Requirements for APT Packaging & CI/CD milestone. Each maps to roadmap phases.
 
 ### Packaging
 
-- [ ] **PKG-01**: User can install each component as an individual .deb package with podman-* prefix (podman-podman, podman-crun, podman-netavark, podman-aardvark-dns, podman-conmon, podman-pasta, podman-fuse-overlayfs, podman-catatonit, podman-buildah, podman-skopeo, podman-toolbox, podman-container-configs)
-- [ ] **PKG-02**: Each package declares Conflicts/Replaces/Provides against the corresponding official Ubuntu package name
-- [ ] **PKG-03**: Package dependencies are correctly declared (e.g. podman-podman depends on podman-crun, podman-netavark, podman-aardvark-dns, podman-conmon, podman-pasta, podman-fuse-overlayfs, podman-container-configs)
-- [ ] **PKG-04**: Each component has an nFPM YAML config with version and architecture substitution via placeholders
-- [ ] **PKG-05**: Build scripts support DESTDIR environment variable for staging-based packaging without modifying direct-install behavior
-- [ ] **PKG-06**: Meta-package podman-suite installs entire Podman stack with one command (depends on all individual packages)
-- [ ] **PKG-07**: Config files in /etc/containers/ are declared as conffiles so user modifications are preserved on upgrade
+- [x] **PKG-01**: User can install each component as an individual .deb package with podman-* prefix (podman-podman, podman-crun, podman-netavark, podman-aardvark-dns, podman-conmon, podman-pasta, podman-fuse-overlayfs, podman-catatonit, podman-buildah, podman-skopeo, podman-toolbox, podman-container-configs)
+- [x] **PKG-02**: Each package declares Conflicts/Replaces/Provides against the corresponding official Ubuntu package name
+- [x] **PKG-03**: Package dependencies are correctly declared (e.g. podman-podman depends on podman-crun, podman-netavark, podman-aardvark-dns, podman-conmon, podman-pasta, podman-fuse-overlayfs, podman-container-configs)
+- [x] **PKG-04**: Each component has an nFPM YAML config with version and architecture substitution via placeholders
+- [x] **PKG-05**: Build scripts support DESTDIR environment variable for staging-based packaging without modifying direct-install behavior
+- [x] **PKG-06**: Meta-package podman-suite installs entire Podman stack with one command (depends on all individual packages)
+- [x] **PKG-07**: Config files in /etc/containers/ are declared as conffiles so user modifications are preserved on upgrade
 
 ### CI/CD
 
@@ -75,13 +75,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PKG-01 | Phase 14 | Pending |
-| PKG-02 | Phase 14 | Pending |
-| PKG-03 | Phase 14 | Pending |
-| PKG-04 | Phase 14 | Pending |
-| PKG-05 | Phase 14 | Pending |
-| PKG-06 | Phase 14 | Pending |
-| PKG-07 | Phase 14 | Pending |
+| PKG-01 | Phase 14 | Complete |
+| PKG-02 | Phase 14 | Complete |
+| PKG-03 | Phase 14 | Complete |
+| PKG-04 | Phase 14 | Complete |
+| PKG-05 | Phase 14 | Complete |
+| PKG-06 | Phase 14 | Complete |
+| PKG-07 | Phase 14 | Complete |
 | CICD-01 | Phase 16 | Pending |
 | CICD-02 | Phase 16 | Pending |
 | CICD-03 | Phase 16 | Pending |

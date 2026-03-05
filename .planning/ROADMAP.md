@@ -61,11 +61,11 @@
   3. Installing a podman-* package on a system with the corresponding official Ubuntu package succeeds without conflict (Conflicts/Replaces/Provides declarations work correctly)
   4. Upgrading podman-container-configs preserves user modifications to files in /etc/containers/ (conffiles declaration prompts dpkg merge)
   5. Each package declares correct inter-package dependencies so that apt install podman-podman automatically installs crun, conmon, netavark, aardvark-dns, pasta, fuse-overlayfs, and container-configs
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 14-01: TBD
-- [ ] 14-02: TBD
+- [x] 14-01-PLAN.md — DESTDIR staging support in all build scripts + 13 nFPM YAML package configs
+- [ ] 14-02-PLAN.md — Packaging orchestrator script (version extraction, nFPM invocation)
 
 ### Phase 15: APT Repository and Signing
 **Goal**: Users can add a GPG-signed APT repository and install packages via standard apt commands from either the stable or edge suite
@@ -129,7 +129,7 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17
 | 11. Build container-libs | v1.2 | 1/1 | Complete | 2026-03-04 |
 | 12. Install Configuration Files | v1.2 | 1/1 | Complete | 2026-03-04 |
 | 13. Man Pages and Uninstall | v1.2 | 1/1 | Complete | 2026-03-04 |
-| 14. Debian Package Building | v2.0 | 0/? | Not started | - |
+| 14. Debian Package Building | v2.0 | 1/2 | In Progress | - |
 | 15. APT Repository and Signing | v2.0 | 0/? | Not started | - |
 | 16. CI/CD Pipeline | v2.0 | 0/? | Not started | - |
 | 17. Upstream Automation | v2.0 | 0/? | Not started | - |
