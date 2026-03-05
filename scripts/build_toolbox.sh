@@ -55,5 +55,9 @@ run_logged meson test -C builddir
 step_done
 
 step_start "Installing"
-run_logged meson install -C builddir
+if [[ -n "${DESTDIR:-}" ]]; then
+    DESTDIR="${DESTDIR}" run_logged meson install -C builddir
+else
+    run_logged meson install -C builddir
+fi
 step_done

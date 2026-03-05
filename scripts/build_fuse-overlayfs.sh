@@ -51,7 +51,7 @@ step_start "Running autogen"
 step_done
 
 step_start "Configuring"
-LIBS="-ldl" LDFLAGS="-static" ./configure --prefix /usr/local
+LIBS="-ldl" LDFLAGS="-static" ./configure --prefix=/usr
 step_done
 
 step_start "Building"
@@ -59,5 +59,9 @@ run_logged make -j "$NPROC"
 step_done
 
 step_start "Installing"
-run_logged sudo make install
+if [[ -n "${DESTDIR:-}" ]]; then
+    run_logged make install DESTDIR="${DESTDIR}"
+else
+    run_logged sudo make install
+fi
 step_done
