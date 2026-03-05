@@ -1,0 +1,36 @@
+name: podman-skopeo
+arch: "${ARCH}"
+platform: linux
+version: "${VERSION}"
+version_schema: none
+maintainer: "Podman Debian <noreply@github.com>"
+description: "Container image utility for copying and inspecting images (compiled from source)"
+vendor: "podman-debian"
+homepage: "https://github.com/containers/skopeo"
+license: "Apache-2.0"
+section: admin
+priority: optional
+
+depends:
+  - podman-container-configs
+
+conflicts:
+  - skopeo
+
+replaces:
+  - skopeo
+
+provides:
+  - skopeo
+
+contents:
+  - src: "${DESTDIR}/usr/bin/skopeo"
+    dst: /usr/bin/skopeo
+    file_info:
+      mode: 0755
+  - src: "${DESTDIR}/usr/share/man/man1/"
+    dst: /usr/share/man/man1/
+    type: tree
+  - src: "${DESTDIR}/usr/share/bash-completion/"
+    dst: /usr/share/bash-completion/
+    type: tree

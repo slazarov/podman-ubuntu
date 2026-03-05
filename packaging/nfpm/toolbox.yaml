@@ -1,0 +1,39 @@
+name: podman-toolbox
+arch: "${ARCH}"
+platform: linux
+version: "${VERSION}"
+version_schema: none
+maintainer: "Podman Debian <noreply@github.com>"
+description: "Tool for interactive command line environments on Linux (compiled from source)"
+vendor: "podman-debian"
+homepage: "https://github.com/containers/toolbox"
+license: "Apache-2.0"
+section: admin
+priority: optional
+
+depends:
+  - podman-podman
+
+conflicts:
+  - podman-toolbox
+
+replaces:
+  - podman-toolbox
+
+provides:
+  - podman-toolbox
+
+contents:
+  - src: "${DESTDIR}/usr/bin/toolbox"
+    dst: /usr/bin/toolbox
+    file_info:
+      mode: 0755
+  - src: "${DESTDIR}/usr/share/bash-completion/"
+    dst: /usr/share/bash-completion/
+    type: tree
+  - src: "${DESTDIR}/usr/share/fish/"
+    dst: /usr/share/fish/
+    type: tree
+  - src: "${DESTDIR}/usr/share/zsh/"
+    dst: /usr/share/zsh/
+    type: tree
