@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: APT Packaging & CI/CD
-status: planning
-stopped_at: Phase 14 context gathered
-last_updated: "2026-03-05T09:15:02.450Z"
-last_activity: 2026-03-04 — Roadmap created for v2.0 APT Packaging & CI/CD
+status: executing
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-03-05T09:43:23Z"
+last_activity: 2026-03-05 — Completed plan 14-01 (DESTDIR staging + nFPM configs)
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 2
+  completed_plans: 1
+  percent: 12
 ---
 
 # Project State
@@ -26,24 +26,24 @@ See: .planning/PROJECT.md (updated 2026-03-04)
 ## Current Position
 
 Phase: 14 of 17 (Debian Package Building) — first phase of v2.0
-Plan: —
-Status: Ready to plan
-Last activity: 2026-03-04 — Roadmap created for v2.0 APT Packaging & CI/CD
+Plan: 1 of 2 complete
+Status: Executing
+Last activity: 2026-03-05 — Completed plan 14-01 (DESTDIR staging + nFPM configs)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [##░░░░░░░░] 12%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0 (v2.0) / 22 (all milestones)
-- Average duration: —
-- Total execution time: —
+- Total plans completed: 1 (v2.0) / 23 (all milestones)
+- Average duration: 6min
+- Total execution time: 6min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 14. Debian Package Building | 1/2 | 6min | 6min |
 
 ## Previous Milestones
 
@@ -62,6 +62,10 @@ Progress: [░░░░░░░░░░] 0%
 
 All decisions logged in PROJECT.md Key Decisions table.
 
+- Phase 14-01: Switched conmon from `make podman` to `make install PREFIX=/usr` for proper DESTDIR support
+- Phase 14-01: Used nFPM `type: tree` for glob-based directory inclusion (man pages, systemd units, completions)
+- Phase 14-01: Pasta avx2 variants excluded from base nFPM config; orchestrator handles conditionally
+
 ### Tech Debt
 - Minor: install_dependencies.sh lacks DEBIAN_FRONTEND (relies on setup.sh)
 - Minor: Circular sourcing pattern config.sh <-> functions.sh (guarded but fragile)
@@ -76,6 +80,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-05T09:15:02.441Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-debian-package-building/14-CONTEXT.md
+Last session: 2026-03-05T09:43:23Z
+Stopped at: Completed 14-01-PLAN.md
+Resume file: .planning/phases/14-debian-package-building/14-01-SUMMARY.md
