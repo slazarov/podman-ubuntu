@@ -45,5 +45,9 @@ run_logged make -j "$NPROC" GCFLAGS="${GO_GCFLAGS}" LDFLAGS="${GO_LDFLAGS}"
 step_done
 
 step_start "Installing"
-run_logged sudo make podman
+if [[ -n "${DESTDIR:-}" ]]; then
+    run_logged make install PREFIX=/usr DESTDIR="${DESTDIR}"
+else
+    run_logged sudo make install PREFIX=/usr
+fi
 step_done

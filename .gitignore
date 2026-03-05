@@ -35,5 +35,8 @@ CLAUDE.md
 .mcp.json
 .fastembed_cache
 
+# Packaging output
+output/
+
 # Generated files
 ltmain.sh

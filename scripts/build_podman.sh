@@ -55,5 +55,9 @@ run_logged make -j "$NPROC" GO="$GOPATH/go" GCFLAGS="${GO_GCFLAGS}" LDFLAGS="${G
 step_done
 
 step_start "Installing"
-run_logged sudo make GO="$GOPATH/go" install PREFIX=/usr
+if [[ -n "${DESTDIR:-}" ]]; then
+    run_logged make GO="$GOPATH/go" install PREFIX=/usr DESTDIR="${DESTDIR}"
+else
+    run_logged sudo make GO="$GOPATH/go" install PREFIX=/usr
+fi
 step_done
