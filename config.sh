@@ -107,8 +107,9 @@ export GOGC_BUILD="${GOGC_BUILD:-off}"
 export GOCACHE="${GOCACHE:-/var/cache/go-build}"
 export GOMODCACHE="${GOMODCACHE:-/var/cache/go-mod}"
 
-# Create cache directories
-mkdir -p "${GOCACHE}" "${GOMODCACHE}"
+# Create cache directories (may fail as non-root if using /var/cache paths;
+# the build step runs as root and creates these, packaging step only reads config)
+mkdir -p "${GOCACHE}" "${GOMODCACHE}" 2>/dev/null || true
 
 # ============================================
 # Build Paths

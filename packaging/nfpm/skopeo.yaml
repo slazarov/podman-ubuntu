@@ -28,9 +28,9 @@ contents:
     dst: /usr/bin/skopeo
     file_info:
       mode: 0755
-  - src: "${DESTDIR}/usr/share/man/man1/"
+  # Man pages (skopeo-specific only; glob avoids pulling in other components' pages)
+  - src: "${DESTDIR}/usr/share/man/man1/skopeo*"
     dst: /usr/share/man/man1/
-    type: tree
-  - src: "${DESTDIR}/usr/share/bash-completion/"
-    dst: /usr/share/bash-completion/
-    type: tree
+  # Shell completions (skopeo-specific)
+  - src: "${DESTDIR}/usr/share/bash-completion/completions/skopeo*"
+    dst: /usr/share/bash-completion/completions/
