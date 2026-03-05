@@ -51,26 +51,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            /var/cache/go-mod
-            /var/cache/go-build
+            ~/.cache/go-mod
+            ~/.cache/go-build
           key: go-${{ runner.arch }}-${{ hashFiles('versions-stable.env') }}
           restore-keys: |
             go-${{ runner.arch }}-
-
-      - name: Cache Rust/Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: cargo-${{ runner.arch }}-${{ hashFiles('versions-stable.env') }}
-          restore-keys: |
-            cargo-${{ runner.arch }}-
-
-      - name: Prepare cache directories
-        run: |
-          sudo mkdir -p /var/cache/go-mod /var/cache/go-build
-          sudo chmod -R 777 /var/cache/go-mod /var/cache/go-build
 
       - name: Update apt cache
         run: sudo apt-get update
@@ -79,8 +64,12 @@ jobs:
         run: |
           DESTDIR="${{ runner.temp }}/podman-staging"
           mkdir -p "$DESTDIR"
+          # Ensure Go cache dirs exist and are writable by root
+          mkdir -p "$HOME/.cache/go-build" "$HOME/.cache/go-mod"
           # Build env args for sudo env (bypasses env_reset completely)
+          # Point Go caches to runner-accessible paths for actions/cache compatibility
           ENV_ARGS="DEBIAN_FRONTEND=noninteractive DESTDIR=$DESTDIR"
+          ENV_ARGS="$ENV_ARGS GOCACHE=$HOME/.cache/go-build GOMODCACHE=$HOME/.cache/go-mod"
           if [[ "${{ inputs.build_track }}" == "stable" ]]; then
             while IFS= read -r line; do
               [[ "$line" =~ ^[[:space:]]*# || -z "$line" ]] && continue
@@ -93,6 +82,8 @@ jobs:
             done < versions-stable.env
           fi
           sudo env $ENV_ARGS ./setup.sh
+          # Fix ownership so actions/cache can save the Go caches
+          sudo chown -R "$(id -u):$(id -g)" "$HOME/.cache/go-build" "$HOME/.cache/go-mod"
         timeout-minutes: 150
 
       - name: Debug DESTDIR contents

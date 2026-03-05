@@ -25,6 +25,3 @@ contents:
     dst: /usr/bin/conmon
     file_info:
       mode: 0755
-  - src: "${DESTDIR}/usr/share/man/man8/"
-    dst: /usr/share/man/man8/
-    type: tree
