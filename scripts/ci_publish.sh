@@ -292,7 +292,7 @@ HTMLEOF
 
 # Append suite info dynamically
 for s in "${available_suites[@]}"; do
-    pkg_count=$(find "${OUTPUT_DIR}/pool" -name "*.deb" -path "*/${s}/*" 2>/dev/null | wc -l || echo "0")
+    pkg_count=$(cat "${OUTPUT_DIR}/dists/${s}/main/binary-"*/Packages 2>/dev/null | grep -c "^Package:" || echo "0")
     cat >> "${OUTPUT_DIR}/index.html" << SUITEEOF
 <p><strong>${s}</strong> — ${pkg_count} packages | <a href="dists/${s}/InRelease">InRelease</a></p>
 SUITEEOF
