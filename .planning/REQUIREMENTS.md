@@ -75,31 +75,31 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PKG-01 | — | Pending |
-| PKG-02 | — | Pending |
-| PKG-03 | — | Pending |
-| PKG-04 | — | Pending |
-| PKG-05 | — | Pending |
-| PKG-06 | — | Pending |
-| PKG-07 | — | Pending |
-| CICD-01 | — | Pending |
-| CICD-02 | — | Pending |
-| CICD-03 | — | Pending |
-| CICD-04 | — | Pending |
-| REPO-01 | — | Pending |
-| REPO-02 | — | Pending |
-| REPO-03 | — | Pending |
-| REPO-04 | — | Pending |
-| REPO-05 | — | Pending |
-| AUTO-01 | — | Pending |
-| AUTO-02 | — | Pending |
-| AUTO-03 | — | Pending |
+| PKG-01 | Phase 14 | Pending |
+| PKG-02 | Phase 14 | Pending |
+| PKG-03 | Phase 14 | Pending |
+| PKG-04 | Phase 14 | Pending |
+| PKG-05 | Phase 14 | Pending |
+| PKG-06 | Phase 14 | Pending |
+| PKG-07 | Phase 14 | Pending |
+| CICD-01 | Phase 16 | Pending |
+| CICD-02 | Phase 16 | Pending |
+| CICD-03 | Phase 16 | Pending |
+| CICD-04 | Phase 16 | Pending |
+| REPO-01 | Phase 15 | Pending |
+| REPO-02 | Phase 15 | Pending |
+| REPO-03 | Phase 15 | Pending |
+| REPO-04 | Phase 15 | Pending |
+| REPO-05 | Phase 15 | Pending |
+| AUTO-01 | Phase 17 | Pending |
+| AUTO-02 | Phase 17 | Pending |
+| AUTO-03 | Phase 17 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 19 total
-- Mapped to phases: 0
-- Unmapped: 19 ⚠️
+- Mapped to phases: 19
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-04*
-*Last updated: 2026-03-04 after initial definition*
+*Last updated: 2026-03-04 after roadmap creation*
