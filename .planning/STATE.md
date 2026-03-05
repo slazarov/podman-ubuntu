@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: APT Packaging & CI/CD
 status: executing
-stopped_at: Completed 14-01-PLAN.md
-last_updated: "2026-03-05T09:43:23Z"
-last_activity: 2026-03-05 — Completed plan 14-01 (DESTDIR staging + nFPM configs)
+stopped_at: Completed 14-02-PLAN.md (Phase 14 complete)
+last_updated: "2026-03-05T09:53:05.422Z"
+last_activity: 2026-03-05 — Completed plan 14-02 (packaging orchestrator script)
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 12
+  completed_plans: 2
+  percent: 25
 ---
 
 # Project State
@@ -25,25 +25,25 @@ See: .planning/PROJECT.md (updated 2026-03-04)
 
 ## Current Position
 
-Phase: 14 of 17 (Debian Package Building) — first phase of v2.0
-Plan: 1 of 2 complete
+Phase: 14 of 17 (Debian Package Building) — first phase of v2.0 -- COMPLETE
+Plan: 2 of 2 complete
 Status: Executing
-Last activity: 2026-03-05 — Completed plan 14-01 (DESTDIR staging + nFPM configs)
+Last activity: 2026-03-05 — Completed plan 14-02 (packaging orchestrator script)
 
-Progress: [##░░░░░░░░] 12%
+Progress: [##░░░░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1 (v2.0) / 23 (all milestones)
-- Average duration: 6min
-- Total execution time: 6min
+- Total plans completed: 2 (v2.0) / 24 (all milestones)
+- Average duration: 4min
+- Total execution time: 8min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 14. Debian Package Building | 1/2 | 6min | 6min |
+| 14. Debian Package Building | 2/2 | 8min | 4min |
 
 ## Previous Milestones
 
@@ -65,6 +65,8 @@ All decisions logged in PROJECT.md Key Decisions table.
 - Phase 14-01: Switched conmon from `make podman` to `make install PREFIX=/usr` for proper DESTDIR support
 - Phase 14-01: Used nFPM `type: tree` for glob-based directory inclusion (man pages, systemd units, completions)
 - Phase 14-01: Pasta avx2 variants excluded from base nFPM config; orchestrator handles conditionally
+- Phase 14-02: Used associative array for component-to-tag mapping rather than case statement
+- Phase 14-02: Pasta version uses live date calculation matching build_pasta.sh pattern
 
 ### Tech Debt
 - Minor: install_dependencies.sh lacks DEBIAN_FRONTEND (relies on setup.sh)
@@ -80,6 +82,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-05T09:43:23Z
-Stopped at: Completed 14-01-PLAN.md
-Resume file: .planning/phases/14-debian-package-building/14-01-SUMMARY.md
+Last session: 2026-03-05T09:53:05.420Z
+Stopped at: Completed 14-02-PLAN.md (Phase 14 complete)
+Resume file: None
