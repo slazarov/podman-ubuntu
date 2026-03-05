@@ -1,0 +1,30 @@
+name: podman-conmon
+arch: "${ARCH}"
+platform: linux
+version: "${VERSION}"
+version_schema: none
+maintainer: "Podman Debian <noreply@github.com>"
+description: "OCI container runtime monitor (compiled from source)"
+vendor: "podman-debian"
+homepage: "https://github.com/containers/conmon"
+license: "Apache-2.0"
+section: admin
+priority: optional
+
+conflicts:
+  - conmon
+
+replaces:
+  - conmon
+
+provides:
+  - conmon
+
+contents:
+  - src: "${DESTDIR}/usr/bin/conmon"
+    dst: /usr/bin/conmon
+    file_info:
+      mode: 0755
+  - src: "${DESTDIR}/usr/share/man/man8/"
+    dst: /usr/share/man/man8/
+    type: tree

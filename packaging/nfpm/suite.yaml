@@ -1,0 +1,28 @@
+name: podman-suite
+arch: "${ARCH}"
+platform: linux
+version: "${VERSION}"
+version_schema: none
+maintainer: "Podman Debian <noreply@github.com>"
+description: "Complete Podman container stack (meta-package)"
+vendor: "podman-debian"
+homepage: "https://github.com/slazarov/podman-debian"
+license: "GPL-3.0"
+section: admin
+priority: optional
+
+depends:
+  - podman-podman
+  - podman-crun
+  - podman-conmon
+  - podman-netavark
+  - podman-aardvark-dns
+  - podman-pasta
+  - podman-fuse-overlayfs
+  - podman-catatonit
+  - podman-buildah
+  - podman-skopeo
+  - podman-toolbox
+  - podman-container-configs
+
+# No contents section -- meta-package has no files
