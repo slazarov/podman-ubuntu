@@ -169,14 +169,18 @@ for component in "${COMPONENTS[@]}"; do
 
     echo ">>> Packaging: podman-${component} (${local_version})"
 
-    # Export variables for nFPM env var substitution
+    # Export variables and expand them in nFPM config
+    # nFPM doesn't expand env vars in contents.src paths (Go glob is literal),
+    # so we pre-process the YAML with envsubst
     export VERSION="${local_version}"
     export ARCH="${ARCH}"
     export DESTDIR="${DESTDIR}"
 
-    # Invoke nFPM
+    local nfpm_config="/tmp/nfpm-${component}.yaml"
+    envsubst < "${NFPM_DIR}/${component}.yaml" > "${nfpm_config}"
+
     nfpm pkg \
-        --config "${NFPM_DIR}/${component}.yaml" \
+        --config "${nfpm_config}" \
         --target "${OUTPUT_DIR}" \
         --packager deb
 
@@ -200,8 +204,10 @@ export VERSION="${suite_version}"
 export ARCH="${ARCH}"
 export DESTDIR="${DESTDIR}"
 
+envsubst < "${NFPM_DIR}/suite.yaml" > "/tmp/nfpm-suite.yaml"
+
 nfpm pkg \
-    --config "${NFPM_DIR}/suite.yaml" \
+    --config "/tmp/nfpm-suite.yaml" \
     --target "${OUTPUT_DIR}" \
     --packager deb
 

@@ -47,6 +47,31 @@ jobs:
             echo "${key}=${val}" >> "$GITHUB_ENV"
           done < versions-stable.env
 
+      - name: Cache Go modules and build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /var/cache/go-mod
+            /var/cache/go-build
+          key: go-${{ runner.arch }}-${{ hashFiles('versions-stable.env') }}
+          restore-keys: |
+            go-${{ runner.arch }}-
+
+      - name: Cache Rust/Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-${{ runner.arch }}-${{ hashFiles('versions-stable.env') }}
+          restore-keys: |
+            cargo-${{ runner.arch }}-
+
+      - name: Prepare cache directories
+        run: |
+          sudo mkdir -p /var/cache/go-mod /var/cache/go-build
+          sudo chmod -R 777 /var/cache/go-mod /var/cache/go-build
+
       - name: Update apt cache
         run: sudo apt-get update
 
