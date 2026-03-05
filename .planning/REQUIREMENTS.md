@@ -22,7 +22,7 @@ Requirements for APT Packaging & CI/CD milestone. Each maps to roadmap phases.
 - [ ] **CICD-01**: GitHub Actions build workflow compiles and packages all components for both architectures
 - [ ] **CICD-02**: Builds run on native runners: ubuntu-24.04 for amd64, ubuntu-24.04-arm for arm64
 - [ ] **CICD-03**: Builds can be triggered manually via workflow_dispatch
-- [ ] **CICD-04**: Two build tracks exist: stable (user-pinned versions) and edge (latest upstream tags)
+- [x] **CICD-04**: Two build tracks exist: stable (user-pinned versions) and edge (latest upstream tags)
 
 ### APT Repository
 
@@ -85,7 +85,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CICD-01 | Phase 16 | Pending |
 | CICD-02 | Phase 16 | Pending |
 | CICD-03 | Phase 16 | Pending |
-| CICD-04 | Phase 16 | Pending |
+| CICD-04 | Phase 16 | Complete |
 | REPO-01 | Phase 15 | Complete |
 | REPO-02 | Phase 15 | Complete |
 | REPO-03 | Phase 15 | Complete |
