@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: APT Packaging & CI/CD
 status: executing
-stopped_at: Completed 15-02-PLAN.md
-last_updated: "2026-03-05T11:05:17.465Z"
-last_activity: 2026-03-05 — Completed plan 15-02 (GPG Ed25519 key pair, GitHub Secrets setup)
+stopped_at: Completed 16-01-PLAN.md
+last_updated: "2026-03-05T11:46:15.683Z"
+last_activity: 2026-03-05 — Completed plan 16-01 (stable version pins, CI publish script)
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  total_plans: 6
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Compile and install Podman on any Debian/Ubuntu system without user interaction.
-**Current focus:** Phase 15 — APT Repository and Signing (complete, advancing to Phase 16)
+**Current focus:** Phase 16 — CI/CD Pipeline
 
 ## Current Position
 
-Phase: 15 of 17 (APT Repository and Signing)
-Plan: 2 of 2 complete
-Status: Phase complete
-Last activity: 2026-03-05 — Completed plan 15-02 (GPG Ed25519 key pair, GitHub Secrets setup)
+Phase: 16 of 17 (CI/CD Pipeline)
+Plan: 1 of 2 complete
+Status: In progress
+Last activity: 2026-03-05 — Completed plan 16-01 (stable version pins, CI publish script)
 
-Progress: [██████████] 100%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4 (v2.0) / 26 (all milestones)
+- Total plans completed: 5 (v2.0) / 27 (all milestones)
 - Average duration: 3min
-- Total execution time: 13min
+- Total execution time: 14min
 
 **By Phase:**
 
@@ -45,6 +45,7 @@ Progress: [██████████] 100%
 |-------|-------|-------|----------|
 | 14. Debian Package Building | 2/2 | 8min | 4min |
 | 15. APT Repository and Signing | 2/2 | 5min | 2.5min |
+| 16. CI/CD Pipeline | 1/2 | 1min | 1min |
 
 ## Previous Milestones
 
@@ -73,6 +74,8 @@ All decisions logged in PROJECT.md Key Decisions table.
 - Phase 15-01: Script exports public key from keyring if pubkey.gpg not yet committed
 - Phase 15-02: Used Ed25519 algorithm for GPG key (smaller, faster, modern standard)
 - Phase 15-02: Binary GPG public key format (not ASCII-armored) for APT signed-by compatibility
+- Phase 16-01: Used curl -sfL with || true for graceful first-deploy handling (no live repo)
+- Phase 16-01: Download other suite's .deb files to temp dir then add via reprepro includedeb
 
 ### Tech Debt
 - Minor: install_dependencies.sh lacks DEBIAN_FRONTEND (relies on setup.sh)
@@ -88,6 +91,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-05T11:05:17.463Z
-Stopped at: Completed 15-02-PLAN.md
+Last session: 2026-03-05T11:46:15.681Z
+Stopped at: Completed 16-01-PLAN.md
 Resume file: None
