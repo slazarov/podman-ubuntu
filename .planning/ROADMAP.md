@@ -44,7 +44,7 @@
 
 **Milestone Goal:** Package all compiled Podman components as .deb packages, automate builds with GitHub Actions, and distribute via a GitHub Pages APT repository.
 
-- [ ] **Phase 14: Debian Package Building** — DESTDIR staging, nFPM configs, and verified .deb packages for all 12 components + meta-package
+- [x] **Phase 14: Debian Package Building** — DESTDIR staging, nFPM configs, and verified .deb packages for all 12 components + meta-package (completed 2026-03-05)
 - [ ] **Phase 15: APT Repository and Signing** — GPG-signed reprepro repository with stable and edge suites, user setup documentation
 - [ ] **Phase 16: CI/CD Pipeline** — GitHub Actions workflows with native ARM64 runners, manual trigger, and dual build tracks
 - [ ] **Phase 17: Upstream Automation** — Scheduled version detection, auto-triggered edge builds, and version state tracking
@@ -129,7 +129,7 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17
 | 11. Build container-libs | v1.2 | 1/1 | Complete | 2026-03-04 |
 | 12. Install Configuration Files | v1.2 | 1/1 | Complete | 2026-03-04 |
 | 13. Man Pages and Uninstall | v1.2 | 1/1 | Complete | 2026-03-04 |
-| 14. Debian Package Building | v2.0 | 1/2 | In Progress | - |
+| 14. Debian Package Building | 2/2 | Complete   | 2026-03-05 | - |
 | 15. APT Repository and Signing | v2.0 | 0/? | Not started | - |
 | 16. CI/CD Pipeline | v2.0 | 0/? | Not started | - |
 | 17. Upstream Automation | v2.0 | 0/? | Not started | - |
