@@ -70,6 +70,22 @@ jobs:
           sudo env $ENV_ARGS ./setup.sh
         timeout-minutes: 150
 
+      - name: Debug DESTDIR contents
+        if: always()
+        run: |
+          DESTDIR="${{ runner.temp }}/podman-staging"
+          echo "=== DESTDIR tree (directories) ==="
+          find "$DESTDIR" -type d 2>/dev/null | head -50 || echo "DESTDIR not found or empty"
+          echo ""
+          echo "=== DESTDIR files (binaries) ==="
+          find "$DESTDIR" -type f -name '*.so*' -o -type f -perm /111 2>/dev/null | head -50 || echo "No binaries found"
+          echo ""
+          echo "=== DESTDIR usr/bin/ ==="
+          ls -la "$DESTDIR/usr/bin/" 2>/dev/null || echo "usr/bin/ does not exist"
+          echo ""
+          echo "=== DESTDIR total file count ==="
+          find "$DESTDIR" -type f 2>/dev/null | wc -l
+
       - name: Install nFPM
         run: |
           # Use Go installed by setup.sh
