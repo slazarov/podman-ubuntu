@@ -174,10 +174,19 @@ if [[ ${total_other_count} -gt 0 ]]; then
     echo ">>> Adding other suites' packages to repository..."
     echo ""
 
-    # Rebuild conf/ (repo_manage.sh cleans it up after running)
+    # Rebuild conf/ and db/ (repo_manage.sh cleans them up after running)
     mkdir -p "${OUTPUT_DIR}/conf"
     cp "${REPO_CONF}/conf/distributions" "${OUTPUT_DIR}/conf/"
     cp "${REPO_CONF}/conf/options" "${OUTPUT_DIR}/conf/"
+
+    # Re-add current suite's packages so reprepro's fresh db knows about them
+    echo ">>> Re-adding '${SUITE}' suite packages to reprepro db..."
+    for deb_file in "${DEB_DIR}"/*.deb; do
+        if [[ -f "${deb_file}" ]]; then
+            reprepro -Vb "${OUTPUT_DIR}" includedeb "${SUITE}" "${deb_file}"
+        fi
+    done
+    echo ""
 
     for other_suite in "${OTHER_SUITES[@]}"; do
         suite_count=${OTHER_SUITE_COUNTS["${other_suite}"]}
