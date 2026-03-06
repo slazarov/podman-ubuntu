@@ -51,6 +51,93 @@ extract_version() {
 }
 
 # ============================================
+# Nightly Version Extraction
+# ============================================
+# For nightly builds (NIGHTLY_BUILD=true), extract the development version
+# directly from source files instead of git tags. Appends ~git{YYYYMMDD}.{sha}
+# so nightly versions sort BELOW tagged releases via dpkg tilde convention.
+#
+# Args: component (string), repo_path (path to cloned repo)
+# Output: version string like "5.9.0~git20260306.abc1234" or plain "20260306" for pasta
+
+extract_version_nightly() {
+    local component="$1"
+    local repo_path="$2"
+    local base_version=""
+    local datestamp
+    local short_sha
+
+    datestamp=$(date +%Y%m%d)
+    short_sha=$(git -C "${repo_path}" rev-parse --short=7 HEAD 2>/dev/null || echo "unknown")
+
+    case "${component}" in
+        podman)
+            base_version=$(grep 'RawVersion' "${repo_path}/version/rawversion/version.go" \
+                | sed 's/.*"\(.*\)".*/\1/' | sed 's/-dev//')
+            ;;
+        buildah)
+            base_version=$(grep '^[[:space:]]*Version[[:space:]]*=' "${repo_path}/define/types.go" \
+                | sed 's/.*"\(.*\)".*/\1/' | sed 's/-dev//')
+            ;;
+        skopeo)
+            base_version=$(grep 'Version[[:space:]]*=' "${repo_path}/version/version.go" \
+                | sed 's/.*"\(.*\)".*/\1/' | sed 's/-dev//')
+            ;;
+        netavark|aardvark-dns)
+            base_version=$(grep '^version[[:space:]]*=' "${repo_path}/Cargo.toml" \
+                | sed 's/.*"\(.*\)".*/\1/' | sed 's/-dev//')
+            ;;
+        conmon)
+            base_version=$(cat "${repo_path}/VERSION" | tr -d '[:space:]')
+            ;;
+        fuse-overlayfs)
+            base_version=$(grep 'AC_INIT' "${repo_path}/configure.ac" \
+                | sed 's/.*\[\([^]]*\)\].*/\1/' | sed 's/.*,\s*\[//' | sed 's/-dev//')
+            # Re-extract more carefully: AC_INIT([name], [version], ...)
+            base_version=$(grep 'AC_INIT' "${repo_path}/configure.ac" \
+                | sed 's/.*\], \[\([^]]*\)\].*/\1/' | sed 's/-dev//')
+            ;;
+        catatonit)
+            base_version=$(grep 'AC_INIT' "${repo_path}/configure.ac" \
+                | sed 's/.*\], \[\([^]]*\)\].*/\1/' | sed 's/+dev//')
+            ;;
+        crun)
+            base_version=$(git -C "${repo_path}" describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+            # Strip v prefix if present
+            base_version="${base_version#v}"
+            ;;
+        toolbox)
+            base_version=$(grep "version:" "${repo_path}/meson.build" \
+                | head -1 | sed "s/.*version:[[:space:]]*'//" | sed "s/'.*//")
+            # Normalize 2-part version to 3-part (e.g., 0.4 -> 0.4.0)
+            if [[ "${base_version}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+                base_version="${base_version}.0"
+            fi
+            ;;
+        container-configs)
+            base_version=$(git -C "${repo_path}" tag --list 'common/*' --sort=-version:refname \
+                | head -1 | sed 's|common/v||')
+            ;;
+        pasta)
+            # Special case: pasta uses plain datestamp with NO tilde suffix
+            echo "${datestamp}"
+            return
+            ;;
+        *)
+            echo "WARNING: Unknown component '${component}' for nightly version extraction" >&2
+            base_version="0.0.0"
+            ;;
+    esac
+
+    # Fallback if extraction failed
+    if [[ -z "${base_version}" ]]; then
+        base_version="0.0.0"
+    fi
+
+    echo "${base_version}~git${datestamp}.${short_sha}"
+}
+
+# ============================================
 # Edge Build: Auto-Detect Tags from Build Repos
 # ============================================
 # For edge builds (no pinned versions), TAG variables are empty in config.sh.
@@ -224,16 +311,25 @@ for component in "${COMPONENTS[@]}"; do
         fi
     fi
 
-    # Validate tag is not empty
-    if [[ -z "${local_tag}" ]]; then
-        echo "ERROR: No version tag found for component: ${component}" >&2
-        echo "  Ensure the corresponding *_TAG variable is set in config.sh or environment," >&2
-        echo "  or that the build repo exists at ${BUILD_ROOT}/ with a checked-out tag." >&2
-        exit 1
-    fi
+    # Nightly builds: extract version from source files instead of tags
+    if [[ "${NIGHTLY_BUILD:-false}" == "true" ]]; then
+        local build_dir="${component}"
+        if [[ -v "COMPONENT_BUILD_DIRS[$component]" ]]; then
+            build_dir="${COMPONENT_BUILD_DIRS[$component]}"
+        fi
+        local_version="$(extract_version_nightly "${component}" "${BUILD_ROOT}/${build_dir}")${VERSION_SUFFIX}"
+    else
+        # Validate tag is not empty
+        if [[ -z "${local_tag}" ]]; then
+            echo "ERROR: No version tag found for component: ${component}" >&2
+            echo "  Ensure the corresponding *_TAG variable is set in config.sh or environment," >&2
+            echo "  or that the build repo exists at ${BUILD_ROOT}/ with a checked-out tag." >&2
+            exit 1
+        fi
 
-    # Extract clean version and append suffix
-    local_version="$(extract_version "${local_tag}" "${component}")${VERSION_SUFFIX}"
+        # Extract clean version and append suffix
+        local_version="$(extract_version "${local_tag}" "${component}")${VERSION_SUFFIX}"
+    fi
 
     echo ">>> Packaging: podman-${component} (${local_version})"
 
@@ -263,8 +359,16 @@ done
 # ============================================
 
 # Use podman's version for the suite meta-package
-suite_tag="${COMPONENT_TAGS["podman"]}"
-suite_version="$(extract_version "${suite_tag}" "podman")${VERSION_SUFFIX}"
+if [[ "${NIGHTLY_BUILD:-false}" == "true" ]]; then
+    local build_dir="podman"
+    if [[ -v "COMPONENT_BUILD_DIRS[podman]" ]]; then
+        build_dir="${COMPONENT_BUILD_DIRS[podman]}"
+    fi
+    suite_version="$(extract_version_nightly "podman" "${BUILD_ROOT}/${build_dir}")${VERSION_SUFFIX}"
+else
+    suite_tag="${COMPONENT_TAGS["podman"]}"
+    suite_version="$(extract_version "${suite_tag}" "podman")${VERSION_SUFFIX}"
+fi
 
 echo ">>> Packaging: podman-suite (${suite_version})"
 
