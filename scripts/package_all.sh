@@ -91,9 +91,7 @@ extract_version_nightly() {
             base_version=$(cat "${repo_path}/VERSION" | tr -d '[:space:]')
             ;;
         fuse-overlayfs)
-            base_version=$(grep 'AC_INIT' "${repo_path}/configure.ac" \
-                | sed 's/.*\[\([^]]*\)\].*/\1/' | sed 's/.*,\s*\[//' | sed 's/-dev//')
-            # Re-extract more carefully: AC_INIT([name], [version], ...)
+            # AC_INIT([fuse-overlayfs], [1.17-dev], ...) -> extract second bracket group
             base_version=$(grep 'AC_INIT' "${repo_path}/configure.ac" \
                 | sed 's/.*\], \[\([^]]*\)\].*/\1/' | sed 's/-dev//')
             ;;
