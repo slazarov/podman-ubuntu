@@ -51,6 +51,8 @@ step_start "Running autogen"
 step_done
 
 step_start "Configuring"
+# crun dynamically links libyajl2 at runtime; the libyajl2 package dependency
+# is declared in packaging/nfpm/crun.yaml so apt installs it on target systems.
 ./configure --prefix=/usr
 step_done
 

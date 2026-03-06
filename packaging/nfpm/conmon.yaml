@@ -11,6 +11,11 @@ license: "Apache-2.0"
 section: admin
 priority: optional
 
+depends:
+  # conmon is a C binary; runtime deps verified via ldd /usr/bin/conmon.
+  - libglib2.0-0
+  - libsystemd0
+
 conflicts:
   - conmon
 
