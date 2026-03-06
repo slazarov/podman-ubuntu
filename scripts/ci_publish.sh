@@ -331,11 +331,16 @@ sudo apt-get install podman-suite</code></pre>
 <h2>Available Suites</h2>
 HTMLEOF
 
-# Append suite info dynamically
+# Append suite info dynamically (only suites with actual packages)
 for s in "${available_suites[@]}"; do
-    # Parse unique packages with versions from amd64 Packages file (avoid duplicates across arches)
     packages_file="${OUTPUT_DIR}/dists/${s}/main/binary-amd64/Packages"
-    pkg_count=$(cat "${OUTPUT_DIR}/dists/${s}/main/binary-"*/Packages 2>/dev/null | grep -c "^Package:" || echo "0")
+    pkg_count=$(grep -c "^Package:" "${packages_file}" 2>/dev/null || true)
+    pkg_count=${pkg_count:-0}
+
+    # Skip suites with no packages (reprepro export creates empty dists/ for all configured suites)
+    if [[ ${pkg_count} -eq 0 ]]; then
+        continue
+    fi
 
     cat >> "${OUTPUT_DIR}/index.html" << SUITEEOF
 <h3>${s} — ${pkg_count} packages <a href="dists/${s}/InRelease" style="font-size:0.8em;font-weight:normal">[InRelease]</a></h3>
@@ -343,16 +348,13 @@ for s in "${available_suites[@]}"; do
 <tr><th>Package</th><th>Version</th></tr>
 SUITEEOF
 
-    if [[ -f "${packages_file}" ]]; then
-        # Extract Package/Version pairs from Packages file
-        awk '/^Package:/{pkg=$2} /^Version:/{print pkg, $2}' "${packages_file}" \
-        | sort \
-        | while read -r pkg ver; do
-            cat >> "${OUTPUT_DIR}/index.html" << ROWEOF
+    awk '/^Package:/{pkg=$2} /^Version:/{print pkg, $2}' "${packages_file}" \
+    | sort \
+    | while read -r pkg ver; do
+        cat >> "${OUTPUT_DIR}/index.html" << ROWEOF
 <tr><td>${pkg}</td><td><code>${ver}</code></td></tr>
 ROWEOF
-        done
-    fi
+    done
 
     cat >> "${OUTPUT_DIR}/index.html" << SUITEEOF
 </table>
