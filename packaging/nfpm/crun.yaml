@@ -11,6 +11,13 @@ license: "GPL-2.0-or-later"
 section: admin
 priority: optional
 
+depends:
+  # crun is a C binary; runtime deps verified via ldd /usr/bin/crun.
+  - libseccomp2
+  - libsystemd0
+  - libcap2
+  - libyajl2
+
 conflicts:
   - crun
 

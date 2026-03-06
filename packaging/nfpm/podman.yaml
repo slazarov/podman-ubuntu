@@ -12,6 +12,7 @@ section: admin
 priority: optional
 
 depends:
+  # Internal suite packages
   - podman-crun
   - podman-conmon
   - podman-netavark
@@ -20,6 +21,9 @@ depends:
   - podman-fuse-overlayfs
   - podman-catatonit
   - podman-container-configs
+  # System libraries; runtime deps verified via ldd /usr/bin/podman.
+  - libgpgme11
+  - libseccomp2
 
 conflicts:
   - podman

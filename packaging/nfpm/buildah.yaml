@@ -13,6 +13,9 @@ priority: optional
 
 depends:
   - podman-container-configs
+  # System libraries; runtime deps verified via ldd /usr/bin/buildah.
+  - libgpgme11
+  - libseccomp2
 
 conflicts:
   - buildah
