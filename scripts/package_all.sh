@@ -198,7 +198,7 @@ resolve_tag_from_repo() {
 
 echo ""
 echo "========================================"
-echo ">>> Podman Debian Package Builder"
+echo ">>> Podman Ubuntu Package Builder"
 echo "========================================"
 echo ""
 

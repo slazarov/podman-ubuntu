@@ -3,9 +3,9 @@ arch: "${ARCH}"
 platform: linux
 version: "${VERSION}"
 version_schema: none
-maintainer: "Podman Debian <noreply@github.com>"
+maintainer: "Podman Ubuntu <noreply@github.com>"
 description: "User-mode networking for rootless containers (compiled from source)"
-vendor: "podman-debian"
+vendor: "podman-ubuntu"
 homepage: "https://passt.top/"
 license: "GPL-2.0-or-later"
 section: admin

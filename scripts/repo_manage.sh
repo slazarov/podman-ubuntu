@@ -161,12 +161,12 @@ echo ""
 echo ">>> Publishing GPG public key..."
 
 if [[ -f "${REPO_CONF}/pubkey.gpg" ]]; then
-    cp "${REPO_CONF}/pubkey.gpg" "${OUTPUT_DIR}/podman-debian.gpg"
+    cp "${REPO_CONF}/pubkey.gpg" "${OUTPUT_DIR}/podman-ubuntu.gpg"
     echo ">>> Copied pubkey.gpg from packaging/repo/"
 else
     # Export from keyring
     GPG_KEY_ID=$(gpg --list-keys --with-colons | grep fpr | head -1 | cut -d: -f10)
-    gpg --export "${GPG_KEY_ID}" > "${OUTPUT_DIR}/podman-debian.gpg"
+    gpg --export "${GPG_KEY_ID}" > "${OUTPUT_DIR}/podman-ubuntu.gpg"
     echo ">>> Exported public key from keyring: ${GPG_KEY_ID}"
 fi
 
@@ -211,7 +211,7 @@ fi
 if [[ -d "${OUTPUT_DIR}/pool" ]]; then
     echo "  pool/"
 fi
-if [[ -f "${OUTPUT_DIR}/podman-debian.gpg" ]]; then
-    echo "  podman-debian.gpg"
+if [[ -f "${OUTPUT_DIR}/podman-ubuntu.gpg" ]]; then
+    echo "  podman-ubuntu.gpg"
 fi
 echo "----------------------------------------"

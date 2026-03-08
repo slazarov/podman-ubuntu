@@ -3,9 +3,9 @@ arch: "${ARCH}"
 platform: linux
 version: "${VERSION}"
 version_schema: none
-maintainer: "Podman Debian <noreply@github.com>"
+maintainer: "Podman Ubuntu <noreply@github.com>"
 description: "Tool for interactive command line environments on Linux (compiled from source)"
-vendor: "podman-debian"
+vendor: "podman-ubuntu"
 homepage: "https://github.com/containers/toolbox"
 license: "Apache-2.0"
 section: admin

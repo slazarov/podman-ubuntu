@@ -3,9 +3,9 @@ arch: "${ARCH}"
 platform: linux
 version: "${VERSION}"
 version_schema: none
-maintainer: "Podman Debian <noreply@github.com>"
+maintainer: "Podman Ubuntu <noreply@github.com>"
 description: "OCI image builder (compiled from source)"
-vendor: "podman-debian"
+vendor: "podman-ubuntu"
 homepage: "https://github.com/containers/buildah"
 license: "Apache-2.0"
 section: admin

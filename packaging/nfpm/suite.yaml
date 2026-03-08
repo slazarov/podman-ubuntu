@@ -3,10 +3,10 @@ arch: "${ARCH}"
 platform: linux
 version: "${VERSION}"
 version_schema: none
-maintainer: "Podman Debian <noreply@github.com>"
+maintainer: "Podman Ubuntu <noreply@github.com>"
 description: "Complete Podman container stack (meta-package)"
-vendor: "podman-debian"
-homepage: "https://github.com/slazarov/podman-debian"
+vendor: "podman-ubuntu"
+homepage: "https://github.com/slazarov/podman-ubuntu"
 license: "GPL-3.0"
 section: admin
 priority: optional
