@@ -75,6 +75,10 @@ jobs:
               val="${val#\"}"
               ENV_ARGS="$ENV_ARGS ${key}=${val}"
             done < versions-stable.env
+          elif [[ "${{ steps.track.outputs.track }}" == "edge" ]]; then
+            # Edge builds components from latest tags but needs pinned build tools
+            eval "$(grep -E '^export (PROTOC_VERSION|PROTOC_TAG)=' versions-stable.env)"
+            ENV_ARGS="$ENV_ARGS PROTOC_VERSION=$PROTOC_VERSION PROTOC_TAG=$PROTOC_TAG"
           elif [[ "${{ steps.track.outputs.track }}" == "nightly" ]]; then
             ENV_ARGS="$ENV_ARGS NIGHTLY_BUILD=true SHALLOW_CLONE=false"
           fi
@@ -167,6 +171,10 @@ jobs:
               val="${val#\"}"
               ENV_ARGS="$ENV_ARGS ${key}=${val}"
             done < versions-stable.env
+          elif [[ "${{ steps.track.outputs.track }}" == "edge" ]]; then
+            # Edge builds components from latest tags but needs pinned build tools
+            eval "$(grep -E '^export (PROTOC_VERSION|PROTOC_TAG)=' versions-stable.env)"
+            ENV_ARGS="$ENV_ARGS PROTOC_VERSION=$PROTOC_VERSION PROTOC_TAG=$PROTOC_TAG"
           elif [[ "${{ steps.track.outputs.track }}" == "nightly" ]]; then
             ENV_ARGS="$ENV_ARGS NIGHTLY_BUILD=true SHALLOW_CLONE=false"
           fi
