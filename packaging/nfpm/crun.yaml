@@ -3,9 +3,9 @@ arch: "${ARCH}"
 platform: linux
 version: "${VERSION}"
 version_schema: none
-maintainer: "Podman Debian <noreply@github.com>"
+maintainer: "Podman Ubuntu <noreply@github.com>"
 description: "Fast and lightweight OCI container runtime (compiled from source)"
-vendor: "podman-debian"
+vendor: "podman-ubuntu"
 homepage: "https://github.com/containers/crun"
 license: "GPL-2.0-or-later"
 section: admin

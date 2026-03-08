@@ -30,7 +30,7 @@ usage() {
     echo ""
     echo "  suite            Target suite being published: 'stable', 'edge', or 'nightly'"
     echo "  deb-directory    Path containing freshly built .deb files for this suite"
-    echo "  repo-url         Live repository URL (e.g., https://slazarov.github.io/podman-debian)"
+    echo "  repo-url         Live repository URL (e.g., https://slazarov.github.io/podman-ubuntu)"
     echo "  output-directory Where to create the final multi-suite repository"
     echo ""
     echo "Environment variables:"
@@ -288,8 +288,8 @@ th { background: #f4f4f4; }
 <h2>Setup</h2>
 
 <p>1. Import the signing key:</p>
-<pre><code>curl -fsSL https://REPO_URL_PLACEHOLDER/podman-debian.gpg \
-  | sudo tee /usr/share/keyrings/podman-debian.gpg > /dev/null</code></pre>
+<pre><code>curl -fsSL https://REPO_URL_PLACEHOLDER/podman-ubuntu.gpg \
+  | sudo tee /usr/share/keyrings/podman-ubuntu.gpg > /dev/null</code></pre>
 
 <p>2. Add the repository — pick your track:</p>
 <div class="tab-group">
@@ -299,16 +299,16 @@ th { background: #f4f4f4; }
     <button class="tab-btn" onclick="showTab('nightly')">nightly</button>
   </div>
   <div id="tab-stable" class="tab-content active">
-    <pre><code>echo "deb [signed-by=/usr/share/keyrings/podman-debian.gpg] https://REPO_URL_PLACEHOLDER stable main" \
-  | sudo tee /etc/apt/sources.list.d/podman-debian.list</code></pre>
+    <pre><code>echo "deb [signed-by=/usr/share/keyrings/podman-ubuntu.gpg] https://REPO_URL_PLACEHOLDER stable main" \
+  | sudo tee /etc/apt/sources.list.d/podman-ubuntu.list</code></pre>
   </div>
   <div id="tab-edge" class="tab-content">
-    <pre><code>echo "deb [signed-by=/usr/share/keyrings/podman-debian.gpg] https://REPO_URL_PLACEHOLDER edge main" \
-  | sudo tee /etc/apt/sources.list.d/podman-debian.list</code></pre>
+    <pre><code>echo "deb [signed-by=/usr/share/keyrings/podman-ubuntu.gpg] https://REPO_URL_PLACEHOLDER edge main" \
+  | sudo tee /etc/apt/sources.list.d/podman-ubuntu.list</code></pre>
   </div>
   <div id="tab-nightly" class="tab-content">
-    <pre><code>echo "deb [signed-by=/usr/share/keyrings/podman-debian.gpg] https://REPO_URL_PLACEHOLDER nightly main" \
-  | sudo tee /etc/apt/sources.list.d/podman-debian.list</code></pre>
+    <pre><code>echo "deb [signed-by=/usr/share/keyrings/podman-ubuntu.gpg] https://REPO_URL_PLACEHOLDER nightly main" \
+  | sudo tee /etc/apt/sources.list.d/podman-ubuntu.list</code></pre>
   </div>
 </div>
 
@@ -355,8 +355,8 @@ cat >> "${OUTPUT_DIR}/index.html" << 'HTMLEOF'
 
 <h2>Resources</h2>
 <ul>
-<li><a href="podman-debian.gpg">GPG signing key</a></li>
-<li><a href="https://github.com/slazarov/podman-debian">Source repository</a></li>
+<li><a href="podman-ubuntu.gpg">GPG signing key</a></li>
+<li><a href="https://github.com/slazarov/podman-ubuntu">Source repository</a></li>
 </ul>
 
 <script>
@@ -410,7 +410,7 @@ done
 if [[ -d "${OUTPUT_DIR}/pool" ]]; then
     echo "  pool/"
 fi
-if [[ -f "${OUTPUT_DIR}/podman-debian.gpg" ]]; then
-    echo "  podman-debian.gpg"
+if [[ -f "${OUTPUT_DIR}/podman-ubuntu.gpg" ]]; then
+    echo "  podman-ubuntu.gpg"
 fi
 echo "----------------------------------------"

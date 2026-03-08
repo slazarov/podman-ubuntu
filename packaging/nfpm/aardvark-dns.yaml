@@ -3,9 +3,9 @@ arch: "${ARCH}"
 platform: linux
 version: "${VERSION}"
 version_schema: none
-maintainer: "Podman Debian <noreply@github.com>"
+maintainer: "Podman Ubuntu <noreply@github.com>"
 description: "Container DNS server for Podman networking (compiled from source)"
-vendor: "podman-debian"
+vendor: "podman-ubuntu"
 homepage: "https://github.com/containers/aardvark-dns"
 license: "Apache-2.0"
 section: admin
