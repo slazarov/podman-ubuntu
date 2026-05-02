@@ -26,9 +26,74 @@ concurrency:
 
 jobs:
   # ============================================
+  # Check if upstream components changed (cron only)
+  # ============================================
+  check-changes:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    outputs:
+      skip: ${{ steps.detect.outputs.skip }}
+    steps:
+      - name: Restore last-known SHAs
+        uses: actions/cache@v4
+        with:
+          path: /tmp/nightly-sha.json
+          key: nightly-sha-v1
+
+      - name: Detect upstream changes
+        id: detect
+        run: |
+          SHA_FILE="/tmp/nightly-sha.json"
+          OLD_SHAS=$(cat "$SHA_FILE" 2>/dev/null || echo "{}")
+
+          declare -A REPOS
+          REPOS[podman]="https://github.com/containers/podman.git"
+          REPOS[buildah]="https://github.com/containers/buildah.git"
+          REPOS[crun]="https://github.com/containers/crun.git"
+          REPOS[conmon]="https://github.com/containers/conmon"
+          REPOS[netavark]="https://github.com/containers/netavark"
+          REPOS[aardvark-dns]="https://github.com/containers/aardvark-dns"
+          REPOS[skopeo]="https://github.com/containers/skopeo.git"
+          REPOS[fuse-overlayfs]="https://github.com/containers/fuse-overlayfs.git"
+          REPOS[catatonit]="https://github.com/openSUSE/catatonit.git"
+          REPOS[container-libs]="https://github.com/containers/container-libs.git"
+          REPOS[pasta]="https://passt.top/passt"
+          REPOS[go-md2man]="https://github.com/cpuguy83/go-md2man.git"
+          REPOS[toolbox]="https://github.com/containers/toolbox.git"
+
+          CHANGED=""
+          NEW_SHAS="{"
+          FIRST=true
+
+          for comp in "${!REPOS[@]}"; do
+            HEAD_SHA=$(git ls-remote --symref "${REPOS[$comp]}" HEAD 2>/dev/null | grep -v "^ref:" | awk '{print $1}' || echo "unknown")
+            OLD_SHA=$(echo "$OLD_SHAS" | grep -o "\"${comp}\":\"[^\"]*\"" | head -1 | sed 's/.*:"//;s/".*//')
+
+            if [[ -z "$OLD_SHA" || "$HEAD_SHA" != "$OLD_SHA" ]]; then
+              CHANGED="${CHANGED}  ${comp}: ${OLD_SHA:-<new>} -> ${HEAD_SHA}\n"
+            fi
+
+            [[ "$FIRST" == true ]] && FIRST=false || NEW_SHAS+=","
+            NEW_SHAS+="\"${comp}\":\"${HEAD_SHA}\""
+          done
+
+          NEW_SHAS+="}"
+          echo "$NEW_SHAS" > "$SHA_FILE"
+
+          if [[ -n "$CHANGED" ]]; then
+            echo -e "Changes detected:\n$CHANGED"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "No upstream changes detected. Skipping build."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ============================================
   # Build on native amd64 runner
   # ============================================
   build-amd64:
+    needs: [check-changes]
+    if: github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -128,6 +193,8 @@ jobs:
   # Build on native arm64 runner
   # ============================================
   build-arm64:
+    needs: [check-changes]
+    if: github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.skip != 'true'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 180
     steps:
