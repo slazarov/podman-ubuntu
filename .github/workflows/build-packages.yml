@@ -93,7 +93,7 @@ jobs:
   # ============================================
   build-amd64:
     needs: [check-changes]
-    if: github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.skip != 'true'
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.skip != 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -194,7 +194,7 @@ jobs:
   # ============================================
   build-arm64:
     needs: [check-changes]
-    if: github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.skip != 'true'
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.skip != 'true')
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 180
     steps:
@@ -274,6 +274,7 @@ jobs:
   # ============================================
   publish:
     needs: [build-amd64, build-arm64]
+    if: always() && needs.build-amd64.result == 'success' && needs.build-arm64.result == 'success'
     runs-on: ubuntu-24.04
     environment:
       name: github-pages
