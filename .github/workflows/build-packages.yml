@@ -66,7 +66,7 @@ jobs:
           FIRST=true
 
           for comp in "${!REPOS[@]}"; do
-            HEAD_SHA=$(git ls-remote --symref "${REPOS[$comp]}" HEAD 2>/dev/null | grep -v "^ref:" | awk '{print $1}' || echo "unknown")
+            HEAD_SHA=$(git ls-remote "${REPOS[$comp]}" HEAD 2>/dev/null | awk '{print $1}' | head -1 || echo "unknown")
             OLD_SHA=$(echo "$OLD_SHAS" | grep -o "\"${comp}\":\"[^\"]*\"" | head -1 | sed 's/.*:"//;s/".*//')
 
             if [[ -z "$OLD_SHA" || "$HEAD_SHA" != "$OLD_SHA" ]]; then
