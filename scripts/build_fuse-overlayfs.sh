@@ -38,30 +38,68 @@ step_start "Logging version"
 log_component "fuse-overlayfs"
 step_done
 
-step_start "Configuring ccache"
-# Enable ccache for C build caching when configured
-if [[ "${CCACHE_ENABLED:-false}" == "true" ]] && command -v ccache &>/dev/null; then
-    export CC="ccache gcc"
-    echo "  ccache enabled for C compilation"
-fi
-step_done
+# Detect build system: Rust (v2.0+ on main) vs C/autotools (v1.x on older tags)
+if [[ -f "Cargo.toml" ]]; then
+    # Rust build (fuse-overlayfs v2.0+)
+    if [ -n "${HOME:-}" ] && [ -f "$HOME/.cargo/env" ]; then
+        . "$HOME/.cargo/env"
+    fi
 
-step_start "Running autogen"
-./autogen.sh
-step_done
+    step_start "Configuring Cargo optimization"
+    export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-$NPROC}"
 
-step_start "Configuring"
-LIBS="-ldl" LDFLAGS="-static" ./configure --prefix=/usr
-step_done
+    if [[ "${SCCACHE_ENABLED:-false}" == "true" ]] && command -v sccache &>/dev/null; then
+        export RUSTC_WRAPPER=sccache
+        echo "  sccache enabled for Rust compilation"
+    fi
 
-step_start "Building"
-run_logged make -j "$NPROC"
-step_done
+    if [[ "${MOLD_ENABLED:-false}" == "true" ]] && command -v mold &>/dev/null; then
+        mkdir -p .cargo
+        cat > .cargo/config.toml << 'TOML'
+[target.'cfg(target_os = "linux")']
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+TOML
+        echo "  mold linker enabled for Rust compilation"
+    fi
+    step_done
 
-step_start "Installing"
-if [[ -n "${DESTDIR:-}" ]]; then
-    run_logged make install DESTDIR="${DESTDIR}"
+    step_start "Building (Rust)"
+    run_logged make build
+    step_done
+
+    step_start "Installing"
+    if [[ -n "${DESTDIR:-}" ]]; then
+        run_logged make install DESTDIR="${DESTDIR}" PREFIX=/usr
+    else
+        run_logged sudo make install PREFIX=/usr
+    fi
+    step_done
 else
-    run_logged sudo make install
+    # C/autotools build (fuse-overlayfs v1.x)
+    step_start "Configuring ccache"
+    if [[ "${CCACHE_ENABLED:-false}" == "true" ]] && command -v ccache &>/dev/null; then
+        export CC="ccache gcc"
+        echo "  ccache enabled for C compilation"
+    fi
+    step_done
+
+    step_start "Running autogen"
+    ./autogen.sh
+    step_done
+
+    step_start "Configuring"
+    LIBS="-ldl" LDFLAGS="-static" ./configure --prefix=/usr
+    step_done
+
+    step_start "Building"
+    run_logged make -j "$NPROC"
+    step_done
+
+    step_start "Installing"
+    if [[ -n "${DESTDIR:-}" ]]; then
+        run_logged make install DESTDIR="${DESTDIR}"
+    else
+        run_logged sudo make install
+    fi
+    step_done
 fi
-step_done

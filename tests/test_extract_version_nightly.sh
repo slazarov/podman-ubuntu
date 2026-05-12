@@ -117,12 +117,21 @@ version = "1.18.0-dev"' > "${aardvark_dir}/Cargo.toml"
     echo "2.2.2" > "${conmon_dir}/VERSION"
     git -C "${conmon_dir}" add -A && git -C "${conmon_dir}" commit -m "init" --quiet
 
-    # --- fuse-overlayfs mock repo ---
+    # --- fuse-overlayfs mock repo (C/autotools v1.x) ---
     local fuse_dir="${TEST_TMPDIR}/fuse-overlayfs"
     mkdir -p "${fuse_dir}"
     git -C "${TEST_TMPDIR}" init fuse-overlayfs --quiet
     echo 'AC_INIT([fuse-overlayfs], [1.17-dev], [giuseppe@scrivano.org])' > "${fuse_dir}/configure.ac"
     git -C "${fuse_dir}" add -A && git -C "${fuse_dir}" commit -m "init" --quiet
+
+    # --- fuse-overlayfs-rust mock repo (Rust v2.0+) ---
+    local fuse_rust_dir="${TEST_TMPDIR}/fuse-overlayfs-rust"
+    mkdir -p "${fuse_rust_dir}"
+    git -C "${TEST_TMPDIR}" init fuse-overlayfs-rust --quiet
+    echo '[package]
+name = "fuse-overlayfs"
+version = "2.0.0"' > "${fuse_rust_dir}/Cargo.toml"
+    git -C "${fuse_rust_dir}" add -A && git -C "${fuse_rust_dir}" commit -m "init" --quiet
 
     # --- catatonit mock repo ---
     local catatonit_dir="${TEST_TMPDIR}/catatonit"
@@ -242,7 +251,17 @@ result=$(extract_version_nightly "toolbox" "${TEST_TMPDIR}/toolbox")
 assert_matches "toolbox version format (3-part)" "^0\.4\.0~git${TODAY}\.[0-9a-f]{7}$" "${result}"
 
 echo ""
-echo "Test 7: dpkg tilde sort (nightly < release)"
+echo "Test 7: fuse-overlayfs nightly version (C/autotools v1.x)"
+result=$(extract_version_nightly "fuse-overlayfs" "${TEST_TMPDIR}/fuse-overlayfs")
+assert_matches "fuse-overlayfs C version format" "^1\.17~git${TODAY}\.[0-9a-f]{7}$" "${result}"
+
+echo ""
+echo "Test 7b: fuse-overlayfs nightly version (Rust v2.0+)"
+result=$(extract_version_nightly "fuse-overlayfs" "${TEST_TMPDIR}/fuse-overlayfs-rust")
+assert_matches "fuse-overlayfs Rust version format" "^2\.0\.0~git${TODAY}\.[0-9a-f]{7}$" "${result}"
+
+echo ""
+echo "Test 8: dpkg tilde sort (nightly < release)"
 # Nightly version with full suffix should sort below the tagged release
 # dpkg is only available on Debian/Ubuntu - skip on other platforms
 if command -v dpkg &>/dev/null; then
