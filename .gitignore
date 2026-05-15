@@ -29,6 +29,7 @@ log/
 .planning/
 CLAUDE.md
 .opencode
+.codex
 
 # Codanna / MCP
 .codanna/
