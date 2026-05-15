@@ -16,7 +16,7 @@ depends:
   - libseccomp2
   - libsystemd0
   - libcap2
-  - libyajl2
+  - ${CRUN_PARSER_DEPEND}
 
 conflicts:
   - crun

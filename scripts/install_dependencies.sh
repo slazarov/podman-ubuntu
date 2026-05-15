@@ -56,8 +56,8 @@ apt-get install -y \
 
 # Dependencies for building crun
 apt-get install -y make git gcc build-essential pkgconf libtool \
-   libsystemd-dev libprotobuf-c-dev libcap-dev libseccomp-dev libyajl-dev \
-   autoconf python3 automake
+    libsystemd-dev libprotobuf-c-dev libcap-dev libseccomp-dev libjson-c-dev libyajl-dev \
+    autoconf python3 automake
 
 # DISABLED from the above command
 #go-md2man
@@ -83,4 +83,3 @@ fi
 if [[ "${MOLD_ENABLED:-false}" == "true" ]]; then
     apt-get install -y mold clang
 fi
-

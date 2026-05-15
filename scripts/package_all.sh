@@ -196,6 +196,28 @@ resolve_tag_from_repo() {
     echo "${tag}"
 }
 
+detect_crun_parser_depend() {
+    local crun_bin="${DESTDIR}/usr/bin/crun"
+
+    if [[ ! -x "${crun_bin}" ]]; then
+        echo "ERROR: crun binary not found or not executable: ${crun_bin}" >&2
+        return 1
+    fi
+
+    if ldd "${crun_bin}" | grep -q 'libjson-c\.so\.5'; then
+        echo "libjson-c5"
+        return 0
+    fi
+
+    if ldd "${crun_bin}" | grep -q 'libyajl\.so\.2'; then
+        echo "libyajl2"
+        return 0
+    fi
+
+    echo "ERROR: unable to detect crun parser runtime dependency from ldd ${crun_bin}" >&2
+    return 1
+}
+
 # ============================================
 # Prerequisite Validation
 # ============================================
@@ -341,9 +363,15 @@ for component in "${COMPONENTS[@]}"; do
     export VERSION="${local_version}"
     export ARCH="${ARCH}"
     export DESTDIR="${DESTDIR}"
+    export CRUN_PARSER_DEPEND="libyajl2"
+
+    if [[ "${component}" == "crun" ]]; then
+        CRUN_PARSER_DEPEND="$(detect_crun_parser_depend)"
+        export CRUN_PARSER_DEPEND
+    fi
 
     nfpm_config="/tmp/nfpm-${component}.yaml"
-    envsubst '${VERSION} ${ARCH} ${DESTDIR}' < "${NFPM_DIR}/${component}.yaml" > "${nfpm_config}"
+    envsubst '${VERSION} ${ARCH} ${DESTDIR} ${CRUN_PARSER_DEPEND}' < "${NFPM_DIR}/${component}.yaml" > "${nfpm_config}"
 
     nfpm pkg \
         --config "${nfpm_config}" \
