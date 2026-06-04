@@ -1,0 +1,4 @@
+[defaults]
+env_files = ["../../secrets/keys.env"]
+
+[codex]
