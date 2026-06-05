@@ -66,62 +66,84 @@ Full v2.0 phase details archived at `.planning/milestones/v2.0-ROADMAP.md`.
 ## Phase Details
 
 ### Phase 19: Per-Distro Versioning & Dependency Mapping
+
 **Goal**: Each distro's packages carry a distinct version identity and declare the runtime dependencies that actually exist on that distro, so building the same upstream version for two distros produces installable, non-colliding .deb files
 **Depends on**: Phase 18 (v2.0 packaging pipeline)
 **Requirements**: PKG-08, PKG-09, PKG-10
 **Success Criteria** (what must be TRUE):
+
   1. A package built with `DISTRO=26.04` declares the renamed 26.04 dependencies (libgpgme45, libsubid5) instead of the 24.04 names, and `apt install` resolves them on a real ubuntu:26.04 system
   2. The same upstream version built for each distro produces distinct version strings (`~ubuntu24.04.podman1` vs `~ubuntu26.04.podman1`) that satisfy `dpkg --compare-versions`: each sorts below the official upstream version, and the 24.04 form sorts below the 26.04 form so dist-upgrades order correctly
   3. Runtime library dependencies are derived at build time from the binaries' linked sonames (ldd soname→package mapping) rather than hardcoded, so a future distro rename is picked up without editing nFPM config by hand
   4. Building for 24.04 with the new code path produces packages byte-functionally equivalent to the pre-v3.0 24.04 packages (no regression to the shipping pipeline)
-**Plans**: 4 plans
 
+**Plans**: 4 plans
 Plans:
+**Wave 1**
+
 - [ ] 19-01-PLAN.md — Distro detection helpers + per-distro VERSION_SUFFIX composition (functions.sh, config.sh)
-- [ ] 19-02-PLAN.md — ldd→dpkg detected depends wired into package_all.sh + nFPM YAMLs (${DETECTED_DEPENDS})
 - [ ] 19-03-PLAN.md — verify_versions.sh: dpkg --compare-versions ordering proof (D-11)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 19-02-PLAN.md — ldd→dpkg detected depends wired into package_all.sh + nFPM YAMLs (${DETECTED_DEPENDS})
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 19-04-PLAN.md — On-Ubuntu detector + 24.04 equivalence + 26.04 container install smoke (checkpoint)
 
 ### Phase 20: Repository Restructure & Migration Aliases
+
 **Goal**: The APT repository serves all six versioned suites from a single URL under one GPG key, while existing users on bare suite names keep receiving 24.04 packages with no client-side change
 **Depends on**: Phase 19
 **Requirements**: REPO-06, REPO-07, REPO-08
 **Success Criteria** (what must be TRUE):
+
   1. The repository serves six suites (stable-2404, edge-2404, nightly-2404, stable-2604, edge-2604, nightly-2604) from one URL with one GPG key, and `apt update` against any suite succeeds with a valid signature chain
   2. An existing user whose `.sources` still points at bare `stable`/`edge`/`nightly` continues to receive 24.04 packages after the restructure deploys, with no edit to their `.sources` (legacy alias served physically, not via symlink)
   3. Repository metadata includes `Acquire-By-Hash: yes` on every suite, so apt clients fetching from the GitHub Pages CDN never hit a hash-sum mismatch
   4. The publish tooling routes a given track's packages into the correct `<track>-<distro>` suite without clobbering the other five suites' contents
+
 **Plans**: TBD
 
 Plans:
+
 - [ ] 20-01: TBD
 
 ### Phase 21: CI Build Matrix Extension to 26.04
+
 **Goal**: One CI workflow builds all four distro×arch cells, producing native 26.04 packages, with distro-isolated caches/artifacts and a publish step that only runs when every cell succeeds
 **Depends on**: Phase 20
 **Requirements**: CICD-05, CICD-06, CICD-07, CICD-08
 **Success Criteria** (what must be TRUE):
+
   1. A single workflow run builds all four distro×arch combinations (24.04/26.04 × amd64/arm64) via one `strategy.matrix`, and a 26.04 cell failure does not abort the 24.04 cells (`fail-fast: false`)
   2. The 26.04 cells build inside `ubuntu:26.04` containers on the existing native runners, written runner-agnostic so switching to GA `ubuntu-26.04` runners is a one-line change
   3. Build caches and artifacts carry a distro dimension (`debs-<distro>-<arch>` artifact names, distro in cache keys) and the publish download never merges across distros, so no 26.04 binary can leak into a 24.04 package or vice versa
   4. The publish job runs only when all four build cells succeed; if any cell fails, the live repository is left untouched
+
 **Plans**: TBD
 
 Plans:
+
 - [ ] 21-01: TBD
 
 ### Phase 22: Migration Docs & Installability Smoke Tests
+
 **Goal**: A user on either distro can set up the repo from copy-paste instructions specific to their version, understands the deprecation timeline for bare suite names, and every publish is gated on a real install + smoke test
 **Depends on**: Phase 21
 **Requirements**: MIGR-01, MIGR-02, MIGR-03, MIGR-04
 **Success Criteria** (what must be TRUE):
+
   1. A user on either 24.04 or 26.04 can copy a DEB822 `.sources` block specific to their Ubuntu version from the docs, paste it, and reach a working `apt install podman-suite`
   2. The repository index page (`index.html`) presents per-distro setup instructions, and the deprecation timeline for the bare `stable`/`edge`/`nightly` suite names is documented
   3. CI installs `podman-suite` and runs `podman info` successfully inside both real `ubuntu:24.04` and `ubuntu:26.04` containers before any publish proceeds, so an uninstallable package never reaches the live repo
   4. The GPG key path and import instructions remain unchanged across both distros (single key, single setup flow)
+
 **Plans**: TBD
 
 Plans:
+
 - [ ] 22-01: TBD
 
 ## Progress
