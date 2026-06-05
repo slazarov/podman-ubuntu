@@ -31,6 +31,109 @@ detect_architecture() {
     esac
 }
 
+# ============================================
+# Distro Identity Detection
+# ============================================
+
+# Resolve the distro VERSION_ID used to compose the per-distro version suffix.
+#
+# Resolution order (D-05/D-06):
+#   1. ${DISTRO} override, if set — wins, /etc/os-release is NOT consulted.
+#   2. /etc/os-release VERSION_ID, if the file is readable.
+#   3. Otherwise: hard-fail (D-03 — no silent fallback).
+#
+# Override contract: DISTRO carries the DOTTED VERSION_ID form (e.g. "26.04"),
+# NOT the compact CI-label form ("2604"). The regex below enforces this — a
+# bare "2604" is rejected intentionally. CI must pass the dotted form.
+#
+# The returned value is validated against ^[0-9]+\.[0-9]+$ before it is echoed
+# (T-19-01 mitigation): a malformed DISTRO / VERSION_ID cannot inject shell or
+# path metacharacters into the downstream version string / .deb filename.
+detect_distro_version_id() {
+    local version_id
+
+    if [[ -n "${DISTRO:-}" ]]; then
+        # D-06 override — honored verbatim, then validated below.
+        version_id="${DISTRO}"
+    elif [[ -r /etc/os-release ]]; then
+        # Source in a subshell so VERSION_ID assignment does not leak into the
+        # caller's environment; ${VERSION_ID:?...} fails loudly if absent.
+        # shellcheck disable=SC1091
+        version_id="$( . /etc/os-release && printf '%s' "${VERSION_ID:?VERSION_ID missing from /etc/os-release}" )"
+    else
+        echo "ERROR: cannot determine distro: no DISTRO override and /etc/os-release unreadable" >&2
+        return 1
+    fi
+
+    # T-19-01: fail closed on anything that is not a dotted NN.NN VERSION_ID.
+    if [[ ! "${version_id}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+        echo "ERROR: invalid VERSION_ID/DISTRO '${version_id}' (expected NN.NN, e.g. 26.04)" >&2
+        return 1
+    fi
+
+    echo "${version_id}"
+}
+
+# ============================================
+# Runtime Dependency Detection
+# ============================================
+
+# Map a set of freshly-built ELF binaries to the Debian/Ubuntu packages that
+# own their resolved shared libraries (D-01). Generalizes the former
+# detect_crun_parser_depend() prototype: the crun JSON-parser variant now
+# falls out of the host package DB automatically (D-04 — no soname special case).
+#
+# Args: one or more absolute paths to ELF binaries (typically under DESTDIR).
+# Output: sorted, unique owning package names, one per line.
+#
+# Behavior:
+#   - Each binary must be executable, else hard-fail (D-03).
+#   - ldd enumerates resolved libraries; `=> /path` field 3 only (linux-vdso
+#     and the ld-linux loader have no resolved path and are skipped).
+#   - Each lib is realpath-normalized (ldd may report a symlink — Pitfall 4)
+#     before dpkg-query -S, whose owning package is taken with the :arch
+#     multiarch qualifier stripped (awk -F:).
+#   - Any resolved .so with no owning package aborts the build (D-03 hard-fail).
+#   - The always-present base packages libc6 and libgcc-s1 are excluded (D-02).
+#
+# Security: only ever invoked on in-tree, freshly-built binaries — never on
+# untrusted input (T-19-02 accepted constraint).
+detect_runtime_depends() {
+    local -A pkgs=()
+    local bin lib pkg ex
+    # Base packages present on every Debian/Ubuntu system — never declared (D-02).
+    local -a EXCLUDE=( libc6 libgcc-s1 )
+
+    for bin in "$@"; do
+        if [[ ! -x "${bin}" ]]; then
+            echo "ERROR: binary not found or not executable: ${bin}" >&2
+            return 1
+        fi
+        # Field 3 is the resolved "=> /path" object; the awk filter keeps only
+        # lines that actually resolved to an absolute path.
+        while read -r lib; do
+            [[ -n "${lib}" && -e "${lib}" ]] || continue
+            pkg="$(dpkg-query -S "$(realpath "${lib}")" 2>/dev/null | awk -F: '{print $1}' | head -n1)"
+            if [[ -z "${pkg}" ]]; then
+                echo "ERROR: no owning package for ${lib} (linked by ${bin})" >&2
+                return 1
+            fi
+            pkgs["${pkg}"]=1
+        done < <(ldd "${bin}" | awk '/=> \// {print $3}')
+    done
+
+    # Emit deduped, minus exclusions, sorted.
+    local out=""
+    for pkg in "${!pkgs[@]}"; do
+        local skip=0
+        for ex in "${EXCLUDE[@]}"; do
+            [[ "${pkg}" == "${ex}" ]] && skip=1
+        done
+        [[ "${skip}" -eq 0 ]] && out+="${pkg}"$'\n'
+    done
+    printf '%s' "${out}" | sort -u
+}
+
 # NOTE: config.sh is sourced at the END of this file (after all function definitions)
 # This is required because config.sh calls get_required_go_version(), get_required_rust_version(), etc.
 
