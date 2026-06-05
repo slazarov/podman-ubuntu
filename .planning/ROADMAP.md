@@ -1,11 +1,12 @@
-# Roadmap: Podman Debian Compiler
+# Roadmap: Podman Ubuntu Compiler
 
 ## Milestones
 
 - ✅ **v1.0 MVP** — Phases 1-5 (shipped 2026-03-03)
 - ✅ **v1.1 Ecosystem Audit** — Phases 6-10 (shipped 2026-03-04)
 - ✅ **v1.2 Include Common Libraries** — Phases 11-13 (shipped 2026-03-04)
-- 🚧 **v2.0 APT Packaging & CI/CD** — Phases 14-17 (in progress)
+- ✅ **v2.0 APT Packaging & CI/CD** — Phases 14-18 (shipped 2026-03-08)
+- 🚧 **v3.0 Ubuntu 26.04 Support** — Phases 19-22 (in progress)
 
 ## Phases
 
@@ -40,80 +41,93 @@
 
 </details>
 
-### v2.0 APT Packaging & CI/CD (In Progress)
+<details>
+<summary>✅ v2.0 APT Packaging & CI/CD (Phases 14-18) — SHIPPED 2026-03-08</summary>
 
-**Milestone Goal:** Package all compiled Podman components as .deb packages, automate builds with GitHub Actions, and distribute via a GitHub Pages APT repository.
+- [x] Phase 14: Debian Package Building (2/2 plans) — completed 2026-03-05
+- [x] Phase 15: APT Repository and Signing (2/2 plans) — completed 2026-03-05
+- [x] Phase 16: CI/CD Pipeline (delivered via Phase 18) — completed 2026-03-08
+- [x] Phase 17: Upstream Automation (absorbed into Phase 18) — completed 2026-03-08
+- [x] Phase 18: Edge Track / Nightly Builds (2/2 plans) — completed 2026-03-08
 
-- [x] **Phase 14: Debian Package Building** — DESTDIR staging, nFPM configs, and verified .deb packages for all 12 components + meta-package (completed 2026-03-05)
-- [x] **Phase 15: APT Repository and Signing** — GPG-signed reprepro repository with stable and edge suites, user setup documentation (completed 2026-03-05)
-- [ ] **Phase 16: CI/CD Pipeline** — GitHub Actions workflows with native ARM64 runners, manual trigger, and dual build tracks
-- [ ] **Phase 17: Upstream Automation** — Scheduled version detection, auto-triggered edge builds, and version state tracking
+Full v2.0 phase details archived at `.planning/milestones/v2.0-ROADMAP.md`.
+
+</details>
+
+### 🚧 v3.0 Ubuntu 26.04 Support (In Progress)
+
+**Milestone Goal:** Users on both Ubuntu 24.04 and 26.04 can add the APT repo, enable their distro's suite, and install Podman packages that install and run cleanly on their OS version.
+
+- [ ] **Phase 19: Per-Distro Versioning & Dependency Mapping** - Distro-tagged version suffixes and per-distro runtime dependency resolution so each distro's .deb is uniquely identified and correctly installable
+- [ ] **Phase 20: Repository Restructure & Migration Aliases** - Six versioned suites from one URL with legacy aliases that keep existing users working
+- [ ] **Phase 21: CI Build Matrix Extension to 26.04** - A single distro×arch build matrix that produces native 26.04 packages with atomic, distro-isolated publishing
+- [ ] **Phase 22: Migration Docs & Installability Smoke Tests** - Per-distro setup docs, deprecation timeline, and CI-verified install + `podman info` in real containers
 
 ## Phase Details
 
-### Phase 14: Debian Package Building
-**Goal**: Users can install any Podman component or the full stack as .deb packages built from the existing build system
-**Depends on**: Phase 13 (v1.2 complete build system)
-**Requirements**: PKG-01, PKG-02, PKG-03, PKG-04, PKG-05, PKG-06, PKG-07
+### Phase 19: Per-Distro Versioning & Dependency Mapping
+**Goal**: Each distro's packages carry a distinct version identity and declare the runtime dependencies that actually exist on that distro, so building the same upstream version for two distros produces installable, non-colliding .deb files
+**Depends on**: Phase 18 (v2.0 packaging pipeline)
+**Requirements**: PKG-08, PKG-09, PKG-10
 **Success Criteria** (what must be TRUE):
-  1. Running a build script with DESTDIR set produces a complete filesystem staging tree without modifying the host system, and omitting DESTDIR preserves the existing direct-install behavior
-  2. Each of the 12 component .deb packages installs cleanly via dpkg -i with correct file placement, and podman-suite meta-package pulls in all components via apt install
-  3. Installing a podman-* package on a system with the corresponding official Ubuntu package succeeds without conflict (Conflicts/Replaces/Provides declarations work correctly)
-  4. Upgrading podman-container-configs preserves user modifications to files in /etc/containers/ (conffiles declaration prompts dpkg merge)
-  5. Each package declares correct inter-package dependencies so that apt install podman-podman automatically installs crun, conmon, netavark, aardvark-dns, pasta, fuse-overlayfs, and container-configs
-**Plans**: 2 plans
+  1. A package built with `DISTRO=2604` declares the renamed 26.04 dependencies (libgpgme45, libsubid5) instead of the 24.04 names, and `apt install` resolves them on a real ubuntu:26.04 system
+  2. The same upstream version built for each distro produces distinct version strings (`~ubuntu24.04.podman1` vs `~ubuntu26.04.podman1`) that satisfy `dpkg --compare-versions`: each sorts below the official upstream version, and the 24.04 form sorts below the 26.04 form so dist-upgrades order correctly
+  3. Runtime library dependencies are derived at build time from the binaries' linked sonames (ldd soname→package mapping) rather than hardcoded, so a future distro rename is picked up without editing nFPM config by hand
+  4. Building for 24.04 with the new code path produces packages byte-functionally equivalent to the pre-v3.0 24.04 packages (no regression to the shipping pipeline)
+**Plans**: 4 plans
 
 Plans:
-- [x] 14-01-PLAN.md — DESTDIR staging support in all build scripts + 13 nFPM YAML package configs
-- [x] 14-02-PLAN.md — Packaging orchestrator script (version extraction, nFPM invocation)
+- [ ] 19-01-PLAN.md — Distro detection helpers + per-distro VERSION_SUFFIX composition (functions.sh, config.sh)
+- [ ] 19-02-PLAN.md — ldd→dpkg detected depends wired into package_all.sh + nFPM YAMLs (${DETECTED_DEPENDS})
+- [ ] 19-03-PLAN.md — verify_versions.sh: dpkg --compare-versions ordering proof (D-11)
+- [ ] 19-04-PLAN.md — On-Ubuntu detector + 24.04 equivalence + 26.04 container install smoke (checkpoint)
 
-### Phase 15: APT Repository and Signing
-**Goal**: Users can add a GPG-signed APT repository and install packages via standard apt commands from either the stable or edge suite
-**Depends on**: Phase 14
-**Requirements**: REPO-01, REPO-02, REPO-03, REPO-04, REPO-05
+### Phase 20: Repository Restructure & Migration Aliases
+**Goal**: The APT repository serves all six versioned suites from a single URL under one GPG key, while existing users on bare suite names keep receiving 24.04 packages with no client-side change
+**Depends on**: Phase 19
+**Requirements**: REPO-06, REPO-07, REPO-08
 **Success Criteria** (what must be TRUE):
-  1. apt update against the repository URL succeeds without --allow-insecure-repositories or [trusted=yes] (GPG signature chain is valid: InRelease + Release.gpg both present and signed with Ed25519 key)
-  2. Repository serves two suites (stable and edge) at the same URL, and apt install from either suite installs the correct package versions
-  3. Following the documented DEB822 .sources setup instructions, a user on a fresh Ubuntu 24.04 system can add the repo, import the GPG key via signed-by, and install podman-suite in under 5 commands
-  4. Public GPG key is downloadable from the repository root URL for user import
-**Plans**: 2 plans
-
-Plans:
-- [x] 15-01-PLAN.md — Reprepro configuration, repository management script, and user setup documentation
-- [x] 15-02-PLAN.md — GPG Ed25519 key generation and GitHub Secrets setup
-
-### Phase 16: CI/CD Pipeline
-**Goal**: Packages for both architectures are built and published to the APT repository automatically when a workflow is triggered
-**Depends on**: Phase 15
-**Requirements**: CICD-01, CICD-02, CICD-03, CICD-04
-**Success Criteria** (what must be TRUE):
-  1. Triggering workflow_dispatch builds .deb packages for all components on both amd64 (ubuntu-24.04) and arm64 (ubuntu-24.04-arm) native runners, and publishes them to the APT repository
-  2. If either architecture build fails, the publish step does not run and the existing repository remains intact (atomic publishing)
-  3. The workflow accepts a parameter choosing between stable (user-pinned versions) and edge (latest upstream tags) build tracks, producing packages in the corresponding APT suite
-  4. Build artifacts (individual .deb files) are retained as downloadable GitHub Actions artifacts for debugging
-**Plans**: 2 plans
-
-Plans:
-- [ ] 16-01-PLAN.md — Stable version pinning file and CI two-suite publish script
-- [ ] 16-02-PLAN.md — GitHub Actions three-job workflow (build-amd64, build-arm64, publish)
-
-### Phase 17: Upstream Automation
-**Goal**: New upstream releases are detected automatically and trigger edge suite rebuilds without manual intervention
-**Depends on**: Phase 16
-**Requirements**: AUTO-01, AUTO-02, AUTO-03
-**Success Criteria** (what must be TRUE):
-  1. A daily cron workflow checks all upstream component repos for new release tags and correctly identifies when a newer version exists compared to what was last built
-  2. When new upstream versions are detected, the edge build workflow is triggered automatically and produces updated packages in the edge suite
-  3. versions.json accurately reflects the last-built version per component for both stable and edge suites, and is updated after each successful build
+  1. The repository serves six suites (stable-2404, edge-2404, nightly-2404, stable-2604, edge-2604, nightly-2604) from one URL with one GPG key, and `apt update` against any suite succeeds with a valid signature chain
+  2. An existing user whose `.sources` still points at bare `stable`/`edge`/`nightly` continues to receive 24.04 packages after the restructure deploys, with no edit to their `.sources` (legacy alias served physically, not via symlink)
+  3. Repository metadata includes `Acquire-By-Hash: yes` on every suite, so apt clients fetching from the GitHub Pages CDN never hit a hash-sum mismatch
+  4. The publish tooling routes a given track's packages into the correct `<track>-<distro>` suite without clobbering the other five suites' contents
 **Plans**: TBD
 
 Plans:
-- [ ] 17-01: TBD
+- [ ] 20-01: TBD
+
+### Phase 21: CI Build Matrix Extension to 26.04
+**Goal**: One CI workflow builds all four distro×arch cells, producing native 26.04 packages, with distro-isolated caches/artifacts and a publish step that only runs when every cell succeeds
+**Depends on**: Phase 20
+**Requirements**: CICD-05, CICD-06, CICD-07, CICD-08
+**Success Criteria** (what must be TRUE):
+  1. A single workflow run builds all four distro×arch combinations (24.04/26.04 × amd64/arm64) via one `strategy.matrix`, and a 26.04 cell failure does not abort the 24.04 cells (`fail-fast: false`)
+  2. The 26.04 cells build inside `ubuntu:26.04` containers on the existing native runners, written runner-agnostic so switching to GA `ubuntu-26.04` runners is a one-line change
+  3. Build caches and artifacts carry a distro dimension (`debs-<distro>-<arch>` artifact names, distro in cache keys) and the publish download never merges across distros, so no 26.04 binary can leak into a 24.04 package or vice versa
+  4. The publish job runs only when all four build cells succeed; if any cell fails, the live repository is left untouched
+**Plans**: TBD
+
+Plans:
+- [ ] 21-01: TBD
+
+### Phase 22: Migration Docs & Installability Smoke Tests
+**Goal**: A user on either distro can set up the repo from copy-paste instructions specific to their version, understands the deprecation timeline for bare suite names, and every publish is gated on a real install + smoke test
+**Depends on**: Phase 21
+**Requirements**: MIGR-01, MIGR-02, MIGR-03, MIGR-04
+**Success Criteria** (what must be TRUE):
+  1. A user on either 24.04 or 26.04 can copy a DEB822 `.sources` block specific to their Ubuntu version from the docs, paste it, and reach a working `apt install podman-suite`
+  2. The repository index page (`index.html`) presents per-distro setup instructions, and the deprecation timeline for the bare `stable`/`edge`/`nightly` suite names is documented
+  3. CI installs `podman-suite` and runs `podman info` successfully inside both real `ubuntu:24.04` and `ubuntu:26.04` containers before any publish proceeds, so an uninstallable package never reaches the live repo
+  4. The GPG key path and import instructions remain unchanged across both distros (single key, single setup flow)
+**Plans**: TBD
+
+Plans:
+- [ ] 22-01: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 14 -> 15 -> 16 -> 17
+Phases execute in numeric order: 19 → 20 → 21 → 22
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -132,28 +146,17 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17
 | 13. Man Pages and Uninstall | v1.2 | 1/1 | Complete | 2026-03-04 |
 | 14. Debian Package Building | v2.0 | 2/2 | Complete | 2026-03-05 |
 | 15. APT Repository and Signing | v2.0 | 2/2 | Complete | 2026-03-05 |
-| 16. CI/CD Pipeline | 1/2 | In Progress|  | - |
-| 17. Upstream Automation | v2.0 | 0/? | Not started | - |
-
-### Phase 18: Edge Track: Build from Latest Upstream Commits
-
-**Goal:** Users can install bleeding-edge packages built from the latest upstream commits via a nightly APT suite, with correct Debian snapshot versioning that auto-upgrades to tagged releases
-**Requirements**: EDGE-01, EDGE-02, EDGE-03, EDGE-04, EDGE-05
-**Depends on:** Phase 17
-**Success Criteria** (what must be TRUE):
-  1. Nightly version strings (e.g., 6.0.0~git20260306.abc1234~podman1) sort below tagged releases via dpkg, so users auto-upgrade when a real release lands
-  2. Dev versions are correctly extracted from each upstream component's source files (version.go, Cargo.toml, configure.ac, VERSION, meson.build)
-  3. Nightly .deb packages are valid and installable via dpkg -i
-  4. reprepro accepts nightly packages into a dedicated nightly suite alongside stable and edge
-  5. A daily cron workflow triggers nightly builds automatically, and the nightly track is also available via manual dispatch
-**Plans**: 2 plans
-
-Plans:
-- [ ] 18-01-PLAN.md — Nightly env config, nightly-aware git_checkout, reprepro nightly suite, and dev version extraction in package_all.sh
-- [ ] 18-02-PLAN.md — Three-suite CI publish script and GitHub Actions workflow with nightly option and cron trigger
+| 16. CI/CD Pipeline | v2.0 | — | Complete (via Phase 18) | 2026-03-08 |
+| 17. Upstream Automation | v2.0 | — | Complete (absorbed into Phase 18) | 2026-03-08 |
+| 18. Edge Track / Nightly Builds | v2.0 | 2/2 | Complete | 2026-03-08 |
+| 19. Per-Distro Versioning & Dependency Mapping | v3.0 | 0/4 | Not started | - |
+| 20. Repository Restructure & Migration Aliases | v3.0 | 0/? | Not started | - |
+| 21. CI Build Matrix Extension to 26.04 | v3.0 | 0/? | Not started | - |
+| 22. Migration Docs & Installability Smoke Tests | v3.0 | 0/? | Not started | - |
 
 ---
 
 *See `.planning/milestones/v1.0-ROADMAP.md` for archived v1.0 phase details.*
 *See `.planning/milestones/v1.1-ROADMAP.md` for archived v1.1 phase details.*
 *See `.planning/milestones/v1.2-ROADMAP.md` for archived v1.2 phase details.*
+*See `.planning/milestones/v2.0-ROADMAP.md` for archived v2.0 phase details.*
