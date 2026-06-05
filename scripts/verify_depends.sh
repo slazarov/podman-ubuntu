@@ -94,6 +94,15 @@ declare -A COMPONENT_BINARIES=(
     ["skopeo"]="usr/bin/skopeo"
 )
 
+# Inject-only components (WR-02) — mirrors scripts/package_all.sh. Their YAML
+# has no literal `depends:` key; the injected fragment carries its own header,
+# emitted only when the detected set is non-empty. Keep in sync with that map.
+declare -A INJECT_ONLY_DEPENDS=(
+    ["crun"]=1
+    ["conmon"]=1
+    ["pasta"]=1
+)
+
 # ---------------------------------------------------------------------------
 # D-14 baseline (24.04, t64-adjusted). Per RESEARCH Pitfall 1 + Open Question 2:
 # the pre-v3.0 hardcoded system-lib set, with the two t64-transitioned names
@@ -304,7 +313,18 @@ for distro_under_test in 24.04 26.04; do
             for rel_bin in ${COMPONENT_BINARIES[$comp]}; do
                 cbins+=("${DESTDIR}/${rel_bin}")
             done
-            fragment="$(detect_runtime_depends "${cbins[@]}" | sed 's/^/  - /')"
+            detected_items="$(detect_runtime_depends "${cbins[@]}" | sed 's/^/  - /')"
+            # WR-02: inject-only YAMLs get a self-contained depends: block
+            # (header + items) only when non-empty; others get items only.
+            if [[ -v "INJECT_ONLY_DEPENDS[$comp]" ]]; then
+                if [[ -n "${detected_items}" ]]; then
+                    fragment="depends:"$'\n'"${detected_items}"
+                else
+                    fragment=""
+                fi
+            else
+                fragment="${detected_items}"
+            fi
         else
             fragment=""
         fi

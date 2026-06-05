@@ -300,6 +300,19 @@ declare -A COMPONENT_BINARIES=(
     ["skopeo"]="usr/bin/skopeo"
 )
 
+# Inject-only components (WR-02): their nFPM YAML has NO literal `depends:` key
+# and no static items — the entire depends block is the injected fragment. For
+# these the injected fragment must carry its own `depends:` header, emitted only
+# when the detected set is non-empty, so a fully-static binary yields no key at
+# all (rather than a bare `depends:` with zero items, which parses as null).
+# Components NOT listed here (podman/buildah/skopeo) keep their literal
+# `depends:` key with static suite deps and receive list items only.
+declare -A INJECT_ONLY_DEPENDS=(
+    ["crun"]=1
+    ["conmon"]=1
+    ["pasta"]=1
+)
+
 # ============================================
 # Create Output Directory
 # ============================================
@@ -366,12 +379,26 @@ for component in "${COMPONENTS[@]}"; do
     # Components with no native ELF binary get an empty fragment. No "|| true":
     # detect_runtime_depends returns 1 on any unmapped lib, which aborts the
     # build under set -euo pipefail + ERR trap (D-03 hard-fail).
+    #
+    # WR-02: for inject-only components (crun/conmon/pasta) the fragment carries
+    # its OWN `depends:` header, emitted only when there is at least one entry,
+    # so a fully-static binary (empty detected set) yields no key at all instead
+    # of a bare `depends:` with zero items.
     if [[ -v "COMPONENT_BINARIES[$component]" ]]; then
         component_bins=()
         for rel_bin in ${COMPONENT_BINARIES[$component]}; do
             component_bins+=("${DESTDIR}/${rel_bin}")
         done
-        DETECTED_DEPENDS="$(detect_runtime_depends "${component_bins[@]}" | sed 's/^/  - /')"
+        detected_items="$(detect_runtime_depends "${component_bins[@]}" | sed 's/^/  - /')"
+        if [[ -v "INJECT_ONLY_DEPENDS[$component]" ]]; then
+            if [[ -n "${detected_items}" ]]; then
+                DETECTED_DEPENDS="depends:"$'\n'"${detected_items}"
+            else
+                DETECTED_DEPENDS=""
+            fi
+        else
+            DETECTED_DEPENDS="${detected_items}"
+        fi
     else
         DETECTED_DEPENDS=""
     fi

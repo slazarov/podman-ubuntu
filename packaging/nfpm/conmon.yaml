@@ -11,8 +11,9 @@ license: "Apache-2.0"
 section: admin
 priority: optional
 
-depends:
-  # System libraries detected from the binary and injected at build time.
+# System-library depends are injected at build time (WR-02). The injected
+# fragment carries its own `depends:` header so a fully-static binary (empty
+# detected set) produces no depends: key at all rather than an empty one.
 ${DETECTED_DEPENDS}
 
 conflicts:
