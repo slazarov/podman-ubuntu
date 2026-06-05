@@ -371,11 +371,12 @@ remove_if_user_installed() {
     # Input Arguments
     local lfile="$1"
 
-    # Try to see if it was installed using Package Manager
-    dpkg --search "${lfile}" 2>&1 > /dev/null
-
-    # If not delete File
-    if [[ $? -eq 1 ]]
+    # Try to see if it was installed using the Package Manager. Test the exit
+    # status directly (WR-06): the previous `2>&1 > /dev/null` ordered the
+    # redirections wrong (stderr went to the original stdout, not /dev/null)
+    # and read `$?` on a separate line, which is fragile under `set -e` and
+    # future edits. If dpkg does NOT own the file, delete it.
+    if ! dpkg --search "${lfile}" >/dev/null 2>&1
     then
         rm -f "${lfile}"
     fi
