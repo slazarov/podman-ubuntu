@@ -1,73 +1,62 @@
-# Requirements: Podman Ubuntu Compiler
+# Requirements: Podman Ubuntu Compiler — v3.0 Ubuntu 26.04 Support
 
-**Defined:** 2026-03-04
+**Defined:** 2026-06-05
 **Core Value:** Compile and install Podman on any Debian/Ubuntu system without user interaction.
 
-## v2.0 Requirements
+## v3.0 Requirements
 
-Requirements for APT Packaging & CI/CD milestone. Each maps to roadmap phases.
+Requirements for this milestone. Each maps to roadmap phases.
 
 ### Packaging
 
-- [x] **PKG-01**: User can install each component as an individual .deb package with podman-* prefix (podman-podman, podman-crun, podman-netavark, podman-aardvark-dns, podman-conmon, podman-pasta, podman-fuse-overlayfs, podman-catatonit, podman-buildah, podman-skopeo, podman-toolbox, podman-container-configs)
-- [x] **PKG-02**: Each package declares Conflicts/Replaces/Provides against the corresponding official Ubuntu package name
-- [x] **PKG-03**: Package dependencies are correctly declared (e.g. podman-podman depends on podman-crun, podman-netavark, podman-aardvark-dns, podman-conmon, podman-pasta, podman-fuse-overlayfs, podman-container-configs)
-- [x] **PKG-04**: Each component has an nFPM YAML config with version and architecture substitution via placeholders
-- [x] **PKG-05**: Build scripts support DESTDIR environment variable for staging-based packaging without modifying direct-install behavior
-- [x] **PKG-06**: Meta-package podman-suite installs entire Podman stack with one command (depends on all individual packages)
-- [x] **PKG-07**: Config files in /etc/containers/ are declared as conffiles so user modifications are preserved on upgrade
+- [ ] **PKG-08**: Packages built for Ubuntu 26.04 declare the correct renamed runtime dependencies (libgpgme45, libsubid5) so `apt install` succeeds on 26.04
+- [x] **PKG-09**: Package versions carry a per-distro suffix (e.g. `~ubuntu24.04.podman1` / `~ubuntu26.04.podman1`) so the same upstream version produces distinct .deb identities per distro and dist-upgrades order correctly
+- [ ] **PKG-10**: Runtime library dependencies are resolved at build time via ldd soname→package detection so future distro renames are caught automatically without manual config edits
+
+### Repository
+
+- [ ] **REPO-06**: Repository serves six versioned suites (stable-2404, edge-2404, nightly-2404, stable-2604, edge-2604, nightly-2604) from a single URL with one GPG key
+- [ ] **REPO-07**: Existing users with bare `stable`/`edge`/`nightly` suite names in their .sources continue to receive 24.04 packages without any client-side change (legacy aliases during deprecation window)
+- [ ] **REPO-08**: Repository metadata includes Acquire-By-Hash so apt clients never hit CDN hash-sum mismatches on GitHub Pages
 
 ### CI/CD
 
-- [ ] **CICD-01**: GitHub Actions build workflow compiles and packages all components for both architectures
-- [ ] **CICD-02**: Builds run on native runners: ubuntu-24.04 for amd64, ubuntu-24.04-arm for arm64
-- [ ] **CICD-03**: Builds can be triggered manually via workflow_dispatch
-- [x] **CICD-04**: Two build tracks exist: stable (user-pinned versions) and edge (latest upstream tags)
+- [ ] **CICD-05**: A single workflow builds all four distro×arch combinations (24.04/26.04 × amd64/arm64) via a strategy matrix
+- [ ] **CICD-06**: Ubuntu 26.04 packages are built inside ubuntu:26.04 containers on existing native runners, written runner-agnostic so native ubuntu-26.04 runners are a one-line switch when GA
+- [ ] **CICD-07**: Build caches and artifacts carry a distro dimension (debs-<distro>-<arch> naming, distro in cache keys) so no cross-distro binary contamination can occur
+- [ ] **CICD-08**: Publishing remains atomic — the publish job runs only when all four build cells succeed, leaving the live repository intact otherwise
 
-### APT Repository
+### Migration & Docs
 
-- [x] **REPO-01**: APT repository is hosted on GitHub Pages with reprepro-generated structure (dists/, pool/)
-- [x] **REPO-02**: Repository is GPG-signed with Ed25519 key (InRelease + Release.gpg)
-- [x] **REPO-03**: Repository serves two suites in one URL: stable and edge
-- [x] **REPO-04**: User setup instructions document DEB822 .sources config, GPG key import via signed-by, and install commands
-- [x] **REPO-05**: Public GPG key is published in the repository root for user download
-
-### Automation
-
-- [ ] **AUTO-01**: Scheduled cron workflow checks upstream GitHub repos for new release tags daily
-- [ ] **AUTO-02**: New upstream versions auto-trigger edge suite builds
-- [ ] **AUTO-03**: versions.json tracks last-built version per component for both stable and edge suites
+- [ ] **MIGR-01**: A user on either distro can set up the repo from copy-paste DEB822 .sources blocks specific to their Ubuntu version in the documentation
+- [ ] **MIGR-02**: The repository index page (index.html) presents per-distro setup instructions
+- [ ] **MIGR-03**: The deprecation timeline for bare `stable`/`edge`/`nightly` suite names is documented
+- [ ] **MIGR-04**: CI verifies installability before publish — installs podman-suite and runs `podman info` in real ubuntu:24.04 and ubuntu:26.04 containers
 
 ## Future Requirements
 
-Deferred to future release. Tracked but not in current roadmap.
+Deferred to a later milestone. Tracked but not in current roadmap.
 
-### Distribution Expansion
+### Repository
 
-- **DIST-01**: User can install packages on Ubuntu 22.04 (additional codename in reprepro)
-- **DIST-02**: User can install packages on Debian 12 bookworm
+- **REPO-09**: Remove legacy bare suite aliases after the deprecation window elapses
+- **REPO-10**: Codename-aliased suites (noble/resolute) enabling `$VERSION_CODENAME`-based auto-detect in setup snippets
 
-### Quality
+### Packaging
 
-- **QUAL-01**: Installed packages pass lintian checks in CI
-- **QUAL-02**: CI runs `podman run hello-world` after package installation as smoke test
-
-### User Experience
-
-- **UX-01**: One-line setup script (curl | bash) for simplified onboarding
-- **UX-02**: Changelog generation from upstream release notes for `apt changelog` support
+- **PKG-11**: Generalized N-distro templating for adding a third distro version
 
 ## Out of Scope
 
+Explicitly excluded. Documented to prevent scope creep.
+
 | Feature | Reason |
 |---------|--------|
-| Multi-distro support (Debian 12, Ubuntu 22.04) | Keep v2.0 focused on Ubuntu 24.04 only; add if demand materializes |
-| Source packages (dpkg-buildpackage) | We wrap pre-built binaries; source packaging duplicates existing build system |
-| RPM packages | Debian/Ubuntu focus only |
-| QEMU emulation for ARM64 | Native runners available; QEMU is 10-30x slower and unreliable |
-| CDN/CloudFront distribution | GitHub Pages sufficient for current scale |
-| Private repository | Public repo simplifies access and enables free ARM64 runners |
-| GUI package manager integration | CLI-focused project |
+| Codename-in-version-string (`~noble`/`~resolute`) | Codenames sort alphabetically and break dist-upgrades — Docker's documented mistake (moby/for-linux #1315) |
+| Separate repo path per distro (OBS-style) | Forces per-distro URIs: lines; breaks the single-root, one-URL setup |
+| Hard suite rename cutover without aliases | Silently breaks every existing user's apt update |
+| Publishing 24.04-built binaries to the 26.04 suite | Forward-compat shim; defeats native per-distro correctness this milestone exists for |
+| Ubuntu 24.10/25.04/25.10 interim releases | Non-LTS; project targets LTS releases only |
 
 ## Traceability
 
@@ -75,31 +64,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PKG-01 | Phase 14 | Complete |
-| PKG-02 | Phase 14 | Complete |
-| PKG-03 | Phase 14 | Complete |
-| PKG-04 | Phase 14 | Complete |
-| PKG-05 | Phase 14 | Complete |
-| PKG-06 | Phase 14 | Complete |
-| PKG-07 | Phase 14 | Complete |
-| CICD-01 | Phase 16 | Pending |
-| CICD-02 | Phase 16 | Pending |
-| CICD-03 | Phase 16 | Pending |
-| CICD-04 | Phase 16 | Complete |
-| REPO-01 | Phase 15 | Complete |
-| REPO-02 | Phase 15 | Complete |
-| REPO-03 | Phase 15 | Complete |
-| REPO-04 | Phase 15 | Complete |
-| REPO-05 | Phase 15 | Complete |
-| AUTO-01 | Phase 17 | Pending |
-| AUTO-02 | Phase 17 | Pending |
-| AUTO-03 | Phase 17 | Pending |
+| PKG-08 | Phase 19 | Pending |
+| PKG-09 | Phase 19 | Complete (19-01 suffix + 19-03 dpkg proof) |
+| PKG-10 | Phase 19 | Pending |
+| REPO-06 | Phase 20 | Pending |
+| REPO-07 | Phase 20 | Pending |
+| REPO-08 | Phase 20 | Pending |
+| CICD-05 | Phase 21 | Pending |
+| CICD-06 | Phase 21 | Pending |
+| CICD-07 | Phase 21 | Pending |
+| CICD-08 | Phase 21 | Pending |
+| MIGR-01 | Phase 22 | Pending |
+| MIGR-02 | Phase 22 | Pending |
+| MIGR-03 | Phase 22 | Pending |
+| MIGR-04 | Phase 22 | Pending |
 
 **Coverage:**
-- v2.0 requirements: 19 total
-- Mapped to phases: 19
-- Unmapped: 0
+- v3.0 requirements: 14 total
+- Mapped to phases: 14
+- Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-03-04*
-*Last updated: 2026-03-04 after roadmap creation*
+*Requirements defined: 2026-06-05*
+*Last updated: 2026-06-05 after roadmap creation (Phases 19-22)*
