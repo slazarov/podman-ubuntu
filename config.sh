@@ -37,6 +37,22 @@ esac
 echo "Architecture: ${ARCH} (Go: ${GOARCH}, Protoc: ${PROTOC_ARCH}, Rust: ${RUSTUP_ARCH})"
 
 # ============================================
+# Distro Identity & Version Suffix
+# ============================================
+
+# Single source of truth for the per-distro version suffix (D-07).
+# detect_distro_version_id honors the DISTRO override (dotted VERSION_ID, e.g.
+# "26.04"), else reads /etc/os-release, else hard-fails. A detection failure
+# fails config load loudly — intended D-03 behavior, identical to a bad ARCH.
+export DISTRO_VERSION_ID="$(detect_distro_version_id)"
+
+# Per-distro suffix form ~ubuntu{VERSION_ID}.podman1 (D-08): sorts below the
+# official Ubuntu package and orders 24.04 < 26.04 via dpkg version semantics.
+export VERSION_SUFFIX="~ubuntu${DISTRO_VERSION_ID}.podman1"
+
+echo "Distro: ubuntu ${DISTRO_VERSION_ID} (version suffix: ${VERSION_SUFFIX})"
+
+# ============================================
 # Build Optimization Settings
 # ============================================
 
