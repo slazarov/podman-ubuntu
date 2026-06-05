@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Ubuntu 26.04 Support
 status: executing
-stopped_at: Phase 19 context gathered
-last_updated: "2026-06-05T12:19:41.136Z"
-last_activity: 2026-06-05 — v3.0 roadmap created (Phases 19-22, 14 requirements mapped)
+stopped_at: Completed 19-01-PLAN.md
+last_updated: "2026-06-05T12:28:19Z"
+last_activity: 2026-06-05 -- Completed Phase 19 Plan 01 (distro helpers + VERSION_SUFFIX)
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 4
+  completed_plans: 1
+  percent: 25
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-05)
 
 **Core value:** Compile and install Podman on any Debian/Ubuntu system without user interaction.
-**Current focus:** Phase 19 — Per-Distro Versioning & Dependency Mapping
+**Current focus:** Phase 19 — per-distro-versioning-dependency-mapping
 
 ## Current Position
 
-Phase: 19 of 22 (Per-Distro Versioning & Dependency Mapping)
-Plan: — (roadmap created, not yet planned)
-Status: Ready to execute
-Last activity: 2026-06-05 — v3.0 roadmap created (Phases 19-22, 14 requirements mapped)
+Phase: 19 (per-distro-versioning-dependency-mapping) — EXECUTING
+Plan: 2 of 4 (Plan 01 complete)
+Status: Executing Phase 19
+Last activity: 2026-06-05 -- Completed Phase 19 Plan 01 (distro helpers + VERSION_SUFFIX)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 25%
 
 ## Performance Metrics
 
@@ -77,6 +77,9 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - Phase 15-01: Set Codename = Suite name (stable/edge) to avoid createsymlinks complexity — revisited in v3.0 (suite renames need aliases)
 - Phase 18-01: Nightly versions use tilde (~git) convention for dpkg sort below tagged releases — v3.0 extends tilde form with per-distro suffix
 - Phase 18-02: Go cache key uses track + run_number for cache isolation — v3.0 adds distro dimension to cache keys
+- Phase 19-01: DISTRO override carries the dotted VERSION_ID form (26.04), not the compact CI label (2604); the `^[0-9]+\.[0-9]+$` regex rejects 2604 by design (T-19-01 fail-closed)
+- Phase 19-01: Soname→package mapping delegated to the host dpkg DB (detect_runtime_depends), never a hand-maintained table — absorbs the crun parser special case (D-04); excludes only libc6/libgcc-s1 (D-02); hard-fails on any unmapped lib (D-03)
+- Phase 19-01: config.sh is the single source of truth for VERSION_SUFFIX = `~ubuntu{VERSION_ID}.podman1` (D-07/D-08); package_all.sh's hardcoded `~podman1` removed in Plan 02
 
 ### Tech Debt
 
@@ -102,6 +105,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-05T11:31:47.029Z
-Stopped at: Phase 19 context gathered
-Resume file: .planning/phases/19-per-distro-versioning-dependency-mapping/19-CONTEXT.md
+Last session: 2026-06-05T12:28:19Z
+Stopped at: Completed 19-01-PLAN.md
+Resume file: .planning/phases/19-per-distro-versioning-dependency-mapping/19-03-PLAN.md (Wave 1 remaining)
