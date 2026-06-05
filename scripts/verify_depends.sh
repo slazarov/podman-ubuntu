@@ -118,9 +118,16 @@ declare -A BASELINE_24_04=(
 declare -A BASELINE_24_04_ALT=(
     ["crun"]="libjson-c5 libyajl2"
 )
-# The two names that legitimately gain t64 on 24.04 (RESEARCH Pitfall 1).
-# Any OTHER unexpected name on 24.04 is a regression FAIL.
-T64_EXPECTED="libgpgme11t64 libglib2.0-0t64"
+# The two names that legitimately gain t64 on 24.04 (RESEARCH Pitfall 1),
+# mapped t64-name -> pre-substitution name. A t64 name is only accepted for a
+# component when its PRE-substitution name is in that component's baseline
+# (WR-04) — a global allowlist would rubber-stamp e.g. libgpgme11t64 reported
+# by conmon (which should never link it), defeating T-19-10. Any OTHER
+# unexpected name on 24.04 is still a regression FAIL.
+declare -A T64_PRE_SUBST=(
+    ["libgpgme11t64"]="libgpgme11"
+    ["libglib2.0-0t64"]="libglib2.0-0"
+)
 
 # Helper: is $1 present in the space-separated list $2 ?
 in_list() {
@@ -169,8 +176,14 @@ for component in podman crun conmon netavark aardvark-dns pasta fuse-overlayfs c
     # Augment the baseline with the acceptable JSON-parser alternatives (crun).
     alt="${BASELINE_24_04_ALT[$component]:-}"
 
+    # Per-component failure flag (WR-03): gate THIS component's PASS line on its
+    # own status, not the global partA_fail accumulator — otherwise a later
+    # passing component prints nothing once any earlier component failed.
+    comp_fail=0
+
     # Every detected name must be in the baseline (or an accepted alt, or a
-    # documented t64 form). Anything else is an undocumented regression.
+    # documented t64 form WHOSE pre-substitution name is in THIS component's
+    # baseline). Anything else is an undocumented regression.
     for name in ${detected}; do
         if in_list "${name}" "${baseline}"; then
             continue
@@ -178,12 +191,13 @@ for component in podman crun conmon netavark aardvark-dns pasta fuse-overlayfs c
         if [[ -n "${alt}" ]] && in_list "${name}" "${alt}"; then
             continue
         fi
-        if in_list "${name}" "${T64_EXPECTED}"; then
-            # A documented t64 substitution — expected, not a failure.
+        # WR-04: accept a t64 name only when its pre-substitution form is the
+        # documented baseline dep for THIS component.
+        if [[ -v "T64_PRE_SUBST[$name]" ]] && in_list "${T64_PRE_SUBST[$name]}" "${baseline}"; then
             continue
         fi
         echo "    FAIL: ${component} detected unexpected dep '${name}' not in the t64-adjusted D-14 baseline [${baseline}${alt:+ | alt: ${alt}}]" >&2
-        partA_fail=1
+        comp_fail=1
     done
 
     # Every baseline name (minus the parser-alt slot) must be detected, else a
@@ -191,7 +205,7 @@ for component in podman crun conmon netavark aardvark-dns pasta fuse-overlayfs c
     for name in ${baseline}; do
         if ! in_list "${name}" "${detected}"; then
             echo "    FAIL: ${component} is missing expected baseline dep '${name}' (detected: [${detected}])" >&2
-            partA_fail=1
+            comp_fail=1
         fi
     done
 
@@ -203,12 +217,14 @@ for component in podman crun conmon netavark aardvark-dns pasta fuse-overlayfs c
         done
         if [[ "${found_alt}" -eq 0 ]]; then
             echo "    FAIL: ${component} linked no JSON parser from [${alt}] (detected: [${detected}])" >&2
-            partA_fail=1
+            comp_fail=1
         fi
     fi
 
-    if [[ "${partA_fail}" -eq 0 ]]; then
+    if [[ "${comp_fail}" -eq 0 ]]; then
         echo "    PASS: ${component} detected set functionally equals t64-adjusted D-14 baseline"
+    else
+        partA_fail=1
     fi
 done
 
