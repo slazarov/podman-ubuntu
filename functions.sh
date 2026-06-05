@@ -100,7 +100,7 @@ detect_distro_version_id() {
 # untrusted input (T-19-02 accepted constraint).
 detect_runtime_depends() {
     local -A pkgs=()
-    local bin lib pkg ex
+    local bin lib pkg ex resolved dpkg_out
     # Base packages present on every Debian/Ubuntu system — never declared (D-02).
     local -a EXCLUDE=( libc6 libgcc-s1 )
 
@@ -113,9 +113,25 @@ detect_runtime_depends() {
         # lines that actually resolved to an absolute path.
         while read -r lib; do
             [[ -n "${lib}" && -e "${lib}" ]] || continue
-            pkg="$(dpkg-query -S "$(realpath "${lib}")" 2>/dev/null | awk -F: '{print $1}' | head -n1)"
+            resolved="$(realpath "${lib}")"
+            # Run dpkg-query OUTSIDE a pipeline so its exit status is testable
+            # and its stderr is preserved for the D-03 message (CR-01). Under
+            # the caller's `set -euo pipefail`, a pipeline failure here could
+            # otherwise abort with an opaque ERR-trap message before the
+            # explicit guard below ever runs.
+            if ! dpkg_out="$(dpkg-query -S "${resolved}" 2>&1)"; then
+                echo "ERROR: no owning package for ${lib} -> ${resolved} (linked by ${bin})" >&2
+                echo "  dpkg-query: ${dpkg_out}" >&2
+                return 1
+            fi
+            # WR-01: take the FIRST real line first, then split on ':' to read
+            # the package field. dpkg-query -S can emit diversion records
+            # ("diversion by X from: /path") and multi-owner lines; filtering
+            # diversion lines and applying head BEFORE awk avoids returning a
+            # bogus "diversion by X" as a package name.
+            pkg="$(printf '%s\n' "${dpkg_out}" | grep -v '^diversion ' | head -n1 | awk -F: '{print $1}')"
             if [[ -z "${pkg}" ]]; then
-                echo "ERROR: no owning package for ${lib} (linked by ${bin})" >&2
+                echo "ERROR: could not parse owning package for ${lib} -> ${resolved} (linked by ${bin}); dpkg-query said: ${dpkg_out}" >&2
                 return 1
             fi
             pkgs["${pkg}"]=1
