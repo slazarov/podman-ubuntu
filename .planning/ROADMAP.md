@@ -70,7 +70,7 @@ Full v2.0 phase details archived at `.planning/milestones/v2.0-ROADMAP.md`.
 **Depends on**: Phase 18 (v2.0 packaging pipeline)
 **Requirements**: PKG-08, PKG-09, PKG-10
 **Success Criteria** (what must be TRUE):
-  1. A package built with `DISTRO=2604` declares the renamed 26.04 dependencies (libgpgme45, libsubid5) instead of the 24.04 names, and `apt install` resolves them on a real ubuntu:26.04 system
+  1. A package built with `DISTRO=26.04` declares the renamed 26.04 dependencies (libgpgme45, libsubid5) instead of the 24.04 names, and `apt install` resolves them on a real ubuntu:26.04 system
   2. The same upstream version built for each distro produces distinct version strings (`~ubuntu24.04.podman1` vs `~ubuntu26.04.podman1`) that satisfy `dpkg --compare-versions`: each sorts below the official upstream version, and the 24.04 form sorts below the 26.04 form so dist-upgrades order correctly
   3. Runtime library dependencies are derived at build time from the binaries' linked sonames (ldd soname→package mapping) rather than hardcoded, so a future distro rename is picked up without editing nFPM config by hand
   4. Building for 24.04 with the new code path produces packages byte-functionally equivalent to the pre-v3.0 24.04 packages (no regression to the shipping pipeline)
