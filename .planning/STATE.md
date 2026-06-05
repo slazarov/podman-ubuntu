@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Ubuntu 26.04 Support
 status: executing
-stopped_at: Completed 19-02-PLAN.md
-last_updated: "2026-06-05T12:38:13Z"
-last_activity: 2026-06-05 -- Completed Phase 19 Plan 02 (package_all.sh + nFPM YAMLs wired to DETECTED_DEPENDS + per-distro suffix)
+stopped_at: Completed 19-04-PLAN.md (on-host proofs deferred to UAT)
+last_updated: "2026-06-05T12:48:07Z"
+last_activity: 2026-06-05 -- Completed Phase 19 Plan 04 (verify_depends.sh + smoke_install_2604.sh authored; 4 on-host proofs DEFERRED to UAT)
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 4
-  completed_plans: 3
-  percent: 75
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-05)
 
 ## Current Position
 
-Phase: 19 (per-distro-versioning-dependency-mapping) — EXECUTING
-Plan: Plans 01 + 02 + 03 complete (04 remaining)
-Status: Executing Phase 19
-Last activity: 2026-06-05 -- Completed Phase 19 Plan 02 (package_all.sh + nFPM YAMLs wired to DETECTED_DEPENDS + per-distro suffix)
+Phase: 19 (per-distro-versioning-dependency-mapping) — ALL PLANS EXECUTED (on-host proofs pending UAT)
+Plan: Plans 01 + 02 + 03 + 04 complete (Plan 04 on-host proofs DEFERRED to UAT)
+Status: Phase 19 plans executed; verification gated on real-Ubuntu UAT
+Last activity: 2026-06-05 -- Completed Phase 19 Plan 04 (verify_depends.sh + smoke_install_2604.sh authored; 4 on-host proofs DEFERRED to UAT)
 
-Progress: [███████░░░] 75%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -82,6 +82,7 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - Phase 19-01: config.sh is the single source of truth for VERSION_SUFFIX = `~ubuntu{VERSION_ID}.podman1` (D-07/D-08); package_all.sh's hardcoded `~podman1` removed in Plan 02
 - Phase 19-03: scripts/verify_versions.sh uses literal in-script fixtures + `dpkg --compare-versions` as the authoritative oracle (no reimplemented version math), so it runs on any dpkg host independent of the build pipeline (CI-runnable pre-build)
 - Phase 19-02: nFPM `${DETECTED_DEPENDS}` placeholder sits at column 0 under `depends:`; the `sed 's/^/  - /'` fragment carries its own indent so it merges cleanly with literal internal `podman-*` deps (D-12/D-13). No `|| true` around `detect_runtime_depends` — unmapped soname hard-fails the build (D-03)
+- Phase 19-04: 24.04 no-regression asserted as t64-aware functional equivalence (libgpgme11→libgpgme11t64, libglib2.0-0→libglib2.0-0t64; non-t64 names unchanged), NOT string identity — avoids the t64 false-failure trap (RESEARCH Pitfall 1). verify_depends.sh + smoke_install_2604.sh authored on macOS; the four on-host proofs (24.04 verify_depends exit 0, verify_versions exit 0, 26.04 apt-install of skopeo pulling libgpgme45/libsubid5, 26.04 self-corrected dep set with zero YAML edits) DEFERRED to real-Ubuntu UAT — NOT executed (macOS dev host has no dpkg/ldd/nfpm). fuse-overlayfs/catatonit YAML follow-up conditional on the on-host detector run
 
 ### Tech Debt
 
@@ -96,7 +97,7 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ### Blockers/Concerns
 
-None yet.
+- Phase 19 verification gate (Plan 04): the four on-host proofs are PENDING real-Ubuntu UAT — NOT executed on the macOS dev host. Phase 19 success criteria 1 (26.04 installable) and 4 (24.04 functional equivalence) cannot be marked satisfied until: (1) `DISTRO=24.04 bash scripts/verify_depends.sh` exits 0, (2) `bash scripts/verify_versions.sh` exits 0, (3) `bash scripts/smoke_install_2604.sh` cleanly apt-installs skopeo pulling libgpgme45/libsubid5 in a 26.04 container, (4) the recorded 26.04 detected set shows the renamed packages with zero nFPM YAML edits. fuse-overlayfs/catatonit YAML follow-up is conditional on proof #1's on-host detector run.
 
 ### Quick Tasks Completed
 
@@ -107,6 +108,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-05T12:38:13Z
-Stopped at: Completed 19-02-PLAN.md
-Resume file: .planning/phases/19-per-distro-versioning-dependency-mapping/19-04-PLAN.md (Plan 04 remaining)
+Last session: 2026-06-05T12:48:07Z
+Stopped at: Completed 19-04-PLAN.md (on-host proofs deferred to UAT)
+Resume file: None — all Phase 19 plans executed; next step is real-Ubuntu UAT of the four deferred proofs (see Blockers/Concerns) before /gsd-verify-work

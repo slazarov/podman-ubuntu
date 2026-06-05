@@ -90,7 +90,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 19-04-PLAN.md — On-Ubuntu detector + 24.04 equivalence + 26.04 container install smoke (checkpoint)
+- [x] 19-04-PLAN.md — On-Ubuntu detector + 24.04 equivalence + 26.04 container install smoke (scripts authored; on-host proofs deferred to UAT)
 
 ### Phase 20: Repository Restructure & Migration Aliases
 
