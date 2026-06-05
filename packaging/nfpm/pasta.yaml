@@ -11,6 +11,10 @@ license: "GPL-2.0-or-later"
 section: admin
 priority: optional
 
+depends:
+  # System libraries detected from the binaries and injected at build time.
+${DETECTED_DEPENDS}
+
 conflicts:
   - passt
 

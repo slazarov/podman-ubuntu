@@ -12,9 +12,8 @@ section: admin
 priority: optional
 
 depends:
-  # conmon is a C binary; runtime deps verified via ldd /usr/bin/conmon.
-  - libglib2.0-0
-  - libsystemd0
+  # System libraries detected from the binary and injected at build time.
+${DETECTED_DEPENDS}
 
 conflicts:
   - conmon

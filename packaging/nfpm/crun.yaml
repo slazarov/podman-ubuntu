@@ -12,11 +12,8 @@ section: admin
 priority: optional
 
 depends:
-  # crun is a C binary; runtime deps verified via ldd /usr/bin/crun.
-  - libseccomp2
-  - libsystemd0
-  - libcap2
-  - ${CRUN_PARSER_DEPEND}
+  # System libraries detected from the binary and injected at build time.
+${DETECTED_DEPENDS}
 
 conflicts:
   - crun

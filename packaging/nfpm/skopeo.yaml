@@ -13,10 +13,8 @@ priority: optional
 
 depends:
   - podman-container-configs
-  # System libraries; runtime deps verified via ldd /usr/bin/skopeo.
-  - libgpgme11
-  - libsubid4
-  - libsqlite3-0
+  # System libraries detected from the binary and injected at build time.
+${DETECTED_DEPENDS}
 
 conflicts:
   - skopeo
