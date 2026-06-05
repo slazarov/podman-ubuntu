@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Ubuntu 26.04 Support
 status: executing
-stopped_at: Completed 19-03-PLAN.md
-last_updated: "2026-06-05T12:35:00Z"
-last_activity: 2026-06-05 -- Completed Phase 19 Plan 03 (verify_versions.sh dpkg ordering proof)
+stopped_at: Completed 19-02-PLAN.md
+last_updated: "2026-06-05T12:38:13Z"
+last_activity: 2026-06-05 -- Completed Phase 19 Plan 02 (package_all.sh + nFPM YAMLs wired to DETECTED_DEPENDS + per-distro suffix)
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
-  percent: 50
+  completed_plans: 3
+  percent: 75
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-05)
 ## Current Position
 
 Phase: 19 (per-distro-versioning-dependency-mapping) — EXECUTING
-Plan: Plans 01 + 03 complete (02, 04 remaining)
+Plan: Plans 01 + 02 + 03 complete (04 remaining)
 Status: Executing Phase 19
-Last activity: 2026-06-05 -- Completed Phase 19 Plan 03 (verify_versions.sh dpkg ordering proof)
+Last activity: 2026-06-05 -- Completed Phase 19 Plan 02 (package_all.sh + nFPM YAMLs wired to DETECTED_DEPENDS + per-distro suffix)
 
-Progress: [█████░░░░░] 50%
+Progress: [███████░░░] 75%
 
 ## Performance Metrics
 
@@ -81,6 +81,7 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - Phase 19-01: Soname→package mapping delegated to the host dpkg DB (detect_runtime_depends), never a hand-maintained table — absorbs the crun parser special case (D-04); excludes only libc6/libgcc-s1 (D-02); hard-fails on any unmapped lib (D-03)
 - Phase 19-01: config.sh is the single source of truth for VERSION_SUFFIX = `~ubuntu{VERSION_ID}.podman1` (D-07/D-08); package_all.sh's hardcoded `~podman1` removed in Plan 02
 - Phase 19-03: scripts/verify_versions.sh uses literal in-script fixtures + `dpkg --compare-versions` as the authoritative oracle (no reimplemented version math), so it runs on any dpkg host independent of the build pipeline (CI-runnable pre-build)
+- Phase 19-02: nFPM `${DETECTED_DEPENDS}` placeholder sits at column 0 under `depends:`; the `sed 's/^/  - /'` fragment carries its own indent so it merges cleanly with literal internal `podman-*` deps (D-12/D-13). No `|| true` around `detect_runtime_depends` — unmapped soname hard-fails the build (D-03)
 
 ### Tech Debt
 
@@ -106,6 +107,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-05T12:35:00Z
-Stopped at: Completed 19-03-PLAN.md
-Resume file: .planning/phases/19-per-distro-versioning-dependency-mapping/19-02-PLAN.md (Plans 02 + 04 remaining)
+Last session: 2026-06-05T12:38:13Z
+Stopped at: Completed 19-02-PLAN.md
+Resume file: .planning/phases/19-per-distro-versioning-dependency-mapping/19-04-PLAN.md (Plan 04 remaining)

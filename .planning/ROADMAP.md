@@ -86,7 +86,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 19-02-PLAN.md — ldd→dpkg detected depends wired into package_all.sh + nFPM YAMLs (${DETECTED_DEPENDS})
+- [x] 19-02-PLAN.md — ldd→dpkg detected depends wired into package_all.sh + nFPM YAMLs (${DETECTED_DEPENDS})
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -171,7 +171,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 16. CI/CD Pipeline | v2.0 | — | Complete (via Phase 18) | 2026-03-08 |
 | 17. Upstream Automation | v2.0 | — | Complete (absorbed into Phase 18) | 2026-03-08 |
 | 18. Edge Track / Nightly Builds | v2.0 | 2/2 | Complete | 2026-03-08 |
-| 19. Per-Distro Versioning & Dependency Mapping | v3.0 | 2/4 | In progress | - |
+| 19. Per-Distro Versioning & Dependency Mapping | v3.0 | 3/4 | In progress | - |
 | 20. Repository Restructure & Migration Aliases | v3.0 | 0/? | Not started | - |
 | 21. CI Build Matrix Extension to 26.04 | v3.0 | 0/? | Not started | - |
 | 22. Migration Docs & Installability Smoke Tests | v3.0 | 0/? | Not started | - |
