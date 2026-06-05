@@ -23,8 +23,8 @@ trap 'error_handler $? $LINENO "$BASH_SOURCE"' ERR
 NFPM_DIR="${toolpath}/packaging/nfpm"
 OUTPUT_DIR="${toolpath}/output"
 
-# Version suffix for all packages (~ ensures official packages upgrade over ours)
-VERSION_SUFFIX="~podman1"
+# VERSION_SUFFIX is the single source of truth in config.sh (sourced above):
+# ~ubuntu${DISTRO_VERSION_ID}.podman1, composed per-distro from detect_distro_version_id.
 
 # ============================================
 # Version Extraction
@@ -196,28 +196,6 @@ resolve_tag_from_repo() {
     echo "${tag}"
 }
 
-detect_crun_parser_depend() {
-    local crun_bin="${DESTDIR}/usr/bin/crun"
-
-    if [[ ! -x "${crun_bin}" ]]; then
-        echo "ERROR: crun binary not found or not executable: ${crun_bin}" >&2
-        return 1
-    fi
-
-    if ldd "${crun_bin}" | grep -q 'libjson-c\.so\.5'; then
-        echo "libjson-c5"
-        return 0
-    fi
-
-    if ldd "${crun_bin}" | grep -q 'libyajl\.so\.2'; then
-        echo "libyajl2"
-        return 0
-    fi
-
-    echo "ERROR: unable to detect crun parser runtime dependency from ldd ${crun_bin}" >&2
-    return 1
-}
-
 # ============================================
 # Prerequisite Validation
 # ============================================
@@ -304,6 +282,24 @@ declare -A COMPONENT_TAGS=(
     ["container-configs"]="${CONTAINER_LIBS_TAG}"
 )
 
+# Component-to-binary mapping (DESTDIR-relative paths to the native ELF binaries
+# each component ships). Used to derive system-library depends at build time via
+# detect_runtime_depends. Multi-binary components use a space-separated value
+# (e.g. pasta ships both passt and pasta). Components with no native ELF binary
+# (container-configs, toolbox) have no entry — detection is skipped for them.
+declare -A COMPONENT_BINARIES=(
+    ["podman"]="usr/bin/podman usr/bin/podman-remote"
+    ["crun"]="usr/bin/crun"
+    ["conmon"]="usr/bin/conmon"
+    ["netavark"]="usr/bin/netavark"
+    ["aardvark-dns"]="usr/bin/aardvark-dns"
+    ["pasta"]="usr/bin/passt usr/bin/pasta"
+    ["fuse-overlayfs"]="usr/bin/fuse-overlayfs"
+    ["catatonit"]="usr/bin/catatonit"
+    ["buildah"]="usr/bin/buildah"
+    ["skopeo"]="usr/bin/skopeo"
+)
+
 # ============================================
 # Create Output Directory
 # ============================================
@@ -363,15 +359,26 @@ for component in "${COMPONENTS[@]}"; do
     export VERSION="${local_version}"
     export ARCH="${ARCH}"
     export DESTDIR="${DESTDIR}"
-    export CRUN_PARSER_DEPEND="libyajl2"
 
-    if [[ "${component}" == "crun" ]]; then
-        CRUN_PARSER_DEPEND="$(detect_crun_parser_depend)"
-        export CRUN_PARSER_DEPEND
+    # Derive this component's system-library depends from its shipped binaries.
+    # detect_runtime_depends prints owning package names one-per-line; sed turns
+    # that into a YAML list fragment (each line "  - pkgname", two-space indent).
+    # Components with no native ELF binary get an empty fragment. No "|| true":
+    # detect_runtime_depends returns 1 on any unmapped lib, which aborts the
+    # build under set -euo pipefail + ERR trap (D-03 hard-fail).
+    if [[ -v "COMPONENT_BINARIES[$component]" ]]; then
+        component_bins=()
+        for rel_bin in ${COMPONENT_BINARIES[$component]}; do
+            component_bins+=("${DESTDIR}/${rel_bin}")
+        done
+        DETECTED_DEPENDS="$(detect_runtime_depends "${component_bins[@]}" | sed 's/^/  - /')"
+    else
+        DETECTED_DEPENDS=""
     fi
+    export DETECTED_DEPENDS
 
     nfpm_config="/tmp/nfpm-${component}.yaml"
-    envsubst '${VERSION} ${ARCH} ${DESTDIR} ${CRUN_PARSER_DEPEND}' < "${NFPM_DIR}/${component}.yaml" > "${nfpm_config}"
+    envsubst '${VERSION} ${ARCH} ${DESTDIR} ${DETECTED_DEPENDS}' < "${NFPM_DIR}/${component}.yaml" > "${nfpm_config}"
 
     nfpm pkg \
         --config "${nfpm_config}" \
