@@ -66,8 +66,15 @@ detect_distro_version_id() {
     fi
 
     # T-19-01: fail closed on anything that is not a dotted NN.NN VERSION_ID.
+    # NOTE (WR-05): Phase 19 is intentionally Ubuntu-only — the version suffix
+    # is hard-coded to ~ubuntu{VERSION_ID}.podman1 (D-08) and the dependency
+    # baselines are Ubuntu's. A bare-integer Debian VERSION_ID ("12") or a
+    # missing VERSION_ID (Debian testing/sid) is therefore rejected on purpose;
+    # broader N-distro support is tracked as future requirement PKG-11. The
+    # message says so explicitly so a Debian operator is not left guessing.
     if [[ ! "${version_id}" =~ ^[0-9]+\.[0-9]+$ ]]; then
-        echo "ERROR: invalid VERSION_ID/DISTRO '${version_id}' (expected NN.NN, e.g. 26.04)" >&2
+        echo "ERROR: this pipeline currently supports Ubuntu only (dotted VERSION_ID like 24.04 or 26.04); got VERSION_ID/DISTRO '${version_id}'." >&2
+        echo "  Debian (single-integer VERSION_ID, e.g. '12') and other distros are out of scope for now (PKG-11)." >&2
         return 1
     fi
 
