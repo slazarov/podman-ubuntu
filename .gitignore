@@ -24,6 +24,9 @@ build/
 log/
 output/
 
+# Lima VM templates (machine-specific mount paths)
+lima/
+
 # Generated files
 ltmain.sh
 
