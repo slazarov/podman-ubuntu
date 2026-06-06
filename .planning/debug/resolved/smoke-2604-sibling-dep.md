@@ -1,8 +1,8 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "smoke_install_2604.sh exits 100 on ubuntu:26.04 — apt refuses 'podman-skopeo : Depends: podman-container-configs but it is not installable'; lib lines (libassuan9/libgpgme45/libsubid5) are cascade noise from the failed solve. Manual probe installing both podman-container-configs + podman-skopeo .debs together succeeds (skopeo 1.22.0 runs). PKG-08 mechanism works; this is a smoke-harness gap."
 created: 2026-06-06T00:00:00Z
-updated: 2026-06-06T00:00:00Z
+updated: 2026-06-06T18:10:00Z
 ---
 
 ## Current Focus

@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: resolved
 phase: 19-per-distro-versioning-dependency-mapping
 source: [19-VERIFICATION.md]
 started: 2026-06-05T12:55:00Z
-updated: 2026-06-06T16:49:00Z
+updated: 2026-06-06T18:10:00Z
 ---
 
 ## Current Test
@@ -46,7 +46,8 @@ blocked: 0
 ## Gaps
 
 - truth: "DISTRO=24.04 verify_depends.sh exits 0 — detected dependency set functionally equals the t64-adjusted D-14 baseline"
-  status: failed
+  status: resolved
+  resolved_by: "19-05 (commit b1e43a3) — detect_runtime_depends rewritten to direct DT_NEEDED sonames; stale libsqlite3-0 dropped from BASELINE_24_04[skopeo]. Re-proven on-host: DISTRO=24.04 exit 0 on ubuntu-24 (Part A all PASS, Part B 26/26), DISTRO=26.04 exit 0 on ubuntu-26 (no regression)."
   reason: "Tested on ubuntu-24 Lima VM with real build: exit 1, 23 Part-A FAIL lines. detect_runtime_depends (functions.sh) uses ldd, which returns the full TRANSITIVE shared-library closure, not the binary's direct DT_NEEDED entries — so every component over-reports deps of its deps (gpgme pulls libassuan0+libgpg-error0; libsystemd pulls libgcrypt20/liblz4-1/liblzma5/libzstd1; libsubid pulls libaudit1/libcap-ng0/libselinux1; libglib/libselinux pull libpcre2-8-0). Debian policy (dpkg-shlibdeps) derives Depends from direct NEEDED only. Separately: skopeo baseline expects libsqlite3-0 but the v1.22.0 binary does not link sqlite at all (baseline datum likely stale from pre-v3.0 hardcoded list)."
   severity: blocker
   test: 1
@@ -64,7 +65,8 @@ blocked: 0
   debug_session: ".planning/debug/detector-transitive-closure.md"
 
 - truth: "smoke_install_2604.sh apt-installs skopeo cleanly inside ubuntu:26.04, pulling libgpgme45/libsubid5, and skopeo --version prints"
-  status: failed
+  status: resolved
+  resolved_by: "19-05 (commit 46017da) — container step globs /out/podman-container-configs_*.deb (hard-error if absent) and feeds it WITH the skopeo .deb in one apt-get install. Re-proven on-host: exit 0 on ubuntu-26, apt pulled libgpgme45/libsubid5/libassuan9 from the archive, skopeo --version = 1.22.0."
   reason: "Tested on ubuntu-26 Lima VM (SMOKE_RUNTIME=podman): exit 100. The container's apt-get install receives only the skopeo .deb, but skopeo.yaml declares internal sibling dep podman-container-configs which is not in the Ubuntu archive — apt refuses with 'podman-container-configs but it is not installable'. The script handles this trap for podman (best-effort) but not skopeo, even though podman-container-configs_*.deb is built and present in output/. Manual probe installing both .debs together PASSES (libgpgme45/libsubid5/libassuan9 pulled from archive, skopeo 1.22.0 runs) — so this is a smoke-script harness gap, not a PKG-08 mechanism failure."
   severity: major
   test: 3

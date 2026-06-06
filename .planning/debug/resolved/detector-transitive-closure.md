@@ -1,8 +1,8 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "DISTRO=24.04 verify_depends.sh exits 1 with 23 Part-A FAIL lines on real Ubuntu 24.04 build — every binary-linking component over-reports the TRANSITIVE deps of its baseline libs, plus skopeo missing baseline dep libsqlite3-0"
 created: 2026-06-06T00:00:00Z
-updated: 2026-06-06T00:00:00Z
+updated: 2026-06-06T18:10:00Z
 ---
 
 ## Current Focus
