@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Ubuntu 26.04 Support
 status: executing
-stopped_at: Phase 20 context gathered
+stopped_at: Phase 20 verification gaps_found (3/4)
 last_updated: "2026-06-06T21:58:28.242Z"
-last_activity: 2026-06-06 -- Phase 20 execution started
+last_activity: 2026-06-07 -- Phase 20 gap-closure executed (20-05, 20-06); verification 3/4, wget path blocker remains
 progress:
   total_phases: 4
   completed_phases: 2
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-05)
 ## Current Position
 
 Phase: 20 (repository-restructure-migration-aliases) — EXECUTING
-Plan: 3 of 6
-Status: Ready to execute
-Last activity: 2026-06-06 -- Phase 20 execution started
+Plan: 6 of 6 (all executed; verification gaps_found)
+Status: Gap closure needed — mirror_suite_verbatim wget path bug (20-REVIEW.md CR-01)
+Last activity: 2026-06-07 -- Phase 20 gap-closure executed (20-05, 20-06); verification 3/4, wget path blocker remains
 
 Progress: [██████████] 100%
 

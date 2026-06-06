@@ -59,7 +59,7 @@ Full v2.0 phase details archived at `.planning/milestones/v2.0-ROADMAP.md`.
 **Milestone Goal:** Users on both Ubuntu 24.04 and 26.04 can add the APT repo, enable their distro's suite, and install Podman packages that install and run cleanly on their OS version.
 
 - [x] **Phase 19: Per-Distro Versioning & Dependency Mapping** - Distro-tagged version suffixes and per-distro runtime dependency resolution so each distro's .deb is uniquely identified and correctly installable (completed 2026-06-06)
-- [x] **Phase 20: Repository Restructure & Migration Aliases** - Six versioned suites from one URL with legacy aliases that keep existing users working (gap closure in progress — CR-01/CR-02 blockers from verification) (completed 2026-06-06)
+- [ ] **Phase 20: Repository Restructure & Migration Aliases** - Six versioned suites from one URL with legacy aliases that keep existing users working (verification 3/4 — CR-01/CR-02 closed; one blocker remains: mirror_suite_verbatim wget path bug, see 20-VERIFICATION.md)
 - [ ] **Phase 21: CI Build Matrix Extension to 26.04** - A single distro×arch build matrix that produces native 26.04 packages with atomic, distro-isolated publishing
 - [ ] **Phase 22: Migration Docs & Installability Smoke Tests** - Per-distro setup docs, deprecation timeline, and CI-verified install + `podman info` in real containers
 
