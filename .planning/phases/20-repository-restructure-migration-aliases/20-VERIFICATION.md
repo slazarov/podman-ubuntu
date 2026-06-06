@@ -1,43 +1,56 @@
 ---
 phase: 20-repository-restructure-migration-aliases
-verified: 2026-06-07T00:00:00Z
+verified: 2026-06-07T12:00:00Z
 status: gaps_found
 score: 3/4
 overrides_applied: 0
+re_verification:
+  previous_status: gaps_found
+  previous_score: 2/4
+  gaps_closed:
+    - "add_byhash_and_resign pipefail isolation (original CR-01): RETURN-trap option restore is present in scripts/repo_byhash.sh; the helper no longer aborts mid-function on a benign pipe-head failure"
+    - "WR-01 anchored GPG key extraction: both sites in repo_manage.sh use gpg --list-secret-keys | awk '/^fpr:/{print $10; exit}'"
+    - "WR-03 quoted realpath bootstraps: all four files (config.sh, repo_byhash.sh, repo_manage.sh, ci_publish.sh) quote the path argument"
+    - "WR-04 HTML escaping: esc() helper present; pkg_e/ver_e applied in index.html row heredoc"
+    - "Test group F (pipefail regression) and Test group G (26.04 bare-alias preservation) are both present in tests/test_repo_assemble_byhash.sh"
+  gaps_remaining:
+    - "SC-3/SC-4 partially unfixed: mirror_suite_verbatim uses wget --cut-dirs=0 which, for the CI project-pages URL (https://slazarov.github.io/podman-ubuntu), saves the mirrored tree to ${lmirror}/podman-ubuntu/dists/<suite>/ instead of ${lmirror}/dists/<suite>/. wget exits 0 (success), the curl fallback is skipped, the subsequent [[ -d "${lmirror}/dists/${lsuite}" ]] check fails, and the function returns 1. IS_VERBATIM is never set to true in CI. Bare aliases on a 26.04 publish are re-exported and re-signed, defeating the CR-02 fix."
+  regressions: []
 gaps:
-  - truth: "Repository metadata includes Acquire-By-Hash: yes on every suite, so apt clients fetching from the GitHub Pages CDN never hit a hash-sum mismatch (REPO-08, SC-3)"
-    status: partial
-    reason: "add_byhash_and_resign() runs under inherited set -euo pipefail. The Release-self by-hash loop (lines 72-79) assigns rh via `local rh; rh=$(sha256sum ... | awk ...)`. When rh is pre-declared via `local` and assigned separately, bash propagates pipefail from the pipe head to the outer assignment — confirmed with `false | awk` under bash 5.3. This can abort the function mid-way after InRelease/Release.gpg have been removed (line 83) but before re-signing, leaving the repository in a half-signed state on GitHub Pages. This is CR-01 from the code review, unaddressed in the codebase."
-    artifacts:
-      - path: "scripts/repo_byhash.sh"
-        issue: "Lines 72-79: `local rh; rh=$(${cmd} \"${lrelease}\" | awk ...)` under inherited set -euo pipefail can abort the function on a pipe-head failure, leaving InRelease/Release.gpg deleted but not regenerated. No pipefail isolation (set +e/+o pipefail) in the function."
-    missing:
-      - "Wrap add_byhash_and_resign body with pipefail isolation: `local _opts; _opts=$(set +o); set +e +o pipefail; trap 'eval \"${_opts}\"' RETURN` at function entry, OR split the pipe so the assignment is never subject to the pipe head's exit status"
-      - "Add a regression test case to test_repo_assemble_byhash.sh for the pipefail abort scenario"
-  - truth: "The publish tooling routes a given track's packages into the correct <track>-<distro> suite without clobbering the other five suites' contents (SC-4)"
-    status: partial
-    reason: "For a 26.04 publish (DISTRO=2604), resolve_publish_targets returns only [<track>-2604]. The bare alias (<track>) is NOT a publish target, so it is placed in OTHER_SUITES (ci_publish.sh:113-125, confirmed by test). In Step 4 (lines 214-237), the bare alias's mirrored debs are re-includedeb'd and re-exported into the bare suite with a fresh reprepro db, regenerating its Release with a new Date and new signature — even though the package content is byte-identical. This re-signing reopens the CDN hash-mismatch window that Acquire-By-Hash is designed to prevent: an apt client can see a new InRelease (different signature) served against a stale by-hash index, exactly the failure mode REPO-08 addresses. No test exercises a 26.04 publish path; the integration harness only tests 24.04 publishes. This is CR-02 from the code review, unaddressed in the codebase."
+  - truth: "The publish tooling routes a given track's packages into the correct <track>-<distro> suite without clobbering the other five suites' contents (SC-4) AND repository metadata includes Acquire-By-Hash: yes on every suite so apt clients never hit a CDN hash-sum mismatch (SC-3, REPO-08)"
+    status: failed
+    reason: "mirror_suite_verbatim in scripts/ci_publish.sh uses wget -nH --cut-dirs=0 against REPO_URL=https://slazarov.github.io/podman-ubuntu. wget -nH strips the hostname; --cut-dirs=0 cuts zero path segments, so files are saved to ${lmirror}/podman-ubuntu/dists/<suite>/ not ${lmirror}/dists/<suite>/. wget exits 0 (files were fetched successfully), so the curl fallback inside `if ! wget ...` is never reached. The subsequent [[ -d "${lmirror}/dists/${lsuite}" ]] check at line 201 is false, so the else branch executes (rm -rf lmirror; return 1). mirror_suite_verbatim returns 1, IS_VERBATIM is set to false, and the bare alias goes through the Step 4 re-includedeb/re-export path and the Step 4b add_byhash_and_resign path — regenerating its Release Date + signature on byte-identical content and reopening the CDN hash-mismatch window. Test group G does not exercise mirror_suite_verbatim or wget; it simulates the corrected behavior by calling repo_manage.sh + add_byhash_and_resign directly, so the wget path bug passes all current tests."
     artifacts:
       - path: "scripts/ci_publish.sh"
-        issue: "Lines 113-125: for DISTRO=2604, OTHER_SUITES includes the bare alias (stable/edge/nightly). Lines 214-237: the bare alias is re-included from mirrored debs and re-exported, regenerating Release Date + signature even though package content is unchanged. The no-clobber guarantee as documented applies to package content but the Acquire-By-Hash semantic (signature stability) is not preserved."
+        issue: "Line 181: wget -q -r -np -nH --cut-dirs=0 -P ${lmirror} saves files to ${lmirror}/REPONAME/dists/<suite>/ for any project-pages URL. Line 201: [[ -d ${lmirror}/dists/${lsuite} ]] then fails because the tree is under ${lmirror}/REPONAME/dists/ not ${lmirror}/dists/. wget succeeded so curl fallback (lines 185-197) is never reached. Result: IS_VERBATIM stays false for all bare aliases in CI."
       - path: "tests/test_repo_assemble_byhash.sh"
-        issue: "No 26.04 publish path is exercised. The no-clobber test (lines 310-338) only uses stable-2404 publishes. The bare-alias re-export behavior on a 26.04 publish is entirely untested."
+        issue: "Test group G does not call mirror_suite_verbatim or ci_publish.sh. It simulates verbatim behavior by running repo_manage.sh stable 2604 and add_byhash_and_resign stable-2604 only, asserting bare 'stable' alias is unchanged. This is correct as a unit test of the logic model, but does not cover the wget path through which IS_VERBATIM is determined in production."
     missing:
-      - "Either treat the bare alias as a first-class target on 26.04 publishes (exclude it from re-include/re-export; mirror its dists/ tree verbatim), or add a test that publishes a 26.04 track and asserts the bare alias Release Date/signature is preserved before and after"
-      - "Add a test case to test_repo_assemble_byhash.sh that runs a 26.04 assemble and asserts the bare alias is NOT re-signed when its content is unchanged"
-deferred: []
+      - "Fix mirror_suite_verbatim to correctly locate the mirrored tree after wget completes, regardless of path depth in REPO_URL. Two approaches: (a) compute cut-dirs from the URL path depth: lcut=$(awk -F/ '{print NF}' <<<\"${REPO_URL#*://*/}\") and pass --cut-dirs=${lcut}; or (b) use find after wget to locate the actual dists/<suite> directory: lsrc=$(find ${lmirror} -type d -path '*/dists/${lsuite}' -print -quit) and copy from there."
+      - "Add a test that drives mirror_suite_verbatim against a local file:// or loopback HTTP URL whose path contains a subdirectory (mimicking https://host.io/REPONAME/dists/suite/) and asserts the tree lands correctly at ${OUTPUT_DIR}/dists/<suite> and that IS_VERBATIM is set to true."
 human_verification:
-  - test: "Production-URL validation: after the 9-suite tree is first published to GitHub Pages by CI, run the deferred steps from 20-04-SUMMARY.md against the real REPO_URL"
-    expected: "apt-get update against bare stable succeeds with no 'changed its Suite value' prompt; apt-cache policy resolves a ~ubuntu24.04.podman1 candidate; by-hash fetch returns HTTP 200 from the production CDN"
-    why_human: "Production CDN behavior cannot be verified without an actual deploy. The local-VM D-15 simulation proved apt semantics; CDN caching behavior requires real Pages serving."
+  - test: "Production-URL validation: after the 9-suite tree is first published to GitHub Pages by CI, run apt-get update against the live repository using bare suite names and verify no 'changed its Suite value' prompt, a ~ubuntu24.04.podman1 candidate resolves, and by-hash fetch returns HTTP 200."
+    expected: "apt-get update exits 0 with no 'changed its Suite value' in output; apt-cache policy shows ~ubuntu24.04.podman1 candidate; curl against a by-hash/<algo>/<hash> path returns HTTP 200 from the Pages CDN."
+    why_human: "Production GitHub Pages CDN caching and serving behavior cannot be verified without an actual deploy of the 9-suite tree to the live repo. The local-VM D-15 simulation proved apt semantics; the CDN caching window requires real production data."
 ---
 
 # Phase 20: Repository Restructure & Migration Aliases — Verification Report
 
 **Phase Goal:** The APT repository serves all six versioned suites from a single URL under one GPG key, while existing users on bare suite names keep receiving 24.04 packages with no client-side change
-**Verified:** 2026-06-07T00:00:00Z
+**Verified:** 2026-06-07T12:00:00Z
 **Status:** gaps_found
-**Re-verification:** No — initial verification
+**Re-verification:** Yes — after gap closure plans 20-05 and 20-06
+
+## Re-verification Summary
+
+Prior verification (2026-06-07T00:00:00Z, score 2/4) found two blockers:
+
+- **Original CR-01 (CLOSED):** `add_byhash_and_resign` ran under inherited `set -euo pipefail` with no isolation. Plan 20-05 added the RETURN-trap save/restore pattern (`local _saved_opts; _saved_opts="$(set +o)"; set +e +o pipefail; trap 'eval "${_saved_opts}"' RETURN`). Confirmed present at `scripts/repo_byhash.sh:53-55`.
+
+- **Original CR-02 (PARTIALLY CLOSED):** On 26.04 publishes, bare aliases were re-exported/re-signed in Step 4 despite unchanged content. Plan 20-06 introduced `mirror_suite_verbatim()` and the `IS_VERBATIM` tracking map to skip re-export/re-sign for non-target suites that can be mirrored verbatim. The *logic* is correct. However, the implementation contains a path-mapping bug: `wget -nH --cut-dirs=0` against the CI project-pages URL (`https://slazarov.github.io/podman-ubuntu`) saves files to `${lmirror}/podman-ubuntu/dists/<suite>/` but the code checks for `${lmirror}/dists/<suite>/`. wget exits 0, so the curl fallback is never triggered, `mirror_suite_verbatim` returns 1, and `IS_VERBATIM` stays false. The bare alias is re-exported and re-signed in production, reopening the CDN hash-mismatch window. The re-review (20-REVIEW.md, reviewed 2026-06-06T22:04:06Z) identifies this as CR-01 (renumbered in the review context).
+
+**Closed in this round:** 3 prior must-haves (pipefail isolation, WR-01 GPG key, WR-03 realpath quoting, WR-04 HTML escaping, Test groups F and G structure).
+**Still failing:** 1 must-have (SC-3/SC-4: verbatim mirror is a no-op in CI due to wget path bug).
 
 ## Goal Achievement
 
@@ -45,53 +58,39 @@ human_verification:
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | Repository serves six versioned suites from one URL with one GPG key; apt update against any suite succeeds with valid signatures (SC-1, REPO-06) | VERIFIED | `packaging/repo/conf/distributions` has exactly 9 stanzas (6 versioned + 3 aliases), all with `SignWith: yes`. `resolve_publish_targets` routing is wired through `repo_manage.sh` and `ci_publish.sh`. Integration harness ran 48/48 on Lima ubuntu-24 proving real reprepro export + gpg --verify pass for all assembled suites. |
-| 2 | Existing users with bare stable/edge/nightly in .sources receive 24.04 packages with no client-side change (SC-2, REPO-07) | VERIFIED | Bare alias stanzas carry `Suite: stable`/`edge`/`nightly` (not `-2404`), which is the REPO-07 mechanism. D-15 local-VM simulation proved `apt-get update` against old-tree then new-tree at same URL produced no "changed its 'Suite' value" prompt and `~ubuntu24.04.podman1` candidate resolved. Production-URL confirmation deferred (see Human Verification). |
-| 3 | Repository metadata includes Acquire-By-Hash: yes on every suite; CDN hash-sum mismatches are prevented (SC-3, REPO-08) | PARTIAL — FAILED | `scripts/repo_byhash.sh` `add_byhash_and_resign()` implements the injection and re-sign. Integration harness verified it works on a real reprepro host. However, CR-01 from the code review is unaddressed: the function body runs under inherited `set -euo pipefail`; the pattern `local rh; rh=$(sha256sum ... \| awk ...)` propagates pipefail from the pipe head and can abort mid-function after removing InRelease/Release.gpg but before re-signing, leaving a half-signed repo. Confirmed: `bash -c 'set -euo pipefail; f() { local rh; rh="$(false \| awk "{print \$1}")"; }; f'` exits non-zero. |
-| 4 | Publish tooling routes packages into the correct suite without clobbering other suites' contents (SC-4, REPO-06/07) | PARTIAL — FAILED | For 24.04 publishes, the mirror-then-include no-clobber property is proven by the integration harness (48/48). For 26.04 publishes (DISTRO=2604), the bare aliases (stable/edge/nightly) land in OTHER_SUITES and are re-included from mirrored debs then re-exported — regenerating Release Date + signature despite unchanged package content. This reopens the CDN hash-mismatch window Acquire-By-Hash is designed to prevent (CR-02 from code review, confirmed by examining ci_publish.sh:113-125 and tracing `resolve_publish_targets stable 2604`). No test covers a 26.04 publish path in the integration harness. |
+| 1 | Repository serves six versioned suites from one URL with one GPG key; apt update against any suite succeeds with valid signatures (SC-1, REPO-06) | VERIFIED | `packaging/repo/conf/distributions` has exactly 9 stanzas (6 versioned + 3 aliases), all with `SignWith: yes`. `resolve_publish_targets` routing wired through `repo_manage.sh` and `ci_publish.sh`. Unit tests 15/15, 8/8, 12/12 pass on macOS. Integration harness confirmed 62/62 on Lima ubuntu-24 per 20-06-SUMMARY.md. |
+| 2 | Existing users with bare stable/edge/nightly in .sources receive 24.04 packages with no client-side change (SC-2, REPO-07) | VERIFIED | Bare alias stanzas carry `Suite: stable`/`edge`/`nightly` (not `-2404`), which is the REPO-07 mechanism — confirmed by `grep '^Suite: stable$'`. `resolve_publish_targets` includes bare alias in 24.04 targets (D-12). D-15 local-VM simulation proved no "changed its Suite value" prompt. Production-URL confirmation deferred to human verification. |
+| 3 | Repository metadata includes Acquire-By-Hash: yes on every suite; CDN hash-sum mismatches are prevented (SC-3, REPO-08) | PARTIAL — FAILED | `add_byhash_and_resign` pipefail isolation (original CR-01) is now FIXED: RETURN-trap present at `repo_byhash.sh:53-55`. However, the verbatim-mirror path (CR-02) is broken in CI: `wget --cut-dirs=0` against a project-pages URL places files under `${lmirror}/REPONAME/dists/` not `${lmirror}/dists/`. wget exits 0, curl fallback skipped, `[[ -d ]]` check fails, `mirror_suite_verbatim` returns 1. Bare aliases on 26.04 publishes are re-signed despite unchanged content, reopening the hash-mismatch window. |
+| 4 | Publish tooling routes packages into the correct suite without clobbering other suites' contents (SC-4, REPO-06/07) | PARTIAL — FAILED | For 24.04 publishes: mirror-then-include no-clobber property is proven by 62/62 integration harness. For 26.04 publishes: the wget path bug (see Truth 3) means `IS_VERBATIM` is always false in CI, so bare aliases are re-exported/re-signed on every 26.04 publish — the clobbering of signature metadata is the same defect. Test group G correctly asserts the desired behavior but does not exercise the `mirror_suite_verbatim` / wget code path. |
 
-**Score:** 2/4 truths fully verified (SC-1 and SC-2); SC-3 and SC-4 are partial (implementation present, correctness defects unresolved)
-
-### Deferred Items
-
-None.
+**Score:** 3/4 truths verified (SC-1, SC-2 fully; SC-3 and SC-4 share one remaining gap from the wget path bug)
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `packaging/repo/conf/distributions` | 9-stanza reprepro config (6 versioned + 3 aliases) | VERIFIED | 9 Suite lines, 9 Codename lines, 9 SignWith:yes lines; bare aliases carry Suite:stable/edge/nightly; 6 versioned suites present; 3 DEPRECATED descriptions; no createsymlinks |
-| `config.sh` | Suite whitelist arrays + resolve_publish_targets routing helper | VERIFIED | `VALID_TRACKS`, `VALID_DISTROS`, `ALL_SUITES` declared at file scope; `is_valid_suite()` and `resolve_publish_targets()` defined at column 0; D-12 alias rule implemented |
-| `tests/test_distributions_suites.sh` | Parse-assertion of 9-stanza distributions file | VERIFIED | 15/15 assertions pass on macOS |
-| `tests/test_suite_routing.sh` | Routing + whitelist-rejection unit test | VERIFIED | 8/8 assertions pass on macOS |
-| `tests/test_alias_routing.sh` | 24.04-includes-alias / 26.04-excludes-alias unit test | VERIFIED | 12/12 assertions pass on macOS |
-| `scripts/repo_byhash.sh` | Post-export by-hash + re-sign helper | STUB-RISK | File exists; `add_byhash_and_resign()` implements injection + re-sign; wired into ci_publish.sh. Defect: body runs under inherited pipefail with no isolation — can abort mid-function (CR-01). |
-| `tests/test_byhash_parse.sh` | Release-section parser unit test | VERIFIED | 8/8 assertions pass on macOS |
-| `scripts/repo_manage.sh` | Track+distro-aware single-publish builder | VERIFIED | `<track> <distro> <deb-dir> [output]` CLI; routes via `resolve_publish_targets`; feeds PUBLISH_TARGETS loop; per-target export; empty-target guard present |
-| `scripts/ci_publish.sh` | 9-suite mirror-then-include publisher with by-hash post-processing | PARTIAL | Sources repo_byhash.sh; calls `add_byhash_and_resign` per suite; 9-suite ALL_SUITES consumed from config.sh; index.html iterates ALL_SUITES. Defect: for DISTRO=2604, bare aliases land in OTHER_SUITES and are re-exported (CR-02) |
-| `.github/workflows/build-packages.yml` | Publish job with distro argument | VERIFIED | `distro=2404` step output added; ci_publish.sh invoked with `steps.track.outputs.distro` as second positional; YAML is valid |
-| `tests/test_repo_assemble_byhash.sh` | Ubuntu-only integration harness | PARTIAL | Syntax-clean; SKIPs on macOS; ran 48/48 on Lima ubuntu-24; covers 24.04 publishes, by-hash, no-clobber, empty-but-signed-2604. Does NOT test a 26.04 publish path (CR-02 untested). |
+| `packaging/repo/conf/distributions` | 9-stanza reprepro config (6 versioned + 3 aliases) | VERIFIED | 9 Suite lines, 9 Codename lines, 9 SignWith:yes; bare aliases carry Suite:stable/edge/nightly; 6 versioned suites present; 3 DEPRECATED descriptions; no createsymlinks |
+| `config.sh` | Suite whitelist arrays + resolve_publish_targets routing helper | VERIFIED | `VALID_TRACKS`, `VALID_DISTROS`, `ALL_SUITES` at file scope; `is_valid_suite()` and `resolve_publish_targets()` at column 0; D-12 alias rule (2404 returns versioned + bare; 2604 returns versioned only) |
+| `tests/test_distributions_suites.sh` | Parse-assertion of 9-stanza distributions file | VERIFIED | 15/15 pass on macOS |
+| `tests/test_suite_routing.sh` | Routing + whitelist-rejection unit test | VERIFIED | 8/8 pass on macOS |
+| `tests/test_alias_routing.sh` | 24.04-includes-alias / 26.04-excludes-alias unit test | VERIFIED | 12/12 pass on macOS |
+| `scripts/repo_byhash.sh` | Post-export by-hash + re-sign helper with pipefail isolation | VERIFIED | `_saved_opts`/`set +e +o pipefail`/RETURN-trap at lines 53-55; `add_byhash_and_resign` can no longer abort mid-function; `local cmd rh` consolidated (IN-02); quoted realpath bootstrap |
+| `tests/test_byhash_parse.sh` | Release-section parser unit test | VERIFIED | 8/8 pass on macOS |
+| `scripts/repo_manage.sh` | Track+distro-aware single-publish builder with anchored GPG key | VERIFIED | Uses `resolve_publish_targets`; both GPG_KEY_ID sites use `gpg --list-secret-keys | awk '/^fpr:/{print $10; exit}'` (WR-01); quoted realpath bootstrap (WR-03) |
+| `scripts/ci_publish.sh` | 9-suite mirror-then-include publisher with verbatim-mirror + by-hash | PARTIAL | `mirror_suite_verbatim()` present; `IS_VERBATIM`/`VERBATIM_SUITES` tracking present; Step 4 and Step 4b guards present; `esc()` HTML escaper applied to pkg/ver (WR-04); quoted realpath (WR-03). BUG: `wget --cut-dirs=0` places files at wrong path for project-pages URL; IS_VERBATIM is always false in CI. |
+| `tests/test_repo_assemble_byhash.sh` | Ubuntu-only integration harness with Test groups A-G | VERIFIED (structure) / NOT FULLY WIRED | Test groups F (pipefail regression) and G (26.04 publish bare alias byte-stable) are present and pass on Lima ubuntu-24 (62/62 per 20-06-SUMMARY.md). Test group G does not exercise `mirror_suite_verbatim` or the wget code path; it models the intended behavior directly. |
+| `.github/workflows/build-packages.yml` | Publish job with distro argument wired to ci_publish.sh | VERIFIED | `steps.track.outputs.distro` passed as second positional arg; REPO_URL constructed as `https://${repository_owner}.github.io/${repository.name}` (project-pages format — the one that triggers the wget cut-dirs bug) |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|-----|--------|---------|
-| `tests/test_suite_routing.sh` | `config.sh resolve_publish_targets` | sed-extract + eval | WIRED | Extracts function and arrays via sed, evals and calls directly |
-| `packaging/repo/conf/distributions` | apt client cached Suite value | bare alias stanza Suite: stable | WIRED | `grep -q '^Suite: stable$'` succeeds; bare aliases confirmed without -2404 suffix |
-| `scripts/ci_publish.sh` | `config.sh resolve_publish_targets / ALL_SUITES` | sourced; mapfile from process substitution | WIRED | Lines 83, 114 both reference; `OTHER_SUITES` derived from `ALL_SUITES` |
-| `scripts/ci_publish.sh` | `scripts/repo_byhash.sh add_byhash_and_resign` | source at line 24; loop at lines 259-264 | WIRED | Sourced near top; called for every suite with a Release |
-| `.github/workflows/build-packages.yml publish job` | `scripts/ci_publish.sh` | 5-arg invocation at line 312-314 | WIRED | `track`, `steps.track.outputs.distro`, `deb-dir`, `repo-url`, `output-dir` passed |
-
-### Data-Flow Trace (Level 4)
-
-This phase produces shell tooling (not a web app), so data-flow Level 4 applies to the publish pipeline:
-
-| Artifact | Data Variable | Source | Produces Real Data | Status |
-|----------|---------------|--------|--------------------|--------|
-| `scripts/repo_manage.sh` | `PUBLISH_TARGETS` | `resolve_publish_targets()` via `mapfile` | Yes — validated by unit tests and integration harness | FLOWING |
-| `scripts/ci_publish.sh` | `ALL_SUITES` | sourced from `config.sh` | Yes — 9-element array confirmed | FLOWING |
-| `scripts/ci_publish.sh` | `add_byhash_and_resign` call | `scripts/repo_byhash.sh` sourced | Real — but CR-01 pipefail risk | FLOWING (with defect) |
-| `scripts/repo_byhash.sh` | by-hash copies + Acquire-By-Hash injection | Real Release file from reprepro export | Yes — 48/48 on VM | FLOWING (with CR-01 fragility) |
+| `tests/test_suite_routing.sh` | `config.sh resolve_publish_targets` | sed-extract + eval | WIRED | Extracts function and arrays; calls directly; 8/8 pass |
+| `packaging/repo/conf/distributions` | apt client cached Suite value | bare alias stanza `Suite: stable` | WIRED | `grep '^Suite: stable$'` succeeds; bare aliases confirmed without -2404 suffix |
+| `scripts/ci_publish.sh` | `config.sh resolve_publish_targets / ALL_SUITES` | sourced; mapfile at line 83; ALL_SUITES loop at lines 114, 373, 411 | WIRED | Routing helper and 9-element array both consumed |
+| `scripts/ci_publish.sh` | `scripts/repo_byhash.sh add_byhash_and_resign` | source at line 24; per-suite loop at lines 373-385 | WIRED | Sourced at top; called for non-verbatim suites with a Release |
+| `scripts/ci_publish.sh` `IS_VERBATIM` tracking | Step 4 re-export skip + Step 4b re-sign skip | `IS_VERBATIM` guards at lines 324, 377 | WIRED (logic) / NOT WIRED (path) | Logic is correct; but IS_VERBATIM is always false in CI due to wget path bug |
+| `.github/workflows/build-packages.yml` publish job | `scripts/ci_publish.sh` | 5-arg invocation at line 312-317 | WIRED | track, distro (from steps.track.outputs), deb-dir, repo-url, output-dir |
 
 ### Behavioral Spot-Checks
 
@@ -102,8 +101,12 @@ This phase produces shell tooling (not a web app), so data-flow Level 4 applies 
 | distributions file has 9 Suite lines, bare aliases unsuffixed | `bash tests/test_distributions_suites.sh` | 15/15 pass | PASS |
 | byhash Release parser is section-boundary-correct | `bash tests/test_byhash_parse.sh` | 8/8 pass | PASS |
 | Integration harness SKIPs on macOS | `bash tests/test_repo_assemble_byhash.sh` | SKIP exit 0 | PASS |
-| Integration harness passes on Lima ubuntu-24 | On-VM execution (documented in 20-04-SUMMARY.md) | 48/48 pass | PASS (recorded, not re-run) |
-| D-15 legacy-client simulation | On-VM local D-15 sim (documented in 20-04-SUMMARY.md) | 9/9 pass | PASS (recorded, not re-run) |
+| Integration harness passes on Lima ubuntu-24 | Documented in 20-06-SUMMARY.md | 62/62 pass | PASS (recorded, not re-run) |
+| `add_byhash_and_resign` pipefail isolation present | `grep -n '_saved_opts\|set +e\|RETURN' scripts/repo_byhash.sh` | Lines 53-55 match | PASS |
+| Both GPG_KEY_ID reads anchored in repo_manage.sh | `grep 'list-secret-keys' scripts/repo_manage.sh` | Lines 112, 193 match | PASS |
+| All 4 realpath bootstraps quote path argument | `grep 'realpath.*canonicalize.*scriptpath.*relativepath' config.sh scripts/repo_byhash.sh scripts/repo_manage.sh scripts/ci_publish.sh` | All 4 match with quotes | PASS |
+| esc() helper present and applied to pkg_e/ver_e | `grep -n 'esc()\|pkg_e\|ver_e' scripts/ci_publish.sh` | Lines 405, 526-529 match | PASS |
+| `mirror_suite_verbatim` wget path correct for project-pages URL | Static analysis: wget --cut-dirs=0 on `https://slazarov.github.io/podman-ubuntu/dists/stable/` saves to `${lmirror}/podman-ubuntu/dists/stable/`; [[ -d ]] checks `${lmirror}/dists/stable` | FAILS — directory at wrong path | FAIL |
 
 ### Probe Execution
 
@@ -113,56 +116,57 @@ This phase produces shell tooling (not a web app), so data-flow Level 4 applies 
 | `tests/test_suite_routing.sh` | `bash tests/test_suite_routing.sh` | 8 passed, 0 failed | PASS |
 | `tests/test_alias_routing.sh` | `bash tests/test_alias_routing.sh` | 12 passed, 0 failed | PASS |
 | `tests/test_byhash_parse.sh` | `bash tests/test_byhash_parse.sh` | 8 passed, 0 failed | PASS |
-| `tests/test_repo_assemble_byhash.sh` | `bash tests/test_repo_assemble_byhash.sh` | SKIP on macOS (by design; 48/48 on Lima ubuntu-24 per 20-04-SUMMARY.md) | PASS (SKIP) |
+| `tests/test_repo_assemble_byhash.sh` | `bash tests/test_repo_assemble_byhash.sh` | SKIP on macOS (by design; 62/62 on Lima ubuntu-24 per 20-06-SUMMARY.md) | PASS (SKIP) |
 
 ### Requirements Coverage
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |-------------|-------------|-------------|--------|----------|
-| REPO-06 | 20-01, 20-03, 20-04 | Six versioned suites from single URL, one GPG key | SATISFIED | 9-stanza distributions + SignWith:yes on all; routing helper wired; integration harness proves real reprepro export works |
-| REPO-07 | 20-01, 20-03, 20-04 | Bare suite aliases serve 24.04 packages, no client-side change | SATISFIED | Bare alias stanzas carry Suite:stable (not stable-2404); D-15 local-VM simulation proved no Suite-change prompt and 24.04 candidate resolves |
-| REPO-08 | 20-02, 20-03, 20-04 | Acquire-By-Hash on all suites, no CDN hash-sum mismatches | BLOCKED | Implementation exists and was proven on the VM for 24.04 publishes. CR-01 (pipefail abort risk in add_byhash_and_resign) and CR-02 (bare-alias re-sign on 26.04 publish) are unaddressed defects that can cause production failures: half-signed repos (CR-01) and CDN hash-mismatch windows on 26.04 publishes (CR-02) |
+| REPO-06 | 20-01, 20-03, 20-04 | Six versioned suites from single URL, one GPG key | SATISFIED | 9-stanza distributions with SignWith:yes on all; routing helper wired; 62/62 integration harness on Ubuntu |
+| REPO-07 | 20-01, 20-03, 20-04 | Bare suite aliases serve 24.04 packages, no client-side change | SATISFIED | Bare alias stanzas carry `Suite: stable` (not stable-2404); D-15 local-VM simulation proved no Suite-change prompt and 24.04 candidate resolves |
+| REPO-08 | 20-02, 20-03, 20-04, 20-05, 20-06 | Acquire-By-Hash on all suites, no CDN hash-sum mismatches | BLOCKED | Pipefail isolation (original CR-01) is fixed. However, the verbatim-mirror mechanism (CR-02 fix) is a no-op in CI: `wget --cut-dirs=0` on the project-pages URL saves files to the wrong path, `mirror_suite_verbatim` returns 1, bare aliases on 26.04 publishes are re-signed, reopening the CDN hash-mismatch window. |
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| `scripts/repo_byhash.sh` | 72-79 | `local rh; rh=$(cmd \| awk)` under inherited `set -euo pipefail` with no isolation | BLOCKER | Can abort `add_byhash_and_resign` mid-execution after removing InRelease/Release.gpg but before re-signing; leaves repo in half-signed state on GitHub Pages (CR-01 from code review) |
-| `scripts/ci_publish.sh` | 113-125 | For DISTRO=2604, bare aliases are placed in OTHER_SUITES and subsequently re-exported, regenerating Release Date + signature | BLOCKER | Reopens CDN hash-mismatch window for bare aliases on 26.04 publishes, defeating the REPO-08 protection for those suites (CR-02 from code review) |
-| `scripts/repo_manage.sh` | 112, 193 | `gpg --list-keys --with-colons \| grep fpr \| head -1` — unanchored grep, selects first key on keyring regardless of which is the signing key | WARNING | Can export wrong public key to podman-ubuntu.gpg if multiple keys on keyring; clients would fail apt update with GPG verification error (WR-01) |
-| `config.sh`, `scripts/ci_publish.sh`, `scripts/repo_manage.sh`, `scripts/repo_byhash.sh` | 8-9 | Unquoted `${scriptpath}/${relativepath}` in `realpath` call | WARNING | Word-splits on paths with spaces; AGENTS.md mandates quoting all expansions (WR-03) |
-| `scripts/ci_publish.sh` | 388-405 | Package names/versions from Packages index interpolated directly into HTML with no escaping | WARNING | XSS vector for nightly builds from upstream HEAD; malformed HTML from versions containing `<`/`>` (WR-04) |
+| `scripts/ci_publish.sh` | 181 | `wget -nH --cut-dirs=0` saves to `${lmirror}/REPONAME/dists/<suite>/` for project-pages URLs; `[[ -d ]]` at line 201 checks `${lmirror}/dists/<suite>/`; wget exits 0, curl fallback skipped, function returns 1 | BLOCKER | `IS_VERBATIM` stays false for all bare aliases in CI; verbatim-mirror logic is a no-op in production; bare aliases are re-signed on 26.04 publishes, defeating the CR-02 fix and reopening the CDN hash-mismatch window (REPO-08 / SC-3) |
+| `scripts/ci_publish.sh` | 185-197 | curl fallback only fetches Release/InRelease/Release.gpg and per-arch Packages/Release; omits by-hash dirs and Packages.gz; served Release checksums files that 404 on apt client fetch | WARNING | The fallback path (if wget were unavailable) would serve an incomplete signed tree; noted by review WR-04. Currently secondary to the wget-path bug since fallback is never reached when wget exits 0. |
 
 ### Human Verification Required
 
 #### 1. Production-URL Validation (REPO-07 + REPO-08 on live CDN)
 
-**Test:** After the Phase-20 9-suite tree is first published to GitHub Pages by the CI publish job, run the deferred D-15 and by-hash checks from 20-04-SUMMARY.md against the real `REPO_URL`:
+**Test:** After the Phase-20 9-suite tree is first published to GitHub Pages by CI, run apt-get update against the live repository using bare suite names and verify:
+- No "changed its 'Suite' value" prompt appears
+- `apt-cache policy podman-suite` resolves a `~ubuntu24.04.podman1` candidate
+- A by-hash fetch against a `dists/stable/main/binary-amd64/by-hash/SHA256/<hash>` URL returns HTTP 200
 
 ```bash
-# REPO-07: legacy bare-stable client against production CDN
-limactl shell ubuntu-24 -- bash -c 'cd /opt/podman-debian && curl -fsSL <REPO_URL>/podman-ubuntu.gpg | sudo tee /usr/share/keyrings/podman-ubuntu.gpg >/dev/null && echo "deb [signed-by=/usr/share/keyrings/podman-ubuntu.gpg] <REPO_URL> stable main" | sudo tee /etc/apt/sources.list.d/podman-legacy.list && sudo apt-get update 2>&1 | tee /tmp/legacy-update.log'
-limactl shell ubuntu-24 -- bash -c '! grep -q "changed its .Suite. value" /tmp/legacy-update.log && apt-cache policy podman-suite 2>&1 | grep -q "~ubuntu24.04.podman1" && echo LEGACY-OK'
-
-# REPO-08: live by-hash fetch against production CDN
-limactl shell ubuntu-24 -- bash -c 'curl -fsSL -o /dev/null -w "%{http_code}\n" <REPO_URL>/dists/stable/main/binary-amd64/by-hash/SHA256/$(curl -fsSL <REPO_URL>/dists/stable/main/binary-amd64/Packages | sha256sum | cut -d" " -f1)'
+# Legacy bare-suite client
+sudo curl -fsSL https://slazarov.github.io/podman-ubuntu/podman-ubuntu.gpg \
+  | sudo tee /usr/share/keyrings/podman-ubuntu.gpg >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/podman-ubuntu.gpg] \
+  https://slazarov.github.io/podman-ubuntu stable main" \
+  | sudo tee /etc/apt/sources.list.d/podman-legacy.list
+sudo apt-get update 2>&1 | tee /tmp/legacy-update.log
+! grep -q "changed its 'Suite' value" /tmp/legacy-update.log && echo "LEGACY-OK"
+apt-cache policy podman-suite 2>&1 | grep -q "~ubuntu24.04.podman1" && echo "CANDIDATE-OK"
 ```
 
-**Expected:** `apt-get update` exit 0; NO "changed its 'Suite' value" line; `apt-cache policy` shows `~ubuntu24.04.podman1` candidate; by-hash fetch returns HTTP 200.
+**Expected:** `apt-get update` exits 0; no "changed its 'Suite' value" line; `~ubuntu24.04.podman1` candidate present; by-hash HTTP 200.
 
-**Why human:** Production CDN behavior (GitHub Pages caching, edge serving) cannot be verified without an actual deploy of the 9-suite tree to the live repo. The local-VM D-15 simulation proved apt semantics; the CDN caching window requires real production data.
+**Why human:** Production GitHub Pages CDN caching and serving behavior cannot be verified without an actual deploy. The local-VM D-15 simulation proved apt semantics; CDN caching behavior requires real production data.
 
----
+### Gaps Summary
 
-## Gaps Summary
+**One gap remains after gap-closure plans 20-05 and 20-06:**
 
-Two code defects from the code review (20-REVIEW.md) remain unaddressed in the codebase and block the phase goal:
+**Mirror_suite_verbatim wget path bug (BLOCKER, re-review CR-01):** In `scripts/ci_publish.sh` the `mirror_suite_verbatim()` function runs `wget -q -r -np -nH --cut-dirs=0 -P "${lmirror}" "${REPO_URL}/dists/${lsuite}/"`. For the CI project-pages URL `https://slazarov.github.io/podman-ubuntu`, wget `-nH` strips only the hostname; `--cut-dirs=0` cuts zero path segments. The file `dists/stable/Release` is therefore saved to `${lmirror}/podman-ubuntu/dists/stable/Release` — with a leading `podman-ubuntu/` directory. wget exits 0 (files were fetched successfully). The `if ! wget ...` block's curl fallback (lines 185-197) is inside that block and is never reached when wget exits 0. The subsequent check `[[ -d "${lmirror}/dists/${lsuite}" ]]` at line 201 is false (the tree is under `${lmirror}/podman-ubuntu/dists/`, not `${lmirror}/dists/`). The else branch executes: `rm -rf "${lmirror}"; return 1`. `mirror_suite_verbatim` returns 1, `IS_VERBATIM["${suite}"]` is set to false, and the bare alias is fed through Step 4 re-`includedeb` + re-`export` and Step 4b `add_byhash_and_resign` — regenerating its Release Date + signature despite byte-identical package content. This reopens the Acquire-By-Hash CDN hash-mismatch window that CR-02 in plan 20-06 was intended to close.
 
-**CR-01 (BLOCKER):** `add_byhash_and_resign()` in `scripts/repo_byhash.sh` runs under the inherited `set -euo pipefail` from `ci_publish.sh`. The pattern `local rh; rh=$(sha256sum ... | awk ...)` — where `rh` is pre-declared on a separate `local` line and assigned separately — propagates pipefail from the pipe head. Confirmed: `bash -c 'set -euo pipefail; f() { local rh; rh="$(false | awk ...)"; }; f'` exits non-zero. On a sha512sum or awk failure, the function aborts after deleting InRelease/Release.gpg (line 83 is in a later block, but the pattern in lines 72-79 is the risk) but before re-signing, leaving the published GitHub Pages repo in a half-signed state. Since `add_byhash_and_resign` is called for up to 9 suites in a loop, a single failure can abort the entire publish mid-way. This directly threatens REPO-08 (SC-3).
+The fix is to either: (a) compute the number of path segments in the REPO_URL after the host and pass that count as `--cut-dirs=N`; or (b) locate the actual mirrored tree with `find "${lmirror}" -type d -path "*/dists/${lsuite}" -print -quit` after wget, regardless of where wget placed it. A test should exercise this with a local URL containing a path segment.
 
-**CR-02 (BLOCKER):** For a 26.04 publish (`DISTRO=2604`), `resolve_publish_targets` correctly returns only `<track>-2604`. However, the bare alias (`<track>`) lands in `OTHER_SUITES` (verified by tracing `ci_publish.sh:113-125`). In Step 4, the bare alias's debs are re-`includedeb`'d from mirrored packages and re-`export`ed with a fresh reprepro db, regenerating its `Release` with a new Date and new signature — even though package content is unchanged. This re-signing reopens the CDN hash-mismatch window that Acquire-By-Hash is designed to eliminate: an apt client can see a new `InRelease` (different signature/date) served against a stale cached `by-hash` index. No test covers a 26.04 publish path; the integration harness only exercises 24.04 publishes and the empty-but-signed 2604 export (which never goes through the re-include/re-export path). This directly threatens REPO-08 (SC-3) and the no-clobber guarantee (SC-4) for 26.04 publishes.
-
-The two gaps share a root cause: the 26.04 publish path (which is the primary new capability being built in Phase 20) is not exercised end-to-end in any test, and the `add_byhash_and_resign` helper has no pipefail isolation. Both must be fixed before Phase 21 builds on top of this foundation.
+Test group G (tests/test_repo_assemble_byhash.sh) correctly models the desired behavior — the bare alias is not re-signed when only `stable-2604` is the target — but it calls `repo_manage.sh` and `add_byhash_and_resign` directly without going through `mirror_suite_verbatim`. The wget path bug therefore passes all 62 current test assertions.
 
 ---
 
