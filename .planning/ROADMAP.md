@@ -77,7 +77,7 @@ Full v2.0 phase details archived at `.planning/milestones/v2.0-ROADMAP.md`.
   3. Runtime library dependencies are derived at build time from the binaries' linked sonames (ldd soname→package mapping) rather than hardcoded, so a future distro rename is picked up without editing nFPM config by hand
   4. Building for 24.04 with the new code path produces packages byte-functionally equivalent to the pre-v3.0 24.04 packages (no regression to the shipping pipeline)
 
-**Plans**: 4 plans
+**Plans**: 5 plans (1 gap-closure)
 Plans:
 **Wave 1**
 
@@ -91,6 +91,10 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [x] 19-04-PLAN.md — On-Ubuntu detector + 24.04 equivalence + 26.04 container install smoke (scripts authored; on-host proofs deferred to UAT)
+
+**Gap closure** *(from UAT diagnoses — Test 1 blocker + Test 3 major)*
+
+- [ ] 19-05-PLAN.md — Direct DT_NEEDED detector (drop ldd transitive closure) + stale skopeo libsqlite3-0 baseline fix + smoke sibling-dep (podman-container-configs) install
 
 ### Phase 20: Repository Restructure & Migration Aliases
 
@@ -171,7 +175,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 16. CI/CD Pipeline | v2.0 | — | Complete (via Phase 18) | 2026-03-08 |
 | 17. Upstream Automation | v2.0 | — | Complete (absorbed into Phase 18) | 2026-03-08 |
 | 18. Edge Track / Nightly Builds | v2.0 | 2/2 | Complete | 2026-03-08 |
-| 19. Per-Distro Versioning & Dependency Mapping | v3.0 | 3/4 | In progress | - |
+| 19. Per-Distro Versioning & Dependency Mapping | v3.0 | 4/5 | In progress (gap closure) | - |
 | 20. Repository Restructure & Migration Aliases | v3.0 | 0/? | Not started | - |
 | 21. CI Build Matrix Extension to 26.04 | v3.0 | 0/? | Not started | - |
 | 22. Migration Docs & Installability Smoke Tests | v3.0 | 0/? | Not started | - |
