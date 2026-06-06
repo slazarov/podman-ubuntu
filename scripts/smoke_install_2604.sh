@@ -155,6 +155,7 @@ echo "----------------------------------------"
         # Glob inside the container so the exact built filename is used.
         shopt -s nullglob
         skopeo_deb=( /out/podman-skopeo_*_*.deb )
+        configs_deb=( /out/podman-container-configs_*.deb )
         podman_deb=( /out/podman-podman_*_*.deb )
         shopt -u nullglob
 
@@ -162,9 +163,24 @@ echo "----------------------------------------"
             echo "ERROR: no skopeo .deb visible at /out inside the container" >&2
             exit 1
         fi
+        # skopeo.yaml declares the static internal sibling dep
+        # podman-container-configs, an internal-only suite package that is NOT
+        # published in the Ubuntu/resolute archive — it exists only as a .deb in
+        # /out. apt has [no choices] for it unless we hand it the local .deb, so
+        # its absence is a real failure of the primary proof, not a soft skip.
+        if [ "${#configs_deb[@]}" -eq 0 ]; then
+            echo "ERROR: no /out/podman-container-configs_*.deb visible inside the container" >&2
+            echo "  skopeo declares it as an internal sibling dep; it must be present for the PKG-08 proof." >&2
+            exit 1
+        fi
 
-        echo ">>> apt-get install skopeo: ${skopeo_deb[0]}"
-        apt-get install -y "${skopeo_deb[0]}"
+        # Install the sibling configs .deb AND the skopeo .deb in ONE apt-get
+        # invocation so apt co-resolves the local .debs and needs the archive
+        # only for the renamed SYSTEM deps (libgpgme45/libsubid5/libassuan9) —
+        # the true PKG-08 signal. This install stays HARD (no || true): a wrong
+        # renamed system-dep name must still fail the gate.
+        echo ">>> apt-get install (local sibling + skopeo): ${configs_deb[0]} ${skopeo_deb[0]}"
+        apt-get install -y "${configs_deb[0]}" "${skopeo_deb[0]}"
 
         # Optional second proof: podman, if it was built.
         if [ "${#podman_deb[@]}" -gt 0 ]; then
