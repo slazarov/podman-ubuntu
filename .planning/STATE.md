@@ -4,14 +4,14 @@ milestone: v3.0
 milestone_name: Ubuntu 26.04 Support
 status: executing
 stopped_at: Phase 20 context gathered
-last_updated: "2026-06-06T21:50:41.531Z"
+last_updated: "2026-06-06T21:58:28.242Z"
 last_activity: 2026-06-06 -- Phase 20 execution started
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 11
-  completed_plans: 10
-  percent: 25
+  completed_plans: 11
+  percent: 50
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-05)
 ## Current Position
 
 Phase: 20 (repository-restructure-migration-aliases) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-06-06 -- Phase 20 execution started
 
@@ -56,6 +56,7 @@ Progress: [██████████] 100%
 | Phase 20 P03 | 5min | 3 tasks | 3 files |
 | Phase 20 P20-04 | checkpoint-resume | 2 tasks | 1 files |
 | Phase 20 P05 | 4min | 2 tasks | 5 files |
+| Phase 20 P06 | 12min | 2 tasks | 2 files |
 
 ## Previous Milestones
 
@@ -99,6 +100,7 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase ?]: Resolved 20-04 blocking checkpoint via a local-VM D-15 simulation (old 3-stanza tree -> new 9-suite tree swapped at a constant localhost URL on Lima ubuntu-24): apt-client legacy continuity (no Suite-change prompt, 24.04 candidate from bare stable) and by-hash-over-HTTP (200) proven without the production deploy; production-URL smoke deferred to first CI publish.
 - [Phase ?]: Phase 20-05: CR-01 fix uses RETURN-trap option restore (save set +o, set +e +o pipefail, trap 'eval _saved_opts' RETURN) as the single restore point so add_byhash_and_resign always reaches its re-sign block; helper never re-enables set -e/pipefail itself
 - [Phase ?]: Phase 20-05: WR-01 reads the signing-key fingerprint via 'gpg --list-secret-keys --with-colons | awk -F: /^fpr:/' at both repo_manage.sh sites, deterministically selecting the signing key on a multi-key keyring; WR-03 quotes all four realpath toolpath bootstraps
+- [Phase ?]: 20-06: Chose verbatim-mirror for non-target bare aliases on 26.04 publishes (vs Release-Date stabilization) — lowest-risk, stays within the D-10 rebuild-the-world model (CR-02 closed)
 
 ### Tech Debt
 
@@ -124,6 +126,6 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last session: 2026-06-06T21:50:18.578Z
+Last session: 2026-06-06T21:58:07.689Z
 Stopped at: Phase 20 context gathered
 Resume file: .planning/phases/20-repository-restructure-migration-aliases/20-CONTEXT.md
