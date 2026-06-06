@@ -93,21 +93,36 @@ detect_distro_version_id() {
 # Args: one or more absolute paths to ELF binaries (typically under DESTDIR).
 # Output: sorted, unique owning package names, one per line.
 #
-# Behavior:
+# Behavior (dpkg-shlibdeps semantics — DIRECT DT_NEEDED only):
 #   - Each binary must be executable, else hard-fail (D-03).
-#   - ldd enumerates resolved libraries; `=> /path` field 3 only (linux-vdso
-#     and the ld-linux loader have no resolved path and are skipped).
-#   - Each lib is realpath-normalized (ldd may report a symlink — Pitfall 4)
-#     before dpkg-query -S, whose owning package is taken with the :arch
-#     multiarch qualifier stripped (awk -F:).
+#   - Deps are derived from the binary's DIRECT DT_NEEDED sonames
+#     (`objdump -p` NEEDED lines), NOT from the full `ldd` transitive closure.
+#     This mirrors Debian policy / dpkg-shlibdeps: a package declares Depends
+#     for the libraries it directly links, and each dependency package declares
+#     ITS OWN transitive deps. Walking the full ldd closure over-reported the
+#     deps-of-deps (e.g. gpgme -> libassuan0/libgpg-error0, libsystemd0 ->
+#     libgcrypt20/liblz4-1/liblzma5/libzstd1) — the transitive-closure bug
+#     diagnosed in the Phase 19 UAT (.planning/debug/detector-transitive-closure.md).
+#   - Each direct NEEDED soname is resolved to the absolute on-disk object THIS
+#     binary loads via the per-binary `ldd` match (soname => /path), so the
+#     resolved path is multiarch-correct. linux-vdso and the ld-linux loader
+#     have no resolved path and are skipped, as before.
+#   - A direct NEEDED soname that does not resolve to a path at all is a
+#     hard-fail (D-03) — an unresolvable NEEDED entry is a real breakage.
+#   - Each resolved path is realpath-normalized (ldd may report a symlink —
+#     Pitfall 4) before dpkg-query -S, whose owning package is taken with the
+#     :arch multiarch qualifier stripped (awk -F:).
 #   - Any resolved .so with no owning package aborts the build (D-03 hard-fail).
 #   - The always-present base packages libc6 and libgcc-s1 are excluded (D-02).
+#   - No soname->package mapping is hardcoded (D-01/D-04): the package name
+#     comes only from dpkg-query -S against the host dpkg DB, so the crun JSON
+#     parser dep still falls out automatically with no special case.
 #
 # Security: only ever invoked on in-tree, freshly-built binaries — never on
 # untrusted input (T-19-02 accepted constraint).
 detect_runtime_depends() {
     local -A pkgs=()
-    local bin lib pkg ex resolved dpkg_out
+    local bin soname lib pkg ex resolved dpkg_out ldd_out
     # Base packages present on every Debian/Ubuntu system — never declared (D-02).
     local -a EXCLUDE=( libc6 libgcc-s1 )
 
@@ -116,10 +131,47 @@ detect_runtime_depends() {
             echo "ERROR: binary not found or not executable: ${bin}" >&2
             return 1
         fi
-        # Field 3 is the resolved "=> /path" object; the awk filter keeps only
-        # lines that actually resolved to an absolute path.
-        while read -r lib; do
-            [[ -n "${lib}" && -e "${lib}" ]] || continue
+
+        # Capture this binary's ldd resolution map ONCE (soname => /path). Run
+        # OUTSIDE a pipeline so its exit status is testable under the caller's
+        # `set -euo pipefail` (CR-01) and the soname->path matching below is a
+        # pure-bash lookup against this exact binary's resolution. ldd exits
+        # non-zero (and prints "not a dynamic executable") for a STATICALLY
+        # linked binary (e.g. fuse-overlayfs / catatonit built static) — that
+        # is a legitimate zero-dependency case, NOT a breakage, so skip it with
+        # an empty dep set rather than hard-failing.
+        ldd_out="$(ldd "${bin}" 2>&1)" || true
+        if printf '%s\n' "${ldd_out}" | grep -q 'not a dynamic executable'; then
+            continue
+        fi
+
+        # Enumerate the binary's DIRECT DT_NEEDED sonames only (dpkg-shlibdeps
+        # semantics) — NOT the full ldd transitive closure. objdump -p prints
+        # one `  NEEDED  <soname>` line per direct dependency.
+        while read -r soname; do
+            [[ -n "${soname}" ]] || continue
+
+            # Skip the dynamic-loader pseudo-entry: objdump lists ld-linux*.so /
+            # ld-*.so.* as NEEDED, but ldd prints it WITHOUT a `=> /path` form
+            # (it is shown as a bare absolute path). It is owned by libc6 (an
+            # EXCLUDE), so dropping it changes no result while avoiding a false
+            # "did not resolve" hard-fail. Mirrors the loader skip of the old
+            # ldd-closure walk.
+            case "${soname}" in
+                ld-linux*.so*|ld.so*|ld-*.so.*) continue ;;
+            esac
+
+            # Resolve THIS direct soname to the absolute object the binary loads,
+            # by matching the soname (field 1) against its `=> /path` (field 3)
+            # in this binary's own ldd output. Skip the linux-vdso / ld-linux
+            # loader pseudo-entries (no resolved path), exactly as before.
+            lib="$(printf '%s\n' "${ldd_out}" | awk -v s="${soname}" '$1==s && $2=="=>" {print $3; exit}')"
+            if [[ -z "${lib}" || ! -e "${lib}" ]]; then
+                echo "ERROR: direct NEEDED soname '${soname}' did not resolve to an on-disk path for ${bin}" >&2
+                echo "  (an unresolved NEEDED entry is a real link breakage — not skipped, D-03)" >&2
+                return 1
+            fi
+
             resolved="$(realpath "${lib}")"
             # Run dpkg-query OUTSIDE a pipeline so its exit status is testable
             # and its stderr is preserved for the D-03 message (CR-01). Under
@@ -142,7 +194,7 @@ detect_runtime_depends() {
                 return 1
             fi
             pkgs["${pkg}"]=1
-        done < <(ldd "${bin}" | awk '/=> \// {print $3}')
+        done < <(objdump -p "${bin}" 2>/dev/null | awk '/NEEDED/{print $2}')
     done
 
     # Emit deduped, minus exclusions, sorted.

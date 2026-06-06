@@ -119,7 +119,7 @@ declare -A INJECT_ONLY_DEPENDS=(
 declare -A BASELINE_24_04=(
     ["podman"]="libgpgme11t64 libseccomp2"
     ["buildah"]="libgpgme11t64 libseccomp2"
-    ["skopeo"]="libgpgme11t64 libsubid4 libsqlite3-0"
+    ["skopeo"]="libgpgme11t64 libsubid4"
     ["crun"]="libseccomp2 libsystemd0 libcap2"
     ["conmon"]="libglib2.0-0t64 libsystemd0"
 )
