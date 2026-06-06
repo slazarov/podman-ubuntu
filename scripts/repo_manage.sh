@@ -21,24 +21,30 @@ trap 'error_handler $? $LINENO "$BASH_SOURCE"' ERR
 # ============================================
 
 usage() {
-    echo "Usage: $(basename "$0") <suite> <deb-directory> [output-directory]"
+    echo "Usage: $(basename "$0") <track> <distro> <deb-directory> [output-directory]"
     echo ""
-    echo "  suite            Target suite: 'stable', 'edge', or 'nightly'"
+    echo "  track            Release track: 'stable', 'edge', or 'nightly'"
+    echo "  distro           Target distro: '2404' or '2604'"
     echo "  deb-directory    Path containing .deb files to add"
     echo "  output-directory Where to create the repository (default: \${toolpath}/repo-output)"
+    echo ""
+    echo "  The (track, distro) pair is resolved to its publish targets via"
+    echo "  resolve_publish_targets (config.sh): the versioned '<track>-<distro>'"
+    echo "  suite, plus the bare '<track>' legacy alias when distro is 2404 (D-12)."
     echo ""
     echo "Environment variables:"
     echo "  GPG_PRIVATE_KEY  If set, imports this GPG key before signing (for CI)"
     exit 1
 }
 
-if [[ $# -lt 2 ]]; then
+if [[ $# -lt 3 ]]; then
     usage
 fi
 
-SUITE="$1"
-DEB_DIR="$2"
-OUTPUT_DIR="${3:-${toolpath}/repo-output}"
+TRACK="$1"
+DISTRO="$2"
+DEB_DIR="$3"
+OUTPUT_DIR="${4:-${toolpath}/repo-output}"
 
 REPO_CONF="${toolpath}/packaging/repo"
 
@@ -52,9 +58,16 @@ echo ">>> APT Repository Manager"
 echo "========================================"
 echo ""
 
-# Validate suite name
-if [[ "${SUITE}" != "stable" && "${SUITE}" != "edge" && "${SUITE}" != "nightly" ]]; then
-    echo "ERROR: Invalid suite '${SUITE}'. Must be 'stable', 'edge', or 'nightly'." >&2
+# Resolve publish targets via the Plan-01 routing helper (config.sh). This
+# validates track+distro (exits non-zero on bad input) and yields the versioned
+# suite plus, for 24.04, the bare legacy alias (D-12).
+mapfile -t PUBLISH_TARGETS < <(resolve_publish_targets "${TRACK}" "${DISTRO}")
+# resolve_publish_targets runs in a subshell (process substitution), so its
+# non-zero exit on a bad track/distro cannot abort us directly; an invalid pair
+# yields zero targets. Treat that as a hard error (its stderr message already
+# explains which value was rejected).
+if [[ ${#PUBLISH_TARGETS[@]} -eq 0 ]]; then
+    echo "ERROR: could not resolve publish targets for track='${TRACK}' distro='${DISTRO}'." >&2
     exit 1
 fi
 
@@ -71,7 +84,9 @@ if [[ "${deb_count}" -eq 0 ]]; then
     exit 1
 fi
 
-echo "Suite:      ${SUITE}"
+echo "Track:      ${TRACK}"
+echo "Distro:     ${DISTRO}"
+echo "Targets:    ${PUBLISH_TARGETS[*]}"
 echo "DEB dir:    ${DEB_DIR} (${deb_count} packages)"
 echo "Output dir: ${OUTPUT_DIR}"
 echo ""
@@ -128,30 +143,40 @@ echo ""
 # Add Packages via Reprepro
 # ============================================
 
-echo ">>> Adding packages to '${SUITE}' suite..."
+echo ">>> Adding packages to target suites: ${PUBLISH_TARGETS[*]}..."
 echo ""
 
 package_count=0
 
+# One fresh .deb set, fed into EVERY target suite (D-12: versioned suite + the
+# bare alias on 24.04). reprepro's shared pool dedups the identical .deb across
+# suites (D-05), so no special handling is needed.
 for deb_file in "${DEB_DIR}"/*.deb; do
     if [[ -f "${deb_file}" ]]; then
         echo "  Adding: $(basename "${deb_file}")"
-        reprepro -Vb "${OUTPUT_DIR}" includedeb "${SUITE}" "${deb_file}"
+        for target in "${PUBLISH_TARGETS[@]}"; do
+            reprepro -Vb "${OUTPUT_DIR}" includedeb "${target}" "${deb_file}"
+        done
         package_count=$((package_count + 1))
     fi
 done
 
 echo ""
-echo ">>> Added ${package_count} packages"
+echo ">>> Added ${package_count} packages to ${#PUBLISH_TARGETS[@]} target suite(s)"
 echo ""
 
 # ============================================
 # Export Metadata (Generates InRelease + Release.gpg)
 # ============================================
 
-echo ">>> Exporting repository metadata..."
-reprepro -b "${OUTPUT_DIR}" export
-echo ">>> Metadata exported (InRelease + Release.gpg)"
+echo ">>> Exporting repository metadata (per target suite)..."
+# Export each populated target explicitly. A bare `reprepro export` would also
+# emit empty indexes for the other configured distributions, risking clobbering
+# of suites this run did not populate (Pitfall 4).
+for target in "${PUBLISH_TARGETS[@]}"; do
+    reprepro -b "${OUTPUT_DIR}" export "${target}"
+done
+echo ">>> Metadata exported (InRelease + Release.gpg) for: ${PUBLISH_TARGETS[*]}"
 echo ""
 
 # ============================================
@@ -190,7 +215,9 @@ echo "========================================"
 echo ">>> Repository Build Complete"
 echo "========================================"
 echo ""
-echo "Suite:          ${SUITE}"
+echo "Track:          ${TRACK}"
+echo "Distro:         ${DISTRO}"
+echo "Target suites:  ${PUBLISH_TARGETS[*]}"
 echo "Packages added: ${package_count}"
 echo "Output:         ${OUTPUT_DIR}"
 echo ""
@@ -198,16 +225,18 @@ echo ""
 # List contents to confirm structure
 echo "Repository structure:"
 echo "----------------------------------------"
-if [[ -d "${OUTPUT_DIR}/dists/${SUITE}" ]]; then
-    echo "  dists/${SUITE}/"
-    for f in "${OUTPUT_DIR}/dists/${SUITE}"/*; do
-        if [[ -f "${f}" ]]; then
-            echo "    $(basename "${f}")"
-        elif [[ -d "${f}" ]]; then
-            echo "    $(basename "${f}")/"
-        fi
-    done
-fi
+for target in "${PUBLISH_TARGETS[@]}"; do
+    if [[ -d "${OUTPUT_DIR}/dists/${target}" ]]; then
+        echo "  dists/${target}/"
+        for f in "${OUTPUT_DIR}/dists/${target}"/*; do
+            if [[ -f "${f}" ]]; then
+                echo "    $(basename "${f}")"
+            elif [[ -d "${f}" ]]; then
+                echo "    $(basename "${f}")/"
+            fi
+        done
+    fi
+done
 if [[ -d "${OUTPUT_DIR}/pool" ]]; then
     echo "  pool/"
 fi
