@@ -1,8 +1,8 @@
 ---
 phase: 19-per-distro-versioning-dependency-mapping
-reviewed: 2026-06-05T00:00:00Z
+reviewed: 2026-06-06T00:00:00Z
 depth: standard
-files_reviewed: 13
+files_reviewed: 12
 files_reviewed_list:
   - config.sh
   - functions.sh
@@ -18,254 +18,152 @@ files_reviewed_list:
   - scripts/verify_versions.sh
   - tests/test_detect_distro_depends.sh
 findings:
-  critical: 1
-  warning: 6
-  info: 4
-  total: 11
+  critical: 2
+  warning: 5
+  info: 3
+  total: 10
 status: issues_found
 ---
 
 # Phase 19: Code Review Report
 
-**Reviewed:** 2026-06-05T00:00:00Z
+**Reviewed:** 2026-06-06
 **Depth:** standard
-**Files Reviewed:** 13
+**Files Reviewed:** 12 (+4 cross-referenced YAMLs: netavark, aardvark-dns, fuse-overlayfs, catatonit)
 **Status:** issues_found
 
 ## Summary
 
-Reviewed the per-distro versioning + build-time dependency-detection work: distro
-detection (`detect_distro_version_id`), ldd->dpkg-query runtime-dep mapping
-(`detect_runtime_depends`), `envsubst` injection of `${DETECTED_DEPENDS}` into the
-nFPM YAMLs, and three verification scripts.
+Reviewed the per-distro versioning and direct-DT_NEEDED dependency detector rewrite (plan 19-05) plus the surrounding packaging, smoke, and verification scripts. The detector logic is well-reasoned and the explicit subshell handling for `ldd` and `dpkg-query` (CR-01 of the prior fix wave) is correct. However, the review surfaced **two BLOCKER-class gaps in the D-03 hard-fail invariant** and a **dependency-injection mismatch** between `COMPONENT_BINARIES` and the nFPM YAMLs that silently drops detected dependencies for four components.
 
-The shell-injection surface is well-defended: `detect_distro_version_id` validates
-against `^[0-9]+\.[0-9]+$` before the value reaches the version string/`.deb`
-filename, the smoke runner allowlists `SMOKE_RUNTIME` to `docker|podman` and pattern-
-checks `SMOKE_IMAGE`, and the `envsubst` allowlist (`${VERSION} ${ARCH} ${DESTDIR}
-${DETECTED_DEPENDS}`) is correct (suite render correctly omits `${DETECTED_DEPENDS}`).
-The dpkg version-ordering oracle in `verify_versions.sh` is semantically sound on all
-six assertions.
+The most serious issue: `detect_runtime_depends` derives its dependency set from `objdump -p` inside a process substitution whose exit status is never checked, and `objdump` (binutils) is neither installed by the pipeline nor listed in `verify_depends.sh`'s prerequisite tool check. A missing or failing `objdump` yields an **empty dependency set that passes silently** — the opposite of the D-03 "any breakage hard-fails" contract.
 
-The findings below concern correctness/robustness of the dep detector's failure path,
-the empty-`depends:` render shape for inject-only components, dpkg-query multi-line
-parsing, and a portability mismatch with the repo's "debian" name.
+Note on the pipeline-exit concern from the brief: the command-substitution call sites (`package_all.sh:392`, `verify_depends.sh:167,316`) are protected by `set -o pipefail`, so a `detect_runtime_depends` non-zero exit *does* propagate through the trailing `| sed`/`| tr`. That path is sound. The unguarded path is the internal `objdump` process substitution, below.
 
 ## Critical Issues
 
-### CR-01: `detect_runtime_depends` hard-fail diagnostic is preempted by `set -e`/`pipefail`, and an unmapped library can abort with a generic error instead of the intended D-03 message
+### CR-01: `objdump` failure inside process substitution silently yields zero deps (D-03 bypass)
 
-**File:** `functions.sh:114-122`
-**Issue:** The intended D-03 behavior is: an unmapped `.so` produces the explicit
-message `ERROR: no owning package for <lib> (linked by <bin>)` via the `[[ -z "${pkg}" ]]`
-guard (lines 117-120). But the assignment on line 116 is:
-
+**File:** `functions.sh:197`
+**Issue:** The DT_NEEDED enumeration loop reads from a process substitution:
 ```bash
-pkg="$(dpkg-query -S "$(realpath "${lib}")" 2>/dev/null | awk -F: '{print $1}' | head -n1)"
+done < <(objdump -p "${bin}" 2>/dev/null | awk '/NEEDED/{print $2}')
 ```
+Process-substitution exit status is not propagated to `set -e` and is not captured anywhere. `objdump`'s stderr is also discarded (`2>/dev/null`). If `objdump` is absent (binutils not installed), fails, or reads a file it cannot parse, `awk` receives empty input, the `while` loop body never executes, and the function returns the dep set accumulated so far — for the first/only binary that means an **empty set with exit 0**. This is indistinguishable from a legitimately static binary and directly violates the D-03 invariant that any unresolvable/unowned/unreadable case must hard-fail.
 
-The caller (`package_all.sh`) runs under `set -euo pipefail`, and `detect_runtime_depends`
-is invoked inside a command substitution. When `dpkg-query -S` exits non-zero (the exact
-"unmapped library" case D-03 is meant to catch), `pipefail` makes the pipeline exit
-non-zero. Whether the explicit guard on line 117 is reached or `set -e` aborts the
-assignment first is context-dependent (it differs between a bare top-level run and a
-`func | sed` pipeline). The net effect: the build still hard-fails (so the *safety*
-property holds), but the operator can get an opaque generic ERR-trap failure at line 116
-instead of the actionable "no owning package for X" message — defeating the documented
-diagnostic and making a real unmapped-soname incident hard to triage.
+Compounding this: `objdump`/binutils is never installed by the pipeline (no `binutils` reference in `scripts/` or `setup.sh`), and `verify_depends.sh:72` checks `dpkg-query ldd realpath envsubst nfpm` but **not** `objdump`. So the proof gate itself would pass on a host where detection is silently broken.
 
-Additionally, `2>/dev/null` swallows `dpkg-query`'s own stderr (e.g. "no path found
-matching pattern"), removing the one line that would tell the operator *which* path
-failed to map.
-
-**Fix:** Decouple the lookup from the pipeline so the explicit guard always runs, and
-capture the failure reason instead of discarding it:
-
+**Fix:** Run `objdump` outside the pipeline, capture its output and exit status, and hard-fail on error (mirroring the `ldd`/`dpkg-query` treatment already in this function):
 ```bash
-local resolved dpkg_out
-resolved="$(realpath "${lib}")"
-# Run dpkg-query outside a pipeline so its exit status is testable and its
-# stderr is preserved for the D-03 message.
-if ! dpkg_out="$(dpkg-query -S "${resolved}" 2>&1)"; then
-    echo "ERROR: no owning package for ${lib} -> ${resolved} (linked by ${bin})" >&2
-    echo "  dpkg-query: ${dpkg_out}" >&2
+local needed_out
+if ! needed_out="$(objdump -p "${bin}" 2>&1)"; then
+    echo "ERROR: objdump failed on ${bin}; cannot enumerate DT_NEEDED (D-03)" >&2
+    echo "  objdump: ${needed_out}" >&2
     return 1
 fi
-# Take the package field of the first line; strip :arch multiarch qualifier.
-pkg="$(printf '%s\n' "${dpkg_out}" | head -n1 | awk -F: '{print $1}')"
-if [[ -z "${pkg}" ]]; then
-    echo "ERROR: could not parse owning package for ${lib} (linked by ${bin}); dpkg-query said: ${dpkg_out}" >&2
-    return 1
+while read -r soname; do
+    [[ -n "${soname}" ]] || continue
+    ...
+done < <(printf '%s\n' "${needed_out}" | awk '$1=="NEEDED"{print $2}')
+```
+Also add `objdump` to the `verify_depends.sh:72` tool-presence loop and make `binutils` an explicit build-host prerequisite.
+
+### CR-02: Detected system-library deps silently dropped for netavark, aardvark-dns, fuse-overlayfs, catatonit
+
+**File:** `scripts/package_all.sh:290-314, 387-408`; `packaging/nfpm/netavark.yaml`, `packaging/nfpm/aardvark-dns.yaml`, `packaging/nfpm/fuse-overlayfs.yaml`, `packaging/nfpm/catatonit.yaml`
+**Issue:** `COMPONENT_BINARIES` (package_all.sh:290) includes `netavark`, `aardvark-dns`, `pasta`, `fuse-overlayfs`, and `catatonit`. For each, `package_all.sh` runs `detect_runtime_depends`, builds `DETECTED_DEPENDS`, and exports it. But:
+- `netavark.yaml` has a literal `depends:` block (`podman-container-configs`) with **no `${DETECTED_DEPENDS}` placeholder** — and netavark is not in `INJECT_ONLY_DEPENDS`. Any detected system lib is computed and then thrown away.
+- `aardvark-dns.yaml`, `fuse-overlayfs.yaml`, `catatonit.yaml` have **no `depends:` key and no `${DETECTED_DEPENDS}` placeholder** at all. Detection runs, the result is exported, and `envsubst` has nothing to substitute it into.
+
+Only `podman`/`buildah`/`skopeo` (literal `depends:` + placeholder) and `crun`/`conmon`/`pasta` (inject-only placeholder) actually consume the injected fragment. So for 4 of the 10 binary-bearing components the detector's output never reaches the package.
+
+In practice netavark/aardvark are Rust binaries linking only libc6/libgcc-s1 (both excluded → empty set), and fuse-overlayfs/catatonit are often built static, so the *current* dropped set is empty. But this is a latent correctness defect: the moment any of these grows a real shared-library dependency (e.g. fuse-overlayfs dynamically linking `libfuse3-3`), the `.deb` will ship **without** the required `Depends` and installs will produce broken binaries. The architecture asserts D-01/D-03 ("declare what you link, hard-fail otherwise"), and this silently violates it for a third of the components.
+
+This is also invisible to `verify_depends.sh` Part B: it renders these YAMLs, but since the fragment has no placeholder to land in, the render-and-parse check still passes (netavark's static `depends:` satisfies the well-formedness assertion), so the gate cannot catch the drop.
+
+**Fix:** Either (a) add a `${DETECTED_DEPENDS}` consumption point to every YAML whose component is in `COMPONENT_BINARIES` — treat `aardvark-dns`/`fuse-overlayfs`/`catatonit` as inject-only (add to `INJECT_ONLY_DEPENDS`) and add the placeholder under netavark's existing `depends:`; or (b) make `package_all.sh` hard-fail when a component is in `COMPONENT_BINARIES`, produces a non-empty `DETECTED_DEPENDS`, but its YAML contains no `${DETECTED_DEPENDS}` token:
+```bash
+if [[ -n "${DETECTED_DEPENDS}" ]] && ! grep -q '${DETECTED_DEPENDS}' "${NFPM_DIR}/${component}.yaml"; then
+    echo "ERROR: ${component} has detected deps but ${component}.yaml has no \${DETECTED_DEPENDS} placeholder — deps would be dropped (D-03)" >&2
+    exit 1
 fi
 ```
+Option (b) is the minimal D-03-faithful guard; option (a) is the complete fix.
 
 ## Warnings
 
-### WR-01: `head -n1` placed AFTER `awk` mis-parses multi-line `dpkg-query -S` output (diversions / multi-owner paths)
+### WR-01: `smoke_install_2604.sh` glob may select wrong-distro / wrong-arch `.deb`
 
-**File:** `functions.sh:116`
-**Issue:** `dpkg-query -S <path>` can emit multiple lines: diversion records
-("diversion by X from: /path", "diversion by X to: /path") and paths owned by more than
-one package. Because `awk -F:` runs over *all* lines and `head -n1` is applied last, the
-parser can return a bogus "package" name. Verified:
-
-```
-$ printf 'diversion by foo from: /path\nlibfoo:amd64: /path\n' | awk -F: '{print $1}' | head -n1
-diversion by foo
-```
-
-A bogus name like `diversion by foo` would then be emitted as a Depends entry, producing
-an uninstallable `.deb`. Diversions on shared libraries are rare but real (multiarch /
-manual diversions on a build host).
-
-**Fix:** Take the first line first, then split, and prefer a real package field. See the
-CR-01 fix (`head -n1 | awk -F: '{print $1}'`). For extra safety, filter diversion lines:
-`grep -v '^diversion '` before `head -n1`.
-
-### WR-02: Inject-only components (`crun`, `conmon`, `pasta`) render a `depends:` key with zero list items when detection yields an empty set
-
-**File:** `packaging/nfpm/crun.yaml:14-16`, `packaging/nfpm/conmon.yaml:14-16`, `packaging/nfpm/pasta.yaml:14-16` (also `package_all.sh:374-381`)
-**Issue:** For these three YAMLs the entire `depends:` block is a comment plus
-`${DETECTED_DEPENDS}`. If `detect_runtime_depends` ever returns an empty set — which it
-*will* for a fully static binary (e.g. a statically-linked `pasta`/`passt` or
-`catatonit`; `ldd` prints "not a dynamic executable" and zero libs are collected) — the
-rendered YAML is:
-
-```yaml
-depends:
-  # System libraries detected from the binary and injected at build time.
-
-conflicts:
-  ...
-```
-
-i.e. a `depends:` key with no list items. This parses as `depends: null`. nfpm tolerance
-of `depends: null` is unverified here (no nfpm on the review host), and `verify_depends.sh`
-Part B's `grep -q '^depends:'` well-formedness check (lines 260-268) would actively FAIL
-this case — so the verification gate flags it as broken even though it may be a legitimate
-static-binary outcome. This is a latent correctness/robustness gap: the "no native deps"
-case is not cleanly handled for inject-only components.
-
-**Fix:** Make the injected fragment self-contained — emit the `depends:` key itself only
-when there is at least one entry, or guarantee a sane shape. Simplest robust option: in
-`package_all.sh`, when `DETECTED_DEPENDS` is empty, inject a harmless placeholder or omit
-the key. Cleaner: have `detect_runtime_depends`/the render step produce the full
-`depends:` line + items as one unit, and drop the literal `depends:` key from
-crun/conmon/pasta YAMLs so an empty set yields no key at all.
-
-### WR-03: `partA_fail` accumulator suppresses all subsequent `PASS` lines after the first failure
-
-**File:** `scripts/verify_depends.sh:210-213`
-**Issue:** The per-component `PASS` line is gated on the *global* `partA_fail` accumulator
-inside the loop. Once any component sets `partA_fail=1`, every later component that
-actually passes prints no `PASS` line (and no FAIL line either) — it silently vanishes
-from the report. This makes a multi-component failure run misleading: the operator sees
-the first failure but loses the pass/fail status of everything after it.
-
-**Fix:** Track per-component status in a local and gate the PASS on that:
-
+**File:** `scripts/smoke_install_2604.sh:122-123, 157-159`
+**Issue:** `skopeo_debs=( "${OUTPUT_DIR}"/podman-skopeo_*_*.deb )` and the in-container `skopeo_deb=( /out/podman-skopeo_*_*.deb )` match every skopeo `.deb` in `output/`. Per AGENTS.md, 24.04- and 26.04-built `.deb`s (and amd64/arm64) coexist in `output/` with distinct suffixes. `skopeo_deb[0]` then picks the lexically-first match, which may be the 24.04 build or the non-native arch — contradicting the script's stated purpose ("a 26.04-built .deb") and potentially failing the install on arch mismatch. The proof would then test the wrong artifact (false pass) or fail for an unrelated reason (false fail).
+**Fix:** Constrain the glob to the 26.04 suffix and native arch, e.g. `podman-skopeo_*~ubuntu26.04.podman1_${arch}.deb` (derive `arch` via `dpkg --print-architecture` inside the container), or assert exactly one match and error on ambiguity:
 ```bash
-local comp_fail=0
-# ... set comp_fail=1 (and partA_fail=1) on each failure instead of only partA_fail ...
-if [[ "${comp_fail}" -eq 0 ]]; then
-    echo "    PASS: ${component} detected set functionally equals t64-adjusted D-14 baseline"
+if [[ "${#skopeo_debs[@]}" -gt 1 ]]; then
+    echo "ERROR: multiple skopeo .debs in ${OUTPUT_DIR}; clean output/ or set an explicit deb — ambiguous which to test" >&2; exit 1
 fi
 ```
 
-### WR-04: `T64_EXPECTED` is accepted for any component, masking a misattributed dependency
+### WR-02: `verify_depends.sh` baseline mirrors are hand-copied and can drift from `package_all.sh`
 
-**File:** `scripts/verify_depends.sh:181-184`
-**Issue:** The check `if in_list "${name}" "${T64_EXPECTED}"; then continue` accepts
-`libgpgme11t64` or `libglib2.0-0t64` as valid for *any* component. So if (say) `conmon`
-suddenly reported `libgpgme11t64` — a name it should never link — the equivalence check
-would rubber-stamp it instead of flagging the misattribution. This weakens the very
-property T-19-10 says the gate must protect (the equivalence check "cannot rubber-stamp a
-wrong detected set").
+**File:** `scripts/verify_depends.sh:84-104`
+**Issue:** `COMPONENT_BINARIES` (lines 84-95) and `INJECT_ONLY_DEPENDS` (lines 100-104) are duplicated verbatim from `package_all.sh:290-314`. Both files comment "Keep in sync," but nothing enforces it; the two maps will silently diverge on the next packaging edit, and the verification gate would then validate a different binary/inject set than the build actually uses — defeating the gate's purpose. This same duplication already masks CR-02: both maps list netavark/aardvark-dns, but neither file checks that the corresponding YAML can receive the injection.
+**Fix:** Extract `COMPONENT_BINARIES` / `INJECT_ONLY_DEPENDS` into a single sourced file (e.g. `scripts/_component_maps.sh`) consumed by both `package_all.sh` and `verify_depends.sh`, so there is one source of truth.
 
-**Fix:** Only accept a t64 name when it is the documented substitution for *that*
-component's baseline (i.e. the pre-substitution name is in `${baseline}`). Restrict the
-allowlist per component rather than globally.
+### WR-03: `objdump` `/NEEDED/` regex matches more than DT_NEEDED entries
 
-### WR-05: Ubuntu-only `VERSION_ID` regex hard-fails on Debian despite the repo name `podman-debian`
+**File:** `functions.sh:197`
+**Issue:** `awk '/NEEDED/{print $2}'` matches any line *containing* the substring `NEEDED`, not the `NEEDED` tag in field 1. `objdump -p` output is currently benign, but the unanchored pattern means a future objdump format change, a section/note name, or a versioned-dependency line containing "NEEDED" could feed a bogus `$2` token into the resolve step (failing the build, or worse resolving to an unintended path). Combined with CR-01's swallowed stderr, such a line would be hard to diagnose.
+**Fix:** Anchor on the tag field: `awk '$1=="NEEDED"{print $2}'`.
 
-**File:** `functions.sh:69-72`, `config.sh:51`
-**Issue:** `detect_distro_version_id` requires `^[0-9]+\.[0-9]+$` and the suffix is
-hard-coded `~ubuntu${DISTRO_VERSION_ID}.podman1`. On Debian, `VERSION_ID` is a single
-integer (`"12"`) — rejected by the regex — and Debian testing/sid has *no* `VERSION_ID`
-at all, so `${VERSION_ID:?...}` (line 62) aborts config load. Verified: `[[ "12" =~
-^[0-9]+\.[0-9]+$ ]]` fails. Given the repository is literally named `podman-debian`, a
-reviewer/operator will reasonably expect it to build on Debian; instead `config.sh`
-hard-fails at source time on any Debian host. If Ubuntu-only is intended for Phase 19, the
-error message ("expected NN.NN, e.g. 26.04") should say so explicitly; if Debian support
-is in scope, the regex and the `~ubuntu` literal need to handle the single-integer form.
+### WR-04: `extract_version_nightly` degrades to `0.0.0` instead of failing, and uses unguarded `cat`
 
-**Fix:** Either (a) document and assert Ubuntu-only with a clear message ("this pipeline
-currently supports Ubuntu only; got VERSION_ID '<x>'"), or (b) broaden to
-`^[0-9]+(\.[0-9]+)?$` and derive the distro id portion (`ubuntu`/`debian`) from
-`os-release`'s `ID` so the suffix matches the actual distro.
+**File:** `scripts/package_all.sh:91, 75-137`
+**Issue:** Several nightly extractors silently fall back to `0.0.0` (line 135) when a grep/sed yields nothing, producing a package versioned `0.0.0~git...` that sorts below — and would be overwritten by — any real release: a silent data-quality defect rather than a hard error, inconsistent with the D-03 "fail loud" stance used elsewhere in this phase. `conmon` uses `cat "${repo_path}/VERSION" | tr ...` (useless-use-of-cat with no existence guard), so a missing `VERSION` hard-fails while the other extractors degrade to `0.0.0` — inconsistent failure semantics.
+**Fix:** In nightly mode, make extraction failure a hard error (the build should not ship a `0.0.0` package), or at minimum emit a WARNING naming the component when the `0.0.0` fallback triggers. Replace `cat "${repo_path}/VERSION" | tr -d ...` with `tr -d '[:space:]' < "${repo_path}/VERSION"`.
 
-### WR-06: `dpkg --search` exit status read via `$?` after a redirect, and a pre-existing quoting/ordering smell in `remove_if_user_installed`
+### WR-05: `dpkg-query -S` `head -n1` may pick the wrong package on multi-owner files
 
-**File:** `functions.sh:352-358`
-**Issue:** (Pre-existing, adjacent to the changed surface.) `dpkg --search "${lfile}"
-2>&1 > /dev/null` has the redirections in the wrong order (`2>&1` before `>/dev/null`
-sends stderr to the *original* stdout, not to /dev/null), and `if [[ $? -eq 1 ]]` reads
-`$?` on a separate line — fragile under future edits and `set -e`. Not introduced by this
-phase, but it sits in `functions.sh` next to the new detector and shares the "trust the
-exit code" pattern; worth hardening while here.
-
-**Fix:** `if ! dpkg --search "${lfile}" >/dev/null 2>&1; then rm -f "${lfile}"; fi`.
+**File:** `functions.sh:191`
+**Issue:** After filtering diversion lines, `head -n1` takes the first owner. For a shared library legitimately co-owned (transition packages, alternatives) the first line is arbitrary — dpkg output order is not contractually stable — and the chosen package becomes a hard `Depends`. This is acceptable for the in-tree binaries today but is an unguarded assumption that could yield a wrong dependency name.
+**Fix:** When more than one non-diversion owner is returned, either fail loudly (D-03 spirit — ambiguous ownership is a real signal) or document why first-wins is safe for the specific libraries in scope.
 
 ## Info
 
-### IN-01: `local`-scoped helper extraction in the test relies on brittle `sed` range matching
+### IN-01: `detect_runtime_depends` `EXCLUDE` uses an O(n*m) inner loop
 
-**File:** `tests/test_detect_distro_depends.sh:78-94`
-**Issue:** `extract_fn` greps `^${fn}()` .. `^}` to `eval` just the two function bodies.
-This silently breaks if either function gains a nested `}` at column 0 or the signature
-formatting changes (e.g. `detect_runtime_depends ()` with a space). The test would then
-`eval` a truncated body and produce confusing failures rather than a clear "extraction
-failed" error.
-**Fix:** Add a sanity check that the extracted text contains the closing of the function
-(e.g. assert the body is non-trivial / ends with a lone `}`), or source the whole file in
-a subshell with a guard that prevents the tail `source config.sh`.
+**File:** `functions.sh:201-209`
+**Issue:** Exclusion is a nested loop over `EXCLUDE` for every package. With two excludes this is irrelevant for performance, but an associative-set lookup is clearer and matches the `pkgs` associative-array style already used.
+**Fix:** `local -A EXCLUDE=( [libc6]=1 [libgcc-s1]=1 )` then `[[ -v EXCLUDE[$pkg] ]] && continue`.
 
-### IN-02: `verify_depends.sh` Part B advertises "DISTRO=24.04 and 26.04" but detection is host-only
+### IN-02: Commented-out version pins left in `config.sh`
 
-**File:** `scripts/verify_depends.sh:274-300`
-**Issue:** The loop varies only `DISTRO_VERSION_ID` (the version *string*); the actual
-dependency *names* come from the 24.04 build host's package DB in both iterations (the
-comment on lines 281-285 admits this). The "26.04" pass therefore validates the render
-*shape*, not 26.04 dep resolution — which is fine, but the headline "renders + parses for
-DISTRO=24.04 and 26.04" overstates the coverage and could be misread as proof that 26.04
-names resolve (that is `smoke_install_2604.sh`'s job).
-**Fix:** Tighten the echoed wording to "render shape for both version strings (dep names
-are host-derived)".
+**File:** `config.sh:141-149, 164-221`
+**Issue:** Multiple blocks of commented-out `export GOVERSION=...`, `PODMAN_VERSION`, etc. remain. They document intent but are dead code that can mislead (stale `1.22.6`/`5.5.2` values implying a default that no longer applies).
+**Fix:** Remove the stale commented pins or move them into `docs/CONFIGURATION.md` as examples.
 
-### IN-03: Duplicated `COMPONENT_BINARIES` map across `package_all.sh` and `verify_depends.sh`
+### IN-03: `tests/test_detect_distro_depends.sh` references undefined `teardown`
 
-**File:** `scripts/package_all.sh:290-301`, `scripts/verify_depends.sh:84-95`
-**Issue:** The map is copy-pasted (the verify script even notes "Keep in sync with that
-map"). A drift (e.g. adding a binary to a component) silently desynchronizes the proof
-from the build. Code-duplication risk on a load-bearing map.
-**Fix:** Factor the map into a small sourced file (e.g. `packaging/component_binaries.sh`)
-and source it from both, so there is one source of truth.
-
-### IN-04: Stale-`local_tag`/`COMPONENT_TAGS` mutation inside the loop is order-dependent for the suite version
-
-**File:** `scripts/package_all.sh:330`, `scripts/package_all.sh:406-407`
-**Issue:** The loop writes back the auto-detected tag (`COMPONENT_TAGS["${component}"]=...`)
-so the suite meta-package (lines 406-407) can reuse podman's resolved tag. This works only
-because `podman` is iterated before the suite block runs — an implicit ordering dependency
-that is easy to break if the suite block is ever moved or podman is removed from
-`COMPONENTS`. Non-nightly suite version silently depends on the loop having populated the
-map.
-**Fix:** Resolve the suite (podman) tag explicitly via `resolve_tag_from_repo "podman"`
-in the suite block rather than relying on the loop's side effect, or add a guard that the
-podman tag is non-empty before composing `suite_version`.
+**File:** `tests/test_detect_distro_depends.sh:111`
+**Issue:** `teardown 2>/dev/null || true` calls a `teardown` function never defined in the file. It is `|| true`-guarded so harmless, but it is dead/erroneous code suggesting a removed fixture.
+**Fix:** Remove the `teardown` call (or define it if a cleanup fixture was intended).
 
 ---
 
-_Reviewed: 2026-06-05T00:00:00Z_
+## Narrative Findings (AI reviewer)
+
+All findings above are narrative findings from direct adversarial review of the changed files at standard depth. No `<structural_findings>` block was provided, so there is no fallow structural substrate to reconcile.
+
+Cross-file verifications performed (no defect found):
+- `set -o pipefail` confirmed in `package_all.sh:4`, `verify_depends.sh:4`, `smoke_install_2604.sh:4` — so the `detect_runtime_depends | sed/tr` call sites correctly propagate the detector's non-zero exit. The CR-01 pipeline concern from the brief is sound on those paths; the unguarded path is the internal `objdump` proc-sub (see CR-01 above).
+- `detect_distro_version_id` regex `^[0-9]+\.[0-9]+$` correctly rejects injection-shaped and compact-form overrides (covered by `tests/test_detect_distro_depends.sh:128-133`).
+- `SMOKE_RUNTIME` / `SMOKE_IMAGE` validation (`smoke_install_2604.sh:51-91`) is tight: runtime is an exact `docker|podman` allowlist, image is regex-validated before interpolation — no command-injection surface found.
+- `verify_versions.sh` uses `dpkg --compare-versions` as the oracle; all six ordering assertions are self-validating, and the `~podman1 < ~ubuntu24.04.podman1` claim holds under dpkg version semantics.
+- Static-binary case in `detect_runtime_depends` (ldd "not a dynamic executable" → `continue`) correctly yields an empty set without error.
+- nFPM YAML indentation: injected `  - pkg` (2-space) aligns with static `  - podman-*` items in podman/buildah/skopeo; the inject-only fragment `depends:\n  - pkg` is column-0 valid YAML. Confirmed consistent.
+- `verify_depends.sh` Part A per-component gating (`comp_fail`/`partA_fail`, WR-03/WR-04 of prior wave) and t64 acceptance (`T64_PRE_SUBST` keyed per-component) are correct and do not rubber-stamp an unexpected name.
+
+---
+
+_Reviewed: 2026-06-06_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
