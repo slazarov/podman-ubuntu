@@ -363,16 +363,16 @@ limactl shell ubuntu-24 -- bash -c 'cd /opt/podman-debian && \
 | A2 | `sed '/^Suite:/a Acquire-By-Hash: yes'` placement is accepted by apt anywhere in the Release header before the checksum sections | Pattern 2 / Code Examples | Low — apt parses Release as a deb822 stanza; field order is not significant. Verified behavior expectation, not tested against this exact file. |
 | A3 | The first-deploy mirror loop tolerates the new `-2404`/`-2604` Packages URLs 404ing (only bare suites exist live initially) | Runtime State Inventory (Build artifacts) | Medium — existing loop treats empty/`curl` failure as "first deploy" (`ci_publish.sh:123-128`); planner must confirm the generalized N-suite loop preserves this. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does reprepro list SHA512 in Release for this repo?**
    - What we know: reprepro lists MD5Sum/SHA1/SHA256 by default; SHA512 depends on version/config.
    - What's unclear: exact algorithms in *this* repo's generated Release.
-   - Recommendation: planner adds a one-time check (`grep -E '^(MD5Sum|SHA1|SHA256|SHA512):' dists/<suite>/Release`) in an early task or Wave-0 test; the by-hash helper already iterates `for algo in SHA256 SHA512` defensively.
+   - **RESOLVED:** The by-hash helper iterates `for algo in SHA256 SHA512` with `[[ -f ]]`/`command -v` guards (strongest-available rule applies regardless of which sections reprepro emits); Plan 04 Task 1 confirms the actual algorithm set empirically on a real export in the ubuntu-24 Lima VM.
 
 2. **Single `repo_manage.sh` invocation per publish-target vs one call feeding both target+alias?**
    - What we know: Claude's discretion (CONTEXT) — includedeb twice vs one call with two suites.
-   - Recommendation: simplest is to loop `publish_targets` (target + optional alias) feeding the *same* `DEB_DIR` to includedeb in each, sharing one db/export pass; matches the existing includedeb loop shape.
+   - **RESOLVED:** Plan 03 Task 1 uses a `PUBLISH_TARGETS` loop feeding the same `DEB_DIR` to `includedeb` for each target (one download, one db/export pass, two includedeb calls), following the recommendation above and matching the existing includedeb loop shape.
 
 ## Environment Availability
 
