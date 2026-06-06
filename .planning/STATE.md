@@ -4,12 +4,12 @@ milestone: v3.0
 milestone_name: Ubuntu 26.04 Support
 status: executing
 stopped_at: Phase 20 context gathered
-last_updated: "2026-06-06T20:19:14.368Z"
-last_activity: 2026-06-06 -- Phase 20 planning complete
+last_updated: "2026-06-06T20:21:44.609Z"
+last_activity: 2026-06-06 -- Phase 20 execution started
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 5
+  total_plans: 9
   completed_plans: 5
   percent: 25
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-05)
 
 **Core value:** Compile and install Podman on any Debian/Ubuntu system without user interaction.
-**Current focus:** Phase 19 — per-distro-versioning-dependency-mapping
+**Current focus:** Phase 20 — repository-restructure-migration-aliases
 
 ## Current Position
 
-Phase: 20
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-06 -- Phase 20 planning complete
+Phase: 20 (repository-restructure-migration-aliases) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 20
+Last activity: 2026-06-06 -- Phase 20 execution started
 
 Progress: [██████████] 100%
 
