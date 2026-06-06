@@ -350,6 +350,59 @@ assert_succeeds "gpg --verify Release.gpg Release for empty stable-2604" \
 assert_grep "Acquire-By-Hash: yes present in empty stable-2604 Release" \
     '^Acquire-By-Hash: yes' "${S2604}/Release"
 
+echo ""
+echo "Test group F: CR-01 — pipefail isolation regression for add_byhash_and_resign"
+echo ""
+# The whole harness runs under `set -euo pipefail` (line 24). Before this fix a
+# benign non-zero pipe head inside the helper (e.g. a listed index file that has
+# been deleted, forcing the `[[ -f "${src}" ]] || continue` skip path and
+# exercising the awk|while + cp loops) could abort the function AFTER the
+# destructive `rm -f InRelease Release.gpg` but BEFORE the re-sign, publishing a
+# half-signed suite. We prove the helper survives that condition and still
+# produces a verifiable signature chain, and that it does not leak its local
+# `set +e +o pipefail` into the caller.
+
+# F-1 / F-2: delete one index file that stable-2404's Release lists under
+# SHA256:, then re-run add_byhash_and_resign and assert it returns 0 and the
+# suite stays validly signed (proving the rm at line 83 is always followed by a
+# re-sign even when a pipe head hits a missing file).
+F_DIST="${OUT}/dists/stable-2404"
+# Pick a Packages index that exists and is referenced in Release's SHA256 block.
+F_VICTIM=""
+for arch in "${ARCHES[@]}"; do
+    cand="${F_DIST}/main/binary-${arch}/Packages"
+    if [[ -f "${cand}" ]]; then
+        F_VICTIM="${cand}"
+        break
+    fi
+done
+if [[ -n "${F_VICTIM}" ]]; then
+    rm -f "${F_VICTIM}"
+    # Under set -euo pipefail: if the helper aborted mid-function the harness
+    # would die here and never reach the assertions. Reaching them proves
+    # non-abort (F-2).
+    assert_succeeds "add_byhash_and_resign survives a deleted listed index (F-1/F-2)" \
+        add_byhash_and_resign "stable-2404" "${OUT}"
+    assert_file_exists "stable-2404 InRelease exists after deleted-index re-run (F-2)" \
+        "${F_DIST}/InRelease"
+    assert_file_exists "stable-2404 Release.gpg exists after deleted-index re-run (F-2)" \
+        "${F_DIST}/Release.gpg"
+    assert_succeeds "gpg --verify InRelease for stable-2404 after deleted index (F-1)" \
+        gpg --verify "${F_DIST}/InRelease"
+    assert_succeeds "gpg --verify Release.gpg Release for stable-2404 after deleted index (F-2)" \
+        gpg --verify "${F_DIST}/Release.gpg" "${F_DIST}/Release"
+else
+    echo "  SKIP: no stable-2404 Packages index found to delete (F-1/F-2)"
+fi
+
+# F-3: the caller's shell options must be identical before and after the call —
+# the RETURN trap must restore them and must not leak `set +e +o pipefail`.
+OPTS_BEFORE="$(set +o)"
+add_byhash_and_resign "edge-2404" "${OUT}"
+OPTS_AFTER="$(set +o)"
+assert_equals "caller shell options unchanged across add_byhash_and_resign (F-3)" \
+    "${OPTS_BEFORE}" "${OPTS_AFTER}"
+
 # ============================================
 # Summary
 # ============================================

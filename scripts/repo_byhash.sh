@@ -40,7 +40,26 @@ add_byhash_and_resign() {
     local ldist="${lrepo}/dists/${lsuite}"
     local lrelease="${ldist}/Release"
 
-    # Empty-but-signed suites still have a Release; guard anyway.
+    # Pipefail isolation (CR-01): this helper is sourced under the caller's
+    # `set -euo pipefail` (ci_publish.sh line 9). A benign non-zero pipe head
+    # inside the by-hash loops (a missing listed index file, a transient awk/cp
+    # error) must NOT abort the function after `rm -f InRelease Release.gpg`
+    # (line below) but before the re-sign — that would publish a half-signed
+    # (effectively unsigned) suite to GitHub Pages. Save the caller's exact
+    # option set, drop errexit + pipefail locally, and install a single RETURN
+    # trap as the sole restore point so the caller's options are restored on
+    # EVERY return path (early `return 0`, normal end-of-function). The function
+    # itself never re-enables `set -e`/`pipefail`.
+    local _saved_opts; _saved_opts="$(set +o)"
+    set +e +o pipefail
+    trap 'eval "${_saved_opts}"' RETURN
+
+    # Declared once here (IN-02) so the `for algo` loops below do not re-declare
+    # `cmd`/`rh` on each iteration.
+    local cmd rh
+
+    # Empty-but-signed suites still have a Release; guard anyway. The RETURN trap
+    # restores the caller's options even on this early return.
     [[ -f "${lrelease}" ]] || return 0
 
     # 1) by-hash for every checksummed index (strongest algo: SHA256, +SHA512 if present).
@@ -70,9 +89,8 @@ add_byhash_and_resign() {
     # 3) by-hash for the Release file itself, computed AFTER injection so the
     #    by-hash Release stays byte-identical to the served Release (Pitfall 2).
     for algo in SHA256 SHA512; do
-        local cmd="${algo,,}sum"
+        cmd="${algo,,}sum"
         command -v "${cmd}" >/dev/null || continue
-        local rh
         rh="$(${cmd} "${lrelease}" | awk '{print $1}')"
         mkdir -p "${ldist}/by-hash/${algo}"
         cp -f "${lrelease}" "${ldist}/by-hash/${algo}/${rh}"
