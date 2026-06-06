@@ -5,7 +5,7 @@ set -euo pipefail
 
 # Determine toolpath if not set already
 relativepath="../" # Define relative path to go from this script to the root level of the tool
-if [[ ! -v toolpath ]]; then scriptpath=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ); toolpath=$(realpath --canonicalize-missing ${scriptpath}/${relativepath}); fi
+if [[ ! -v toolpath ]]; then scriptpath=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ); toolpath=$(realpath --canonicalize-missing "${scriptpath}/${relativepath}"); fi
 
 # Load Configuration
 source "${toolpath}/config.sh"
@@ -109,7 +109,7 @@ if [[ -n "${GPG_PRIVATE_KEY:-}" ]]; then
     fi
 
     # Set ownertrust to ultimate to avoid "not ultimately trusted" warnings
-    GPG_KEY_ID=$(gpg --list-keys --with-colons | grep fpr | head -1 | cut -d: -f10)
+    GPG_KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/{print $10; exit}')
     echo "${GPG_KEY_ID}:6:" | gpg --batch --import-ownertrust
 
     echo ">>> GPG key imported: ${GPG_KEY_ID}"
@@ -190,7 +190,7 @@ if [[ -f "${REPO_CONF}/pubkey.gpg" ]]; then
     echo ">>> Copied pubkey.gpg from packaging/repo/"
 else
     # Export from keyring
-    GPG_KEY_ID=$(gpg --list-keys --with-colons | grep fpr | head -1 | cut -d: -f10)
+    GPG_KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/{print $10; exit}')
     gpg --export "${GPG_KEY_ID}" > "${OUTPUT_DIR}/podman-ubuntu.gpg"
     echo ">>> Exported public key from keyring: ${GPG_KEY_ID}"
 fi
