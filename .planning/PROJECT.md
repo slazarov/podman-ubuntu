@@ -39,16 +39,22 @@ Compile and install Podman on any Debian/Ubuntu system without user interaction.
 - ✓ Install runtime config files (seccomp, policy, registries, storage) — v1.2
 - ✓ Man pages for container config files — v1.2
 - ✓ Symmetric uninstall of all container-libs artifacts — v1.2
+- ✓ Debian packaging for all components as individual .deb packages — v2.0
+- ✓ Package prefixing (podman-*) with Conflicts/Replaces on official Ubuntu packages — v2.0
+- ✓ Inter-package dependency declarations — v2.0
+- ✓ GitHub Actions CI/CD for automated builds (amd64 + ARM64 native runners) — v2.0
+- ✓ APT repository hosted on GitHub Pages (GPG-signed, stable/edge/nightly) — v2.0
+- ✓ Scheduled auto-rebuild on upstream releases + manual trigger — v2.0
+- ✓ Nightly track built from latest upstream commits with snapshot versioning — v2.0
 
 ### Active
 
-- [ ] Debian packaging for all components as individual .deb packages
-- [ ] Package prefixing (podman-*) with Conflicts/Replaces on official Ubuntu packages
-- [ ] Inter-package dependency declarations
-- [ ] GitHub Actions CI/CD for automated builds
-- [ ] APT repository hosted on GitHub Pages
-- [ ] Scheduled auto-rebuild on upstream releases + manual trigger
-- [ ] Target: Ubuntu 24.04 (amd64 + ARM64)
+- [ ] Per-distro APT suites with version-based names (stable-2404/edge-2404/nightly-2404 + stable-2604/edge-2604/nightly-2604)
+- [ ] Per-distro dependency mapping in nFPM configs (packages renamed/replaced between 24.04 and 26.04)
+- [ ] CI build matrix extended to Ubuntu 26.04 (native runners preferred, container fallback)
+- [ ] All three tracks (stable/edge/nightly) published for both 24.04 and 26.04
+- [ ] Migration path for existing users on current stable/edge/nightly suite names
+- [ ] Docs/setup instructions covering both distro versions
 
 ### Out of Scope
 
@@ -63,23 +69,29 @@ Compile and install Podman on any Debian/Ubuntu system without user interaction.
 - Building container-libs Go libraries as importable packages — only config files and generated artifacts needed
 - Custom seccomp profile modifications — default upstream profile is sufficient
 
-## Current Milestone: v2.0 APT Packaging & CI/CD
+## Current Milestone: v3.0 Ubuntu 26.04 Support
 
-**Goal:** Package all compiled Podman components as .deb packages, automate builds with GitHub Actions, and distribute via a GitHub Pages APT repository.
+**Goal:** Users on both Ubuntu 24.04 and 26.04 can add the APT repo, enable their distro's suite, and install Podman packages that install and run cleanly on their OS version.
 
 **Target features:**
-- Individual .deb packages for each component (podman-podman, podman-crun, podman-netavark, etc.)
-- Package prefix (podman-*) with Conflicts/Replaces to handle Ubuntu repo conflicts
-- Inter-package dependencies (e.g. podman-podman depends on podman-crun, podman-netavark)
-- GitHub Actions workflow with scheduled upstream checks + manual trigger
-- GitHub Pages APT repository with proper signing
-- Ubuntu 24.04 only (amd64 + ARM64)
+- Per-distro APT suites, version-based naming — stable-2404/edge-2404/nightly-2404 + stable-2604/edge-2604/nightly-2604 (amd64 + arm64 each)
+- Per-distro dependency mapping in nFPM configs — fixes the verified failure: dependency packages renamed/replaced between 24.04 and 26.04
+- CI build matrix extended to 26.04 on native GitHub runners (ubuntu-26.04 / ubuntu-26.04-arm), container fallback if unavailable
+- All three tracks (stable/edge/nightly) built and published for both distros
+- Migration path for existing users whose .sources files point at current stable/edge/nightly names
+- Docs/setup instructions updated for both distros
 
 ## Context
 
-Shipped v1.2 with 2,404 LOC shell code across 22 scripts.
-Tech stack: Bash, Git, Go, Rust, Make, Cargo, Meson, sccache, ccache, mold, go-md2man.
-v1.0 shipped 2026-03-03, v1.1 shipped 2026-03-04, v1.2 shipped 2026-03-04.
+Shipped v2.0 with full .deb packaging (nFPM), GPG-signed reprepro APT repo on GitHub Pages (stable/edge/nightly suites), and GitHub Actions CI on native amd64+arm64 runners with daily nightly builds.
+Tech stack: Bash, Git, Go, Rust, Make, Cargo, Meson, sccache, ccache, mold, go-md2man, nFPM, reprepro, GitHub Actions.
+v1.0 shipped 2026-03-03, v1.1 shipped 2026-03-04, v1.2 shipped 2026-03-04, v2.0 shipped 2026-03-08.
+
+Ubuntu 26.04 verified broken with current packages: dependency packages used on 24.04 are renamed/replaced on 26.04 (user tested). nFPM configs declare distro-specific library deps (libseccomp2, libsystemd0, json-c parser dep via ${CRUN_PARSER_DEPEND}, etc.) that must resolve per-distro.
+
+Binaries built on 24.04 are forward-compatible with 26.04 (older glibc), but the reverse is not true — per-distro builds keep each distro natively correct.
+
+v2.0 decision "Codename = Suite name to avoid createsymlinks complexity" gets revisited in v3.0: suite renames (stable → stable-2404) break existing users unless aliases or a migration path is provided.
 
 Build caching layers: sccache (Rust), ccache (C), Go cache (Go), mold linker (Rust linking). Fresh build ~15-20 min, cached rebuild dramatically faster.
 
@@ -121,5 +133,22 @@ Reference: alvistack (http://download.opensuse.org/repositories/home:/alvistack/
 | install -m 0644 for config files | Matches upstream Makefile conventions | ✓ Good - Consistent permissions |
 | go-md2man for man pages | Already in toolchain from other builds | ✓ Good - No new dependencies |
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd-complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
-*Last updated: 2026-03-04 after v2.0 milestone started*
+*Last updated: 2026-06-05 after v3.0 milestone started*

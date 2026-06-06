@@ -1,44 +1,48 @@
-*.tar.gz
+# Component sources (cloned by build scripts)
+aardvark-dns/
+buildah/
+catatonit/
+conmon/
+container-libs/
+crun/
+fuse-overlayfs/
+go/
+go-md2man/
+netavark/
+passt/
+podman/
+skopeo/
+toolbox/
+
+# Downloaded archives / toolchains
 *.tar*
 *.zip*
 rustup*
-passt/
-podman/
-buildah/
-netavark/
-go-md2man/
-go/
-conmon/
-aardvark-dns/
-skopeo/
 
-# Ignore Build Folder
+# Build / packaging output
 build/
-
-# Ignore Log Folder
 log/
+output/
 
-# Development / IDE
+# Generated files
+ltmain.sh
+
+# OS
+.DS_Store
+
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# Claude Code / GSD
+# AI tooling (machine-local; .planning/ docs are committed)
 .claude/
-.planning/
-CLAUDE.md
-.opencode
-.codex
+.opencode/
+.codex/
+.planning/tmp/
 
-# Codanna / MCP
+# Codanna / MCP caches
 .codanna/
 .codannaignore
-.mcp.json
-.fastembed_cache
-
-# Packaging output
-output/
-
-# Generated files
-ltmain.sh
+.fastembed_cache/
