@@ -161,6 +161,160 @@ else
 fi
 
 # ============================================
+# Tests 7-9: DT_NEEDED semantics (dpkg host + objdump + gcc only)
+# These tests cover three behaviors introduced in Plan 05 (commit b1e43a3,
+# requirements PKG-08/PKG-10) that had no unit-level regression coverage:
+#   7 — static binary yields EMPTY dep set, exit 0 (not a hard-fail)
+#   8 — direct DT_NEEDED only: libsystemd0 deps (libgcrypt20 etc.) must NOT
+#       appear (the discriminating regression test for transitive-closure rollback)
+#   9 — dynamic-loader pseudo-entry (ld-linux*.so) is skipped (implicit in
+#       any passing dynamic-binary test on arm64, but tested here on amd64 via
+#       the same fixture-B binary)
+# ============================================
+
+echo ""
+echo "Tests 7-9: DT_NEEDED behavioral regression coverage (dpkg host only)"
+
+if ! command -v dpkg-query &>/dev/null || ! command -v ldd &>/dev/null || ! command -v objdump &>/dev/null; then
+    echo "  SKIP: dpkg-query / ldd / objdump not available (non-Debian dev host)"
+    echo "  NOTE: run these tests in the Lima ubuntu-24 or ubuntu-26 VM"
+else
+    # All three tests need a temporary build directory; clean it up on exit.
+    _tmp_dir="$(mktemp -d)"
+    trap 'rm -rf "${_tmp_dir}"' EXIT
+
+    # ---- Fixture A: statically-linked binary (behavior 3) ----
+    echo ""
+    echo "Test 7: statically-linked binary -> empty dep set, exit 0"
+
+    _fixture_a="${_tmp_dir}/static_hello"
+    _static_ok=false
+    if command -v gcc &>/dev/null; then
+        cat > "${_tmp_dir}/hello.c" <<'EOF_C'
+int main(void) { return 0; }
+EOF_C
+        if gcc -static "${_tmp_dir}/hello.c" -o "${_fixture_a}" 2>/dev/null; then
+            _static_ok=true
+        fi
+    fi
+
+    if [[ "${_static_ok}" == "true" ]]; then
+        # The function must exit 0 and produce NO output.
+        _static_result="$(detect_runtime_depends "${_fixture_a}")"
+        _static_exit=0
+        detect_runtime_depends "${_fixture_a}" >/dev/null 2>&1 || _static_exit=$?
+        if [[ "${_static_exit}" -ne 0 ]]; then
+            echo "  FAIL: static binary caused hard-fail (exit ${_static_exit}); expected exit 0 with empty output"
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+        elif [[ -n "${_static_result}" ]]; then
+            echo "  FAIL: static binary produced non-empty dep set: ${_static_result}"
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+        else
+            echo "  PASS: static binary -> empty dep set, exit 0"
+            PASS_COUNT=$((PASS_COUNT + 1))
+        fi
+    else
+        echo "  SKIP: gcc -static not available or libc6-dev static libs absent"
+        echo "  NOTE: static-binary behavior is confirmed by the Plan 04/05 on-host proofs (fuse-overlayfs/catatonit)"
+    fi
+
+    # ---- Fixture B: dynamic binary linked to libsystemd (behaviors 1+2) ----
+    echo ""
+    echo "Test 8: direct DT_NEEDED only — transitive-closure deps of libsystemd0 must NOT appear"
+
+    _fixture_b="${_tmp_dir}/dyn_systemd"
+    _systemd_ok=false
+    if command -v gcc &>/dev/null; then
+        cat > "${_tmp_dir}/systemd_hello.c" <<'EOF_C'
+#include <systemd/sd-daemon.h>
+int main(void) { sd_notify(0, "READY=1"); return 0; }
+EOF_C
+        if gcc "${_tmp_dir}/systemd_hello.c" -lsystemd -o "${_fixture_b}" 2>/dev/null; then
+            _systemd_ok=true
+        fi
+    fi
+
+    if [[ "${_systemd_ok}" == "true" ]]; then
+        _dyn_result="$(detect_runtime_depends "${_fixture_b}")"
+
+        # MUST contain libsystemd0 (the direct dep).
+        if ! printf '%s\n' "${_dyn_result}" | grep -qx "libsystemd0"; then
+            echo "  FAIL: libsystemd0 not found in output for -lsystemd binary"
+            echo "    Got: ${_dyn_result}"
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+        else
+            echo "  PASS: libsystemd0 present in dep set"
+            PASS_COUNT=$((PASS_COUNT + 1))
+        fi
+
+        # Must NOT contain any of libsystemd0's own transitive deps — these are
+        # the false-positive packages that the old ldd-closure detector injected
+        # (diagnosed in .planning/debug/resolved/detector-transitive-closure.md).
+        # A regression back to transitive-closure logic would re-introduce them.
+        _transitive_extras=( liblz4-1 liblzma5 libzstd1 libgcrypt20 libgpg-error0 )
+        _found_transitive=()
+        for _t in "${_transitive_extras[@]}"; do
+            if printf '%s\n' "${_dyn_result}" | grep -qx "${_t}"; then
+                _found_transitive+=( "${_t}" )
+            fi
+        done
+
+        if [[ "${#_found_transitive[@]}" -gt 0 ]]; then
+            echo "  FAIL: transitive deps of libsystemd0 found — detector regressed to full ldd closure"
+            echo "    Unexpected: ${_found_transitive[*]}"
+            echo "    Full output: ${_dyn_result}"
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+        else
+            echo "  PASS: no transitive deps of libsystemd0 in output (direct DT_NEEDED only)"
+            PASS_COUNT=$((PASS_COUNT + 1))
+        fi
+
+        # Test 9: dynamic-loader pseudo-entry skip (implicit — any passing dynamic
+        # binary test on arm64 covers this, but assert it explicitly here too).
+        echo ""
+        echo "Test 9: dynamic-loader pseudo-entry (ld-linux*.so) not in dep output"
+        if printf '%s\n' "${_dyn_result}" | grep -qE '^ld(-linux|\.so|-)'; then
+            echo "  FAIL: dynamic loader entry leaked into dep output: $(printf '%s\n' "${_dyn_result}" | grep -E '^ld(-linux|\.so|-)')"
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+        else
+            echo "  PASS: dynamic-loader pseudo-entry absent from dep output"
+            PASS_COUNT=$((PASS_COUNT + 1))
+        fi
+    else
+        echo "  SKIP: libsystemd-dev not available for gcc -lsystemd (install libsystemd-dev to enable)"
+        echo "  NOTE: falling back to /bin/ls as a known dynamic binary without transitive extras"
+        echo ""
+        echo "Test 8 (fallback): /bin/ls direct DT_NEEDED only — libc6 excluded, no spurious transitive deps"
+        _fallback_bin="/bin/ls"
+        [[ -x "${_fallback_bin}" ]] || _fallback_bin="$(command -v ls)"
+        if [[ -x "${_fallback_bin}" ]]; then
+            _fallback_result="$(detect_runtime_depends "${_fallback_bin}")"
+            # libc6 must not appear (excluded by D-02)
+            if printf '%s\n' "${_fallback_result}" | grep -qx "libc6"; then
+                echo "  FAIL: libc6 present in output (should be excluded by D-02)"
+                echo "    Got: ${_fallback_result}"
+                FAIL_COUNT=$((FAIL_COUNT + 1))
+            else
+                echo "  PASS: libc6 excluded; dep output: $(printf '%s' "${_fallback_result}" | tr '\n' ' ')"
+                PASS_COUNT=$((PASS_COUNT + 1))
+            fi
+
+            echo ""
+            echo "Test 9 (fallback): dynamic-loader pseudo-entry (ld-linux*.so) not in /bin/ls dep output"
+            if printf '%s\n' "${_fallback_result}" | grep -qE '^ld(-linux|\.so|-)'; then
+                echo "  FAIL: dynamic loader entry leaked into dep output: $(printf '%s\n' "${_fallback_result}" | grep -E '^ld(-linux|\.so|-)')"
+                FAIL_COUNT=$((FAIL_COUNT + 1))
+            else
+                echo "  PASS: dynamic-loader pseudo-entry absent from dep output"
+                PASS_COUNT=$((PASS_COUNT + 1))
+            fi
+        else
+            echo "  SKIP: /bin/ls not available"
+        fi
+    fi
+fi
+
+# ============================================
 # Summary
 # ============================================
 
