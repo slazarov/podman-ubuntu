@@ -126,7 +126,7 @@ Plans:
 
 **Gap closure** *(from 20-VERIFICATION.md — closes CR-01/CR-02 blockers; REPO-08 / SC-3 + SC-4)*
 
-- [ ] 20-05-PLAN.md — Pipefail isolation in add_byhash_and_resign so a benign non-zero never leaves a half-signed repo (CR-01) + anchored secret-key fpr (WR-01) + quoted realpath bootstrap (WR-03) + Test group F pipefail-abort regression (REPO-08)
+- [x] 20-05-PLAN.md — Pipefail isolation in add_byhash_and_resign so a benign non-zero never leaves a half-signed repo (CR-01) + anchored secret-key fpr (WR-01) + quoted realpath bootstrap (WR-03) + Test group F pipefail-abort regression (REPO-08)
 - [ ] 20-06-PLAN.md — Verbatim-mirror non-target bare aliases on 26.04 publishes so they are not re-signed (CR-02) + HTML-escape index.html (WR-04) + Test group G 26.04-publish signature-stability (REPO-08/REPO-06)
 
 ### Phase 21: CI Build Matrix Extension to 26.04
@@ -191,7 +191,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 17. Upstream Automation | v2.0 | — | Complete (absorbed into Phase 18) | 2026-03-08 |
 | 18. Edge Track / Nightly Builds | v2.0 | 2/2 | Complete | 2026-03-08 |
 | 19. Per-Distro Versioning & Dependency Mapping | v3.0 | 5/5 | Complete    | 2026-06-06 |
-| 20. Repository Restructure & Migration Aliases | v3.0 | 4/6 | Gap closure (CR-01/CR-02) | - |
+| 20. Repository Restructure & Migration Aliases | v3.0 | 5/6 | In Progress|  |
 | 21. CI Build Matrix Extension to 26.04 | v3.0 | 0/? | Not started | - |
 | 22. Migration Docs & Installability Smoke Tests | v3.0 | 0/? | Not started | - |
 

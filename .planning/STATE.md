@@ -4,14 +4,14 @@ milestone: v3.0
 milestone_name: Ubuntu 26.04 Support
 status: executing
 stopped_at: Phase 20 context gathered
-last_updated: "2026-06-06T21:32:44.627Z"
-last_activity: 2026-06-06 -- Phase 20 Plan 03 completed (publish-path integration)
+last_updated: "2026-06-06T21:50:41.531Z"
+last_activity: 2026-06-06 -- Phase 20 execution started
 progress:
   total_phases: 4
-  completed_phases: 2
-  total_plans: 9
-  completed_plans: 9
-  percent: 50
+  completed_phases: 1
+  total_plans: 11
+  completed_plans: 10
+  percent: 25
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-05)
 ## Current Position
 
 Phase: 20 (repository-restructure-migration-aliases) — EXECUTING
-Plan: 4 of 4
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-06-06 -- Phase 20 Plan 03 completed (publish-path integration)
+Last activity: 2026-06-06 -- Phase 20 execution started
 
 Progress: [██████████] 100%
 
@@ -55,6 +55,7 @@ Progress: [██████████] 100%
 | Phase 20 P02 | 4min | 2 tasks | 2 files |
 | Phase 20 P03 | 5min | 3 tasks | 3 files |
 | Phase 20 P20-04 | checkpoint-resume | 2 tasks | 1 files |
+| Phase 20 P05 | 4min | 2 tasks | 5 files |
 
 ## Previous Milestones
 
@@ -96,6 +97,8 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase ?]: Phase 20-02: add_byhash_and_resign is a cp+gpg bolt-on around reprepro Release output — writes by-hash adjacent to each index plus Release-level, injects Acquire-By-Hash after Suite:, then re-signs (D-08). Release by-hash computed AFTER injection (Pitfall 2); single generation only (D-09).
 - [Phase ?]: Phase 20-03: publish path now driven by a single (track, distro) input. ci_publish.sh mirror-then-include reassembles all 9 suites with OTHER_SUITES = ALL_SUITES − PUBLISH_TARGETS (no clobber); per-suite export only (Pitfall 4); add_byhash_and_resign called for every suite with a Release after all exports. repo_manage.sh feeds the bare alias on 24.04 (D-12). NOTE: resolve_publish_targets runs in a process-substitution subshell so its non-zero exit cannot abort the parent — both scripts guard with an empty-PUBLISH_TARGETS check. CI passes distro=2404 via a step output; matrix fan-out deferred to Phase 21.
 - [Phase ?]: Resolved 20-04 blocking checkpoint via a local-VM D-15 simulation (old 3-stanza tree -> new 9-suite tree swapped at a constant localhost URL on Lima ubuntu-24): apt-client legacy continuity (no Suite-change prompt, 24.04 candidate from bare stable) and by-hash-over-HTTP (200) proven without the production deploy; production-URL smoke deferred to first CI publish.
+- [Phase ?]: Phase 20-05: CR-01 fix uses RETURN-trap option restore (save set +o, set +e +o pipefail, trap 'eval _saved_opts' RETURN) as the single restore point so add_byhash_and_resign always reaches its re-sign block; helper never re-enables set -e/pipefail itself
+- [Phase ?]: Phase 20-05: WR-01 reads the signing-key fingerprint via 'gpg --list-secret-keys --with-colons | awk -F: /^fpr:/' at both repo_manage.sh sites, deterministically selecting the signing key on a multi-key keyring; WR-03 quotes all four realpath toolpath bootstraps
 
 ### Tech Debt
 
@@ -121,6 +124,6 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last session: 2026-06-06T21:02:06.425Z
+Last session: 2026-06-06T21:50:18.578Z
 Stopped at: Phase 20 context gathered
 Resume file: .planning/phases/20-repository-restructure-migration-aliases/20-CONTEXT.md
