@@ -36,7 +36,7 @@ User directive: "Apply best practices" — all four gray areas resolved by Claud
 - **D-11:** In-phase verification MUST assert with `dpkg --compare-versions`: (a) suffixed version < plain upstream version, (b) 24.04 form < 26.04 form of the same upstream version, (c) nightly form < tagged-release form. This closes the STATE.md v3.0 research flag for Phase 19.
 
 ### Scope of dependency replacement
-- **D-12:** ALL hardcoded system library deps across the nFPM YAMLs (`libgpgme11`, `libseccomp2`, `libsystemd0`, `libcap2`, `libglib2.0-0`, `libsubid4`, `libsqlite3-0`) are replaced by the build-time detected set. No half-measure of mapping only the renamed packages — that would leave the same trap armed for the next rename.
+- **D-12:** ALL hardcoded system library deps across the nFPM YAMLs (`libgpgme11`, `libseccomp2`, `libsystemd0`, `libcap2`, `libglib2.0-0`, `libsubid4`, `libsqlite3-0`) are replaced by the build-time detected set. No half-measure of mapping only the renamed packages — that would leave the same trap armed for the next rename. *(Historical hardcoded inventory. NOTE: `libsqlite3-0` was a stale skopeo datum — skopeo v1.22.0 links no sqlite; removed from the skopeo baseline in Plan 05, see 19-UAT.md.)*
 - **D-13:** Internal suite deps (`podman-crun`, `podman-conmon`, etc.) stay static in the nFPM YAMLs — they are package-level relationships, not soname-derived.
 - **D-14:** No-regression guardrail (success criterion 4): the detected dependency set on ubuntu:24.04 must exactly equal the current hardcoded set per package. This equivalence check is the proof the mechanism works before it ships.
 
@@ -84,7 +84,7 @@ No external specs/ADRs exist — requirements fully captured in the refs above.
 ### Integration Points
 - `package_all.sh` packaging loop — exports VERSION/ARCH/DESTDIR per component before nfpm invocation; detected depends plug in here
 - CI workflow calls the same scripts — changes must be runner-agnostic (Phase 21 adds the 26.04 matrix cell on top)
-- Current hardcoded dep inventory (the regression baseline): podman+buildah: libgpgme11, libseccomp2; skopeo: libgpgme11, libsubid4, libsqlite3-0; crun: libseccomp2, libsystemd0, libcap2 + parser; conmon: libglib2.0-0, libsystemd0
+- Current hardcoded dep inventory (the regression baseline): podman+buildah: libgpgme11, libseccomp2; skopeo: libgpgme11, libsubid4, libsqlite3-0; crun: libseccomp2, libsystemd0, libcap2 + parser; conmon: libglib2.0-0, libsystemd0. *(Historical pre-v3.0 hardcoded set. NOTE: skopeo's `libsqlite3-0` was found stale on-host — skopeo v1.22.0 links no sqlite; corrected skopeo baseline is `libgpgme11t64 libsubid4`, see Plan 05 / 19-UAT.md.)*
 
 </code_context>
 

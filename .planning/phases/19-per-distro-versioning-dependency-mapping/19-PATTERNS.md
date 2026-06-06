@@ -119,7 +119,7 @@ New shape: drop the `CRUN_PARSER_DEPEND` special case; compute `DETECTED_DEPENDS
 - `crun.yaml:14-19`: `libseccomp2`, `libsystemd0`, `libcap2`, `${CRUN_PARSER_DEPEND}`
 - `podman.yaml:14-26`: internal `podman-*` deps (lines 16-23) + `libgpgme11`, `libseccomp2`
 - `buildah.yaml:14-18`: `podman-container-configs` + `libgpgme11`, `libseccomp2`
-- `skopeo.yaml:14-19`: `podman-container-configs` + `libgpgme11`, `libsubid4`, `libsqlite3-0`
+- `skopeo.yaml:14-19`: `podman-container-configs` + `libgpgme11`, `libsubid4`, `libsqlite3-0` *(`libsqlite3-0` was the pre-v3.0 hardcoded datum — NOT a real v1.22.0 link; skopeo built with no sqlite BUILDTAG links no sqlite. Removed from the skopeo baseline as stale in Plan 05, see 19-UAT.md.)*
 - `conmon.yaml:14-17`: `libglib2.0-0`, `libsystemd0`
 - `pasta.yaml`: NO `depends:` key today (detection may now add some — RESEARCH line 258)
 
