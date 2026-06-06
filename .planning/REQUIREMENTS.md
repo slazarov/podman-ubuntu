@@ -17,7 +17,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 - [x] **REPO-06**: Repository serves six versioned suites (stable-2404, edge-2404, nightly-2404, stable-2604, edge-2604, nightly-2604) from a single URL with one GPG key
 - [x] **REPO-07**: Existing users with bare `stable`/`edge`/`nightly` suite names in their .sources continue to receive 24.04 packages without any client-side change (legacy aliases during deprecation window)
-- [ ] **REPO-08**: Repository metadata includes Acquire-By-Hash so apt clients never hit CDN hash-sum mismatches on GitHub Pages
+- [x] **REPO-08**: Repository metadata includes Acquire-By-Hash so apt clients never hit CDN hash-sum mismatches on GitHub Pages
 
 ### CI/CD
 
@@ -69,7 +69,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PKG-10 | Phase 19 | Complete |
 | REPO-06 | Phase 20 | Complete |
 | REPO-07 | Phase 20 | Complete |
-| REPO-08 | Phase 20 | Pending |
+| REPO-08 | Phase 20 | Complete |
 | CICD-05 | Phase 21 | Pending |
 | CICD-06 | Phase 21 | Pending |
 | CICD-07 | Phase 21 | Pending |

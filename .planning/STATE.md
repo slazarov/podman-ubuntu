@@ -4,13 +4,13 @@ milestone: v3.0
 milestone_name: Ubuntu 26.04 Support
 status: executing
 stopped_at: Phase 20 context gathered
-last_updated: "2026-06-06T20:30:27.193Z"
+last_updated: "2026-06-06T20:34:31.639Z"
 last_activity: 2026-06-06 -- Phase 20 execution started
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 9
-  completed_plans: 6
+  completed_plans: 7
   percent: 25
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-05)
 ## Current Position
 
 Phase: 20 (repository-restructure-migration-aliases) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-06 -- Phase 20 execution started
 
@@ -52,6 +52,7 @@ Progress: [██████████] 100%
 *Updated after each plan completion*
 | Phase 19 P05 | 25min | 3 tasks | 6 files |
 | Phase 20 P01 | 2min | 3 tasks | 5 files |
+| Phase 20 P02 | 4min | 2 tasks | 2 files |
 
 ## Previous Milestones
 
@@ -90,6 +91,7 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase ?]: Phase 19-05: skopeo 24.04 baseline corrected to libgpgme11t64 libsubid4 — libsqlite3-0 was a stale pre-v3.0 datum (skopeo v1.22.0, no sqlite BUILDTAG, links no sqlite); falsified on-host in UAT
 - [Phase ?]: Phase 19-05: smoke_install_2604.sh installs internal podman-container-configs sibling .deb alongside skopeo in one apt-get call so apt needs the archive only for system deps; skopeo install stays HARD (T-19-12)
 - [Phase ?]: Phase 20-01: bare-alias reprepro distribution (Suite: stable, not stable-2404) is the REPO-07 mechanism preserving apt's cached Suite value; resolve_publish_targets in config.sh appends the bare alias only for 24.04 (D-12), 26.04 publishes versioned-only
+- [Phase ?]: Phase 20-02: add_byhash_and_resign is a cp+gpg bolt-on around reprepro Release output — writes by-hash adjacent to each index plus Release-level, injects Acquire-By-Hash after Suite:, then re-signs (D-08). Release by-hash computed AFTER injection (Pitfall 2); single generation only (D-09).
 
 ### Tech Debt
 
@@ -115,6 +117,6 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last session: 2026-06-06T20:30:06.946Z
+Last session: 2026-06-06T20:34:24.950Z
 Stopped at: Phase 20 context gathered
 Resume file: .planning/phases/20-repository-restructure-migration-aliases/20-CONTEXT.md
