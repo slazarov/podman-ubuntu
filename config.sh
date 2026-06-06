@@ -53,6 +53,71 @@ export VERSION_SUFFIX="~ubuntu${DISTRO_VERSION_ID}.podman1"
 echo "Distro: ubuntu ${DISTRO_VERSION_ID} (version suffix: ${VERSION_SUFFIX})"
 
 # ============================================
+# Repository Suite Routing
+# ============================================
+
+# The six-suite restructure (v3.0). reprepro materializes 9 distributions:
+# the 3 bare legacy aliases (stable/edge/nightly — the REPO-07 mechanism that
+# preserves apt's cached Suite value) plus 6 versioned <track>-<distro> suites.
+# Arrays are NOT exported (bash cannot export arrays cleanly); child scripts
+# source config.sh, so plain declaration suffices — matches the source-not-export
+# pattern documented in functions.sh.
+VALID_TRACKS=(stable edge nightly)
+VALID_DISTROS=(2404 2604)
+ALL_SUITES=(stable edge nightly \
+            stable-2404 edge-2404 nightly-2404 \
+            stable-2604 edge-2604 nightly-2604)
+
+# is_valid_suite <suite> — returns 0 if <suite> is one of the 9 known
+# distributions, else prints a clear error to stderr and returns 1.
+is_valid_suite() {
+    local lsuite="$1"
+    local lcandidate
+    for lcandidate in "${ALL_SUITES[@]}"; do
+        [[ "${lsuite}" == "${lcandidate}" ]] && return 0
+    done
+    echo "ERROR: Invalid suite '${lsuite}'. Must be one of: ${ALL_SUITES[*]}" >&2
+    return 1
+}
+
+# resolve_publish_targets <track> <distro> — maps a (track, distro) pair to its
+# reprepro publish targets, one per line (suitable for mapfile/while read).
+# Validates track against VALID_TRACKS and distro against VALID_DISTROS; on a
+# bad value prints a clear error to stderr and returns 1.
+# On success: prints "<track>-<distro>"; if distro == 2404 also prints the bare
+# "<track>" alias on a second line (D-12: the legacy alias is fed from the same
+# fresh debs as the versioned 24.04 suite).
+resolve_publish_targets() {
+    local ltrack="$1"
+    local ldistro="$2"
+    local lvalid
+    local lok
+
+    lok=false
+    for lvalid in "${VALID_TRACKS[@]}"; do
+        [[ "${ltrack}" == "${lvalid}" ]] && lok=true && break
+    done
+    if [[ "${lok}" != "true" ]]; then
+        echo "ERROR: Invalid track '${ltrack}'. Must be one of: ${VALID_TRACKS[*]}" >&2
+        return 1
+    fi
+
+    lok=false
+    for lvalid in "${VALID_DISTROS[@]}"; do
+        [[ "${ldistro}" == "${lvalid}" ]] && lok=true && break
+    done
+    if [[ "${lok}" != "true" ]]; then
+        echo "ERROR: Invalid distro '${ldistro}'. Must be one of: ${VALID_DISTROS[*]}" >&2
+        return 1
+    fi
+
+    printf '%s\n' "${ltrack}-${ldistro}"
+    if [[ "${ldistro}" == "2404" ]]; then
+        printf '%s\n' "${ltrack}"
+    fi
+}
+
+# ============================================
 # Build Optimization Settings
 # ============================================
 
