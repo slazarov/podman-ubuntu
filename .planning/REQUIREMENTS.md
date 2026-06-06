@@ -9,9 +9,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Packaging
 
-- [ ] **PKG-08**: Packages built for Ubuntu 26.04 declare the correct renamed runtime dependencies (libgpgme45, libsubid5) so `apt install` succeeds on 26.04
+- [x] **PKG-08**: Packages built for Ubuntu 26.04 declare the correct renamed runtime dependencies (libgpgme45, libsubid5) so `apt install` succeeds on 26.04
 - [x] **PKG-09**: Package versions carry a per-distro suffix (e.g. `~ubuntu24.04.podman1` / `~ubuntu26.04.podman1`) so the same upstream version produces distinct .deb identities per distro and dist-upgrades order correctly
-- [ ] **PKG-10**: Runtime library dependencies are resolved at build time via ldd soname→package detection so future distro renames are caught automatically without manual config edits
+- [x] **PKG-10**: Runtime library dependencies are resolved at build time via ldd soname→package detection so future distro renames are caught automatically without manual config edits
 
 ### Repository
 
@@ -64,9 +64,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PKG-08 | Phase 19 | Pending |
+| PKG-08 | Phase 19 | Complete |
 | PKG-09 | Phase 19 | Complete (19-01 suffix + 19-03 dpkg proof) |
-| PKG-10 | Phase 19 | Pending |
+| PKG-10 | Phase 19 | Complete |
 | REPO-06 | Phase 20 | Pending |
 | REPO-07 | Phase 20 | Pending |
 | REPO-08 | Phase 20 | Pending |
@@ -80,6 +80,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MIGR-04 | Phase 22 | Pending |
 
 **Coverage:**
+
 - v3.0 requirements: 14 total
 - Mapped to phases: 14
 - Unmapped: 0 ✓
