@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 19-per-distro-versioning-dependency-mapping
 source: [19-VERIFICATION.md]
 started: 2026-06-05T12:55:00Z
@@ -50,13 +50,30 @@ blocked: 0
   reason: "Tested on ubuntu-24 Lima VM with real build: exit 1, 23 Part-A FAIL lines. detect_runtime_depends (functions.sh) uses ldd, which returns the full TRANSITIVE shared-library closure, not the binary's direct DT_NEEDED entries — so every component over-reports deps of its deps (gpgme pulls libassuan0+libgpg-error0; libsystemd pulls libgcrypt20/liblz4-1/liblzma5/libzstd1; libsubid pulls libaudit1/libcap-ng0/libselinux1; libglib/libselinux pull libpcre2-8-0). Debian policy (dpkg-shlibdeps) derives Depends from direct NEEDED only. Separately: skopeo baseline expects libsqlite3-0 but the v1.22.0 binary does not link sqlite at all (baseline datum likely stale from pre-v3.0 hardcoded list)."
   severity: blocker
   test: 1
-  artifacts: []  # Filled by diagnosis
-  missing: []    # Filled by diagnosis
+  root_cause: "TWO independent causes: (1) CODE BUG — detect_runtime_depends() at functions.sh:145 derives the dep set from `ldd | awk '/=> \\// {print $3}'`; ldd resolves the FULL transitive shared-object closure (deps-of-deps), while Debian policy (dpkg-shlibdeps) uses only the binary's direct DT_NEEDED entries — each component's set is contaminated with its deps' own NEEDED libs. (2) DATA BUG — BASELINE_24_04[skopeo] at verify_depends.sh:122 asserts libsqlite3-0, but skopeo v1.22.0 built with BUILDTAGS='seccomp apparmor systemd' (no sqlite tag) does not link sqlite at any depth; datum lifted verbatim from the pre-v3.0 hardcoded list (commit e6cdba1, skopeo 1.19-era) without re-checking."
+  artifacts:
+    - path: "functions.sh"
+      issue: "detect_runtime_depends() line 145 feeds package resolution from full ldd closure instead of direct DT_NEEDED sonames"
+    - path: "scripts/verify_depends.sh"
+      issue: "BASELINE_24_04[skopeo] line 122 contains stale libsqlite3-0 never linked by skopeo v1.22.0"
+  missing:
+    - "Enumerate direct DT_NEEDED sonames (objdump -p | awk '/NEEDED/{print $2}' or readelf -d), resolve ONLY those sonames to paths (ldd/ldconfig -p + realpath), keep existing dpkg-query -S → dedupe → libc6/libgcc-s1 exclusion chain"
+    - "Remove libsqlite3-0 from BASELINE_24_04[skopeo] → 'libgpgme11t64 libsubid4'"
+    - "Correct libsqlite3-0 skopeo references in 19-RESEARCH.md/19-CONTEXT.md/19-PATTERNS.md docs for consistency (non-blocking)"
+    - "Re-run verify_depends.sh on both 24.04 and 26.04 VMs to confirm closure extras disappear"
+  debug_session: ".planning/debug/detector-transitive-closure.md"
 
 - truth: "smoke_install_2604.sh apt-installs skopeo cleanly inside ubuntu:26.04, pulling libgpgme45/libsubid5, and skopeo --version prints"
   status: failed
   reason: "Tested on ubuntu-26 Lima VM (SMOKE_RUNTIME=podman): exit 100. The container's apt-get install receives only the skopeo .deb, but skopeo.yaml declares internal sibling dep podman-container-configs which is not in the Ubuntu archive — apt refuses with 'podman-container-configs but it is not installable'. The script handles this trap for podman (best-effort) but not skopeo, even though podman-container-configs_*.deb is built and present in output/. Manual probe installing both .debs together PASSES (libgpgme45/libsubid5/libassuan9 pulled from archive, skopeo 1.22.0 runs) — so this is a smoke-script harness gap, not a PKG-08 mechanism failure."
   severity: major
   test: 3
-  artifacts: []  # Filled by diagnosis
-  missing: []    # Filled by diagnosis
+  root_cause: "Harness gap in smoke_install_2604.sh step 4: the primary-proof install hands apt ONLY the podman-skopeo .deb (line 167), but skopeo.yaml:15 declares static internal sibling dep podman-container-configs — an internal-only suite package (container-configs.yaml) never published in the Ubuntu archive. apt has [no choices] for that name → unsatisfiable solve → exit 100; the libassuan9/libgpgme45/libsubid5 lines are cascade noise. The script already anticipated this exact trap for podman (best-effort + comment, lines 169-176) but not for the primary skopeo install. buildah.yaml:15 carries the same dep (future smoke extension would hit the same wall)."
+  artifacts:
+    - path: "scripts/smoke_install_2604.sh"
+      issue: "step 4 (lines 156-167) globs/installs only /out/podman-skopeo_*.deb; never feeds the sibling /out/podman-container-configs_*.deb to apt"
+  missing:
+    - "Glob /out/podman-container-configs_*.deb and pass it WITH the skopeo .deb in a single apt-get install invocation (apt co-resolves local .debs; archive needed only for system deps — the true PKG-08 signal)"
+    - "Hard-error if the podman-container-configs glob is empty; keep skopeo install hard (not best-effort) so real rename regressions still fail the gate"
+    - "Re-run smoke_install_2604.sh on ubuntu-26 to confirm exit 0"
+  debug_session: ".planning/debug/smoke-2604-sibling-dep.md"
