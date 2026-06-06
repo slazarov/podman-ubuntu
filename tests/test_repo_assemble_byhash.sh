@@ -403,6 +403,72 @@ OPTS_AFTER="$(set +o)"
 assert_equals "caller shell options unchanged across add_byhash_and_resign (F-3)" \
     "${OPTS_BEFORE}" "${OPTS_AFTER}"
 
+echo ""
+echo "Test group G: CR-02 — 26.04 publish preserves the untouched bare alias"
+echo ""
+# A 26.04 publish targets only the versioned <track>-2604 suite (confirmed:
+# resolve_publish_targets stable 2604 returns only 'stable-2604', no bare alias).
+# The bare 'stable' alias is therefore a NON-target and must be served verbatim
+# by ci_publish.sh — its already-signed dists/stable/ tree is left exactly as it
+# was, NOT re-includedeb'd + re-export'd + re-signed. Re-signing an unchanged
+# suite would regenerate its Release Date + signature, reopening the
+# Acquire-By-Hash CDN hash-mismatch window.
+#
+# The harness drives the direct-assemble core (repo_manage.sh + per-suite
+# add_byhash_and_resign) rather than full ci_publish.sh, so we model the 26.04
+# publish as: build/update ONLY stable-2604 (the sole target for 2604), then
+# add_byhash_and_resign on stable-2604 ONLY — explicitly NOT on bare 'stable'.
+# This reproduces the corrected verbatim behavior (the untouched alias is left
+# byte-stable) and lets us assert the bare alias was not re-signed.
+
+# Build a 2604-suffixed fixture .deb for the stable-2604 target (mirrors the
+# 24.04 fixtures above, using a ~ubuntu26.04.podman1 version).
+STABLE_2604_DEB_DIR="${TMP_ROOT}/debs-stable-2604"
+build_fixture_deb "podman-suite" "5.0.0~ubuntu26.04.podman1" "amd64" "${STABLE_2604_DEB_DIR}"
+build_fixture_deb "podman-suite" "5.0.0~ubuntu26.04.podman1" "arm64" "${STABLE_2604_DEB_DIR}"
+
+# Setup: capture the bare 'stable' alias's currently-signed state. It was
+# populated + signed by the stable-2404 assemble (D-12) above.
+G_BARE="${OUT}/dists/stable"
+G_DATE_BEFORE="$(grep '^Date:' "${G_BARE}/Release" || true)"
+G_INRELEASE_BEFORE="$(${STRONG_CMD} "${G_BARE}/InRelease" | awk '{print $1}')"
+G_RELEASEGPG_BEFORE="$(${STRONG_CMD} "${G_BARE}/Release.gpg" | awk '{print $1}')"
+
+# Action: simulate the 26.04 publish. repo_manage.sh stable 2604 targets ONLY
+# stable-2604 (resolve_publish_targets returns just that suite for 2604), so the
+# bare 'stable' alias dists/ tree is not touched by this call. We then by-hash +
+# re-sign ONLY the stable-2604 target — never the bare 'stable' alias — exactly
+# as the corrected ci_publish.sh does (verbatim suites are excluded from Step 4b).
+"${PROJECT_ROOT}/scripts/repo_manage.sh" stable 2604 "${STABLE_2604_DEB_DIR}" "${OUT}" >/dev/null
+add_byhash_and_resign "stable-2604" "${OUT}"
+
+# G-1: the bare 'stable' alias Release Date + InRelease + Release.gpg are
+# byte-identical before vs after the 2604 publish (proving it was NOT re-signed).
+G_DATE_AFTER="$(grep '^Date:' "${G_BARE}/Release" || true)"
+G_INRELEASE_AFTER="$(${STRONG_CMD} "${G_BARE}/InRelease" | awk '{print $1}')"
+G_RELEASEGPG_AFTER="$(${STRONG_CMD} "${G_BARE}/Release.gpg" | awk '{print $1}')"
+assert_equals "bare 'stable' Release Date unchanged across a 2604 publish (G-1)" \
+    "${G_DATE_BEFORE}" "${G_DATE_AFTER}"
+assert_equals "bare 'stable' InRelease byte-identical across a 2604 publish (G-1)" \
+    "${G_INRELEASE_BEFORE}" "${G_INRELEASE_AFTER}"
+assert_equals "bare 'stable' Release.gpg byte-identical across a 2604 publish (G-1)" \
+    "${G_RELEASEGPG_BEFORE}" "${G_RELEASEGPG_AFTER}"
+
+# G-2: the preserved bare alias signature still verifies after the 2604 publish.
+assert_succeeds "bare 'stable' InRelease still verifies after 2604 publish (G-2)" \
+    gpg --verify "${G_BARE}/InRelease"
+assert_succeeds "bare 'stable' Release.gpg Release still verifies after 2604 publish (G-2)" \
+    gpg --verify "${G_BARE}/Release.gpg" "${G_BARE}/Release"
+
+# G-3: the stable-2604 target IS freshly (re-)signed and carries Acquire-By-Hash.
+G_TARGET="${OUT}/dists/stable-2604"
+assert_file_exists "stable-2604 Release exists after 2604 publish (G-3)" \
+    "${G_TARGET}/Release"
+assert_grep "Acquire-By-Hash: yes present in stable-2604 Release (G-3)" \
+    '^Acquire-By-Hash: yes' "${G_TARGET}/Release"
+assert_succeeds "gpg --verify InRelease for stable-2604 target (G-3)" \
+    gpg --verify "${G_TARGET}/InRelease"
+
 # ============================================
 # Summary
 # ============================================
