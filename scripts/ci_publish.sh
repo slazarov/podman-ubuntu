@@ -133,15 +133,96 @@ echo "Output dir:     ${OUTPUT_DIR}"
 echo ""
 
 # ============================================
-# Step 2: Download other suites' .deb files from live repo
+# Step 2: Mirror other suites' metadata + .deb files from the live repo
 # ============================================
+#
+# CR-02 (T-20-17): non-target suites whose live dists/<suite>/ tree already
+# exists are served VERBATIM. We copy the live `dists/<suite>/` metadata tree
+# (Release, InRelease, Release.gpg, per-arch Packages/Release, by-hash/) and the
+# pool entries it references straight into ${OUTPUT_DIR} with their ORIGINAL
+# signatures, then exclude the suite from the re-includedeb/re-export loop
+# (Step 4) and the by-hash + re-sign loop (Step 4b). Re-exporting an unchanged
+# suite would regenerate its Release Date + signature even though its package
+# content is identical, reopening the Acquire-By-Hash CDN hash-mismatch window
+# this bolt-on exists to prevent. Serving the tree verbatim keeps the suite's
+# Release Date / InRelease / Release.gpg byte-identical.
+#
+# VERBATIM_SUITES holds the non-target suites we successfully mirrored verbatim
+# (the bare aliases on a 26.04 publish, plus any versioned non-target suite with
+# a live tree). On a 24.04 publish the bare alias is a PUBLISH TARGET (D-12) so
+# it is never in OTHER_SUITES and never verbatim-mirrored — it is fed fresh by
+# repo_manage.sh exactly as before. When the live alias tree 404s (first deploy /
+# empty-2604, D-14) the verbatim copy no-ops cleanly and the suite stays empty.
 
 declare -A OTHER_SUITE_DEBS_DIRS
 declare -A OTHER_SUITE_COUNTS
+declare -A IS_VERBATIM
+VERBATIM_SUITES=()
 total_other_count=0
 
+# mirror_suite_verbatim <suite> — copy the live dists/<suite>/ metadata tree and
+# the pool entries it references into ${OUTPUT_DIR}, preserving original
+# signatures. Returns 0 if the live tree existed and was mirrored, 1 otherwise
+# (first deploy / not published). Never aborts the caller.
+mirror_suite_verbatim() {
+    local lsuite="$1"
+    local lrelease_url="${REPO_URL}/dists/${lsuite}/Release"
+    local lrelease
+    lrelease=$(curl -sfL "${lrelease_url}" 2>/dev/null || true)
+    if [[ -z "${lrelease}" ]]; then
+        return 1
+    fi
+
+    local lmirror
+    lmirror=$(mktemp -d)
+    # Mirror the whole dists/<suite>/ subtree verbatim (recursive), so
+    # Release/InRelease/Release.gpg, per-arch Packages/Release, and by-hash/
+    # arrive byte-identical to the live repo.
+    if ! wget -q -r -np -nH --cut-dirs=0 -P "${lmirror}" \
+            "${REPO_URL}/dists/${lsuite}/" 2>/dev/null; then
+        # wget unavailable or partial — fall back to an explicit fetch of the
+        # signed top-level metadata at minimum.
+        mkdir -p "${lmirror}/dists/${lsuite}"
+        local lf
+        for lf in Release InRelease Release.gpg; do
+            curl -sfL -o "${lmirror}/dists/${lsuite}/${lf}" \
+                "${REPO_URL}/dists/${lsuite}/${lf}" 2>/dev/null || true
+        done
+        for arch in amd64 arm64; do
+            mkdir -p "${lmirror}/dists/${lsuite}/main/binary-${arch}/by-hash"
+            curl -sfL -o "${lmirror}/dists/${lsuite}/main/binary-${arch}/Packages" \
+                "${REPO_URL}/dists/${lsuite}/main/binary-${arch}/Packages" 2>/dev/null || true
+            curl -sfL -o "${lmirror}/dists/${lsuite}/main/binary-${arch}/Release" \
+                "${REPO_URL}/dists/${lsuite}/main/binary-${arch}/Release" 2>/dev/null || true
+        done
+    fi
+
+    # Place the verbatim dists/<suite>/ tree into the output unchanged.
+    if [[ -d "${lmirror}/dists/${lsuite}" ]]; then
+        mkdir -p "${OUTPUT_DIR}/dists"
+        rm -rf "${OUTPUT_DIR}/dists/${lsuite}"
+        cp -a "${lmirror}/dists/${lsuite}" "${OUTPUT_DIR}/dists/${lsuite}"
+    else
+        rm -rf "${lmirror}"
+        return 1
+    fi
+    rm -rf "${lmirror}"
+    return 0
+}
+
 for other_suite in "${OTHER_SUITES[@]}"; do
-    echo ">>> Downloading existing packages for '${other_suite}' suite..."
+    echo ">>> Mirroring existing '${other_suite}' suite from live repo..."
+
+    # CR-02: attempt to serve this non-target suite's signed dists/ tree verbatim.
+    if mirror_suite_verbatim "${other_suite}"; then
+        IS_VERBATIM["${other_suite}"]=true
+        VERBATIM_SUITES+=("${other_suite}")
+        echo ">>> Mirrored '${other_suite}' dists/ tree verbatim (original signature preserved)"
+    else
+        IS_VERBATIM["${other_suite}"]=false
+        echo ">>> No live tree for '${other_suite}' (first deploy / not published) — nothing to mirror"
+    fi
+
     other_dir=$(mktemp -d)
     OTHER_SUITE_DEBS_DIRS["${other_suite}"]="${other_dir}"
     suite_count=0
@@ -157,11 +238,31 @@ for other_suite in "${OTHER_SUITES[@]}"; do
             continue
         fi
 
-        # Parse Filename: lines from the Packages index
+        # Parse Filename: lines from the Packages index. We download the referenced
+        # .deb files for two reasons: (a) for a verbatim-mirrored suite, the pool
+        # entries its served Packages index references must exist under
+        # ${OUTPUT_DIR}/pool/ so apt can fetch the packages; (b) for a non-verbatim
+        # suite (no live tree to copy) the debs feed the legacy re-includedeb path.
         while IFS= read -r filename; do
             if [[ -n "${filename}" ]]; then
                 deb_url="${REPO_URL}/${filename}"
                 deb_basename=$(basename "${filename}")
+
+                # For a verbatim-mirrored suite, place the pool entry at the exact
+                # path its Packages index references (Filename:) so apt resolves it.
+                if [[ "${IS_VERBATIM["${other_suite}"]}" == "true" ]]; then
+                    pool_dest="${OUTPUT_DIR}/${filename}"
+                    if [[ ! -f "${pool_dest}" ]]; then
+                        mkdir -p "$(dirname "${pool_dest}")"
+                        if curl -sfL -o "${pool_dest}" "${deb_url}"; then
+                            suite_count=$((suite_count + 1))
+                        else
+                            echo "  WARNING: Failed to download pool entry ${deb_basename}" >&2
+                            rm -f "${pool_dest}"
+                        fi
+                    fi
+                    continue
+                fi
 
                 # Skip if already downloaded (same package may appear in both arch indices)
                 if [[ -f "${other_dir}/${deb_basename}" ]]; then
@@ -180,8 +281,13 @@ for other_suite in "${OTHER_SUITES[@]}"; do
     done
 
     OTHER_SUITE_COUNTS["${other_suite}"]=${suite_count}
-    total_other_count=$((total_other_count + suite_count))
-    echo ">>> Downloaded ${suite_count} packages for '${other_suite}' suite"
+    # Verbatim-mirrored suites are NOT counted toward total_other_count: that
+    # counter gates the re-includedeb/re-export loop (Step 4), which must never
+    # run for a suite we are serving verbatim.
+    if [[ "${IS_VERBATIM["${other_suite}"]}" != "true" ]]; then
+        total_other_count=$((total_other_count + suite_count))
+    fi
+    echo ">>> Processed ${suite_count} packages for '${other_suite}' suite"
     echo ""
 done
 
@@ -212,6 +318,14 @@ if [[ ${total_other_count} -gt 0 ]]; then
     cp "${REPO_CONF}/conf/options" "${OUTPUT_DIR}/conf/"
 
     for other_suite in "${OTHER_SUITES[@]}"; do
+        # CR-02: a verbatim-mirrored suite is served as-is (its signed dists/ tree
+        # was copied in Step 2). Never re-includedeb + re-export it — that would
+        # regenerate its Release Date + signature on byte-identical content.
+        if [[ "${IS_VERBATIM["${other_suite}"]:-false}" == "true" ]]; then
+            echo ">>> '${other_suite}' served verbatim — skipping re-includedeb/re-export"
+            continue
+        fi
+
         suite_count=${OTHER_SUITE_COUNTS["${other_suite}"]}
         if [[ ${suite_count} -eq 0 ]]; then
             echo ">>> No packages for '${other_suite}' suite (first deploy or not published)"
@@ -257,6 +371,13 @@ fi
 
 echo ">>> Applying Acquire-By-Hash + re-sign to all exported suites..."
 for suite in "${ALL_SUITES[@]}"; do
+    # CR-02: verbatim-mirrored suites already carry their original by-hash dirs
+    # and signature from the live repo — re-signing them would defeat the
+    # verbatim preservation (new Release Date + signature on unchanged content).
+    if [[ "${IS_VERBATIM["${suite}"]:-false}" == "true" ]]; then
+        echo "  preserved verbatim (no re-sign): ${suite}"
+        continue
+    fi
     if [[ -f "${OUTPUT_DIR}/dists/${suite}/Release" ]]; then
         echo "  by-hash + re-sign: ${suite}"
         add_byhash_and_resign "${suite}" "${OUTPUT_DIR}"
@@ -275,6 +396,13 @@ done
 # ============================================
 
 echo ">>> Generating index.html landing page..."
+
+# WR-04 (T-20-18): HTML-escape dynamic values before interpolating them into the
+# generated index.html. Package names/versions are parsed from the Packages index
+# (versions derive from upstream HEAD for nightly builds, an attacker-influenceable
+# source). Escape the four metacharacters in order — `&` first so already-escaped
+# entities are not double-escaped.
+esc() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g'; }
 
 # Collect available suites across the full 9-suite set. The empty-skip below
 # (Step that appends suite info) hides suites whose Packages index is empty, so
@@ -394,8 +522,11 @@ SUITEEOF
     awk '/^Package:/{pkg=$2} /^Version:/{print pkg, $2}' "${packages_file}" \
     | sort \
     | while read -r pkg ver; do
+        # WR-04: escape package name + version before HTML interpolation.
+        pkg_e=$(printf '%s' "${pkg}" | esc)
+        ver_e=$(printf '%s' "${ver}" | esc)
         cat >> "${OUTPUT_DIR}/index.html" << ROWEOF
-<tr><td>${pkg}</td><td><code>${ver}</code></td></tr>
+<tr><td>${pkg_e}</td><td><code>${ver_e}</code></td></tr>
 ROWEOF
     done
 
