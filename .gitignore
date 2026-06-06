@@ -1,28 +1,12 @@
-# Component sources (cloned by build scripts)
-aardvark-dns/
-buildah/
-catatonit/
-conmon/
-container-libs/
-crun/
-fuse-overlayfs/
-go/
-go-md2man/
-netavark/
-passt/
-podman/
-skopeo/
-toolbox/
+# Build / packaging output (component sources clone into build/)
+build/
+log/
+output/
 
 # Downloaded archives / toolchains
 *.tar*
 *.zip*
 rustup*
-
-# Build / packaging output
-build/
-log/
-output/
 
 # Lima VM templates (machine-specific mount paths)
 lima/

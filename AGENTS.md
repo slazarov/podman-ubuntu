@@ -45,8 +45,8 @@ There is no package.json, no compiler, no app server. Everything is Bash.
 | `docs/` | Architecture, configuration, testing, APT repo details |
 | `.planning/` | GSD planning state — committed, synced across machines |
 
-Component source checkouts (`podman/`, `crun/`, etc.) are cloned into the repo
-root at build time and are gitignored — never commit them.
+Component source checkouts (`podman/`, `crun/`, etc.) are cloned into `build/`
+(`BUILD_ROOT`) at build time and are gitignored — never commit them.
 
 ## Commands
 
