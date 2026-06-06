@@ -59,7 +59,7 @@ Full v2.0 phase details archived at `.planning/milestones/v2.0-ROADMAP.md`.
 **Milestone Goal:** Users on both Ubuntu 24.04 and 26.04 can add the APT repo, enable their distro's suite, and install Podman packages that install and run cleanly on their OS version.
 
 - [x] **Phase 19: Per-Distro Versioning & Dependency Mapping** - Distro-tagged version suffixes and per-distro runtime dependency resolution so each distro's .deb is uniquely identified and correctly installable (completed 2026-06-06)
-- [x] **Phase 20: Repository Restructure & Migration Aliases** - Six versioned suites from one URL with legacy aliases that keep existing users working (completed 2026-06-06)
+- [ ] **Phase 20: Repository Restructure & Migration Aliases** - Six versioned suites from one URL with legacy aliases that keep existing users working (gap closure in progress — CR-01/CR-02 blockers from verification)
 - [ ] **Phase 21: CI Build Matrix Extension to 26.04** - A single distro×arch build matrix that produces native 26.04 packages with atomic, distro-isolated publishing
 - [ ] **Phase 22: Migration Docs & Installability Smoke Tests** - Per-distro setup docs, deprecation timeline, and CI-verified install + `podman info` in real containers
 
@@ -108,7 +108,7 @@ Plans:
   3. Repository metadata includes `Acquire-By-Hash: yes` on every suite, so apt clients fetching from the GitHub Pages CDN never hit a hash-sum mismatch
   4. The publish tooling routes a given track's packages into the correct `<track>-<distro>` suite without clobbering the other five suites' contents
 
-**Plans**: 4 plans
+**Plans**: 6 plans (4 original + 2 gap closure)
 
 Plans:
 **Wave 1**
@@ -123,6 +123,11 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [x] 20-04-PLAN.md — Ubuntu-only assemble+by-hash+no-clobber integration harness + on-VM/deployed-Pages legacy-client validation checkpoint (D-15) (REPO-06/07/08)
+
+**Gap closure** *(from 20-VERIFICATION.md — closes CR-01/CR-02 blockers; REPO-08 / SC-3 + SC-4)*
+
+- [ ] 20-05-PLAN.md — Pipefail isolation in add_byhash_and_resign so a benign non-zero never leaves a half-signed repo (CR-01) + anchored secret-key fpr (WR-01) + quoted realpath bootstrap (WR-03) + Test group F pipefail-abort regression (REPO-08)
+- [ ] 20-06-PLAN.md — Verbatim-mirror non-target bare aliases on 26.04 publishes so they are not re-signed (CR-02) + HTML-escape index.html (WR-04) + Test group G 26.04-publish signature-stability (REPO-08/REPO-06)
 
 ### Phase 21: CI Build Matrix Extension to 26.04
 
@@ -186,7 +191,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 17. Upstream Automation | v2.0 | — | Complete (absorbed into Phase 18) | 2026-03-08 |
 | 18. Edge Track / Nightly Builds | v2.0 | 2/2 | Complete | 2026-03-08 |
 | 19. Per-Distro Versioning & Dependency Mapping | v3.0 | 5/5 | Complete    | 2026-06-06 |
-| 20. Repository Restructure & Migration Aliases | v3.0 | 4/4 | Complete   | 2026-06-06 |
+| 20. Repository Restructure & Migration Aliases | v3.0 | 4/6 | Gap closure (CR-01/CR-02) | - |
 | 21. CI Build Matrix Extension to 26.04 | v3.0 | 0/? | Not started | - |
 | 22. Migration Docs & Installability Smoke Tests | v3.0 | 0/? | Not started | - |
 
