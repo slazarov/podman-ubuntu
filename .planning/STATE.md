@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Ubuntu 26.04 Support
 status: executing
-stopped_at: Phase 20 context gathered
-last_updated: "2026-06-06T20:34:31.639Z"
-last_activity: 2026-06-06 -- Phase 20 execution started
+stopped_at: Completed 20-03-PLAN.md
+last_updated: "2026-06-06T20:42:07Z"
+last_activity: 2026-06-06 -- Phase 20 Plan 03 completed (publish-path integration)
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
   percent: 25
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-05)
 ## Current Position
 
 Phase: 20 (repository-restructure-migration-aliases) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
-Last activity: 2026-06-06 -- Phase 20 execution started
+Last activity: 2026-06-06 -- Phase 20 Plan 03 completed (publish-path integration)
 
 Progress: [██████████] 100%
 
@@ -53,6 +53,7 @@ Progress: [██████████] 100%
 | Phase 19 P05 | 25min | 3 tasks | 6 files |
 | Phase 20 P01 | 2min | 3 tasks | 5 files |
 | Phase 20 P02 | 4min | 2 tasks | 2 files |
+| Phase 20 P03 | 5min | 3 tasks | 3 files |
 
 ## Previous Milestones
 
@@ -92,6 +93,7 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase ?]: Phase 19-05: smoke_install_2604.sh installs internal podman-container-configs sibling .deb alongside skopeo in one apt-get call so apt needs the archive only for system deps; skopeo install stays HARD (T-19-12)
 - [Phase ?]: Phase 20-01: bare-alias reprepro distribution (Suite: stable, not stable-2404) is the REPO-07 mechanism preserving apt's cached Suite value; resolve_publish_targets in config.sh appends the bare alias only for 24.04 (D-12), 26.04 publishes versioned-only
 - [Phase ?]: Phase 20-02: add_byhash_and_resign is a cp+gpg bolt-on around reprepro Release output — writes by-hash adjacent to each index plus Release-level, injects Acquire-By-Hash after Suite:, then re-signs (D-08). Release by-hash computed AFTER injection (Pitfall 2); single generation only (D-09).
+- [Phase ?]: Phase 20-03: publish path now driven by a single (track, distro) input. ci_publish.sh mirror-then-include reassembles all 9 suites with OTHER_SUITES = ALL_SUITES − PUBLISH_TARGETS (no clobber); per-suite export only (Pitfall 4); add_byhash_and_resign called for every suite with a Release after all exports. repo_manage.sh feeds the bare alias on 24.04 (D-12). NOTE: resolve_publish_targets runs in a process-substitution subshell so its non-zero exit cannot abort the parent — both scripts guard with an empty-PUBLISH_TARGETS check. CI passes distro=2404 via a step output; matrix fan-out deferred to Phase 21.
 
 ### Tech Debt
 

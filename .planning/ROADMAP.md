@@ -118,7 +118,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 20-03-PLAN.md — Wire track+distro routing + alias feeding into repo_manage.sh/ci_publish.sh, call by-hash per suite, 9-suite index.html loop, CI distro arg plumbing (REPO-06/07/08)
+- [x] 20-03-PLAN.md — Wire track+distro routing + alias feeding into repo_manage.sh/ci_publish.sh, call by-hash per suite, 9-suite index.html loop, CI distro arg plumbing (REPO-06/07/08)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
