@@ -18,6 +18,11 @@ source "${toolpath}/config.sh"
 # Load Functions
 source "${toolpath}/functions.sh"
 
+# Load the post-export Acquire-By-Hash helper (Plan 02). Sourced (not executed),
+# so it only defines add_byhash_and_resign; it relies on repo_manage.sh having
+# imported the GPG key earlier in the publish.
+source "${toolpath}/scripts/repo_byhash.sh"
+
 # Set error trap AFTER sourcing
 trap 'error_handler $? $LINENO "$BASH_SOURCE"' ERR
 
@@ -26,32 +31,39 @@ trap 'error_handler $? $LINENO "$BASH_SOURCE"' ERR
 # ============================================
 
 usage() {
-    echo "Usage: $(basename "$0") <suite> <deb-directory> <repo-url> <output-directory>"
+    echo "Usage: $(basename "$0") <track> <distro> <deb-directory> <repo-url> <output-directory>"
     echo ""
-    echo "  suite            Target suite being published: 'stable', 'edge', or 'nightly'"
-    echo "  deb-directory    Path containing freshly built .deb files for this suite"
+    echo "  track            Release track being published: 'stable', 'edge', or 'nightly'"
+    echo "  distro           Target distro: '2404' or '2604'"
+    echo "  deb-directory    Path containing freshly built .deb files for this track"
     echo "  repo-url         Live repository URL (e.g., https://slazarov.github.io/podman-ubuntu)"
     echo "  output-directory Where to create the final multi-suite repository"
+    echo ""
+    echo "  The (track, distro) pair is resolved to its publish targets via"
+    echo "  resolve_publish_targets (config.sh): the versioned '<track>-<distro>'"
+    echo "  suite, plus the bare '<track>' legacy alias when distro is 2404 (D-12)."
     echo ""
     echo "Environment variables:"
     echo "  GPG_PRIVATE_KEY  If set, imports this GPG key before signing (for CI)"
     echo ""
     echo "This script:"
-    echo "  1. Builds the current suite using repo_manage.sh"
-    echo "  2. Downloads the other suites' packages from the live repository"
-    echo "  3. Adds the other suites' packages via reprepro includedeb"
-    echo "  4. Produces a complete repository with all suites"
+    echo "  1. Mirrors down the untouched suites' packages from the live repository"
+    echo "  2. Builds the published target suite(s) from fresh .debs via repo_manage.sh"
+    echo "  3. Re-includes the mirrored suites and exports each suite per-suite"
+    echo "  4. Applies Acquire-By-Hash + re-sign to every suite (Plan 02)"
+    echo "  5. Produces a complete 9-suite repository with no clobbering"
     exit 1
 }
 
-if [[ $# -lt 4 ]]; then
+if [[ $# -lt 5 ]]; then
     usage
 fi
 
-SUITE="$1"
-DEB_DIR="$2"
-REPO_URL="$3"
-OUTPUT_DIR="$4"
+TRACK="$1"
+DISTRO="$2"
+DEB_DIR="$3"
+REPO_URL="$4"
+OUTPUT_DIR="$5"
 
 REPO_CONF="${toolpath}/packaging/repo"
 
@@ -65,9 +77,14 @@ echo ">>> CI Multi-Suite Repository Publisher"
 echo "========================================"
 echo ""
 
-# Validate suite name
-if [[ "${SUITE}" != "stable" && "${SUITE}" != "edge" && "${SUITE}" != "nightly" ]]; then
-    echo "ERROR: Invalid suite '${SUITE}'. Must be 'stable', 'edge', or 'nightly'." >&2
+# Resolve the publish targets via the Plan-01 routing helper (config.sh). This
+# validates track+distro and yields the versioned suite plus, for 24.04, the
+# bare legacy alias (D-12).
+mapfile -t PUBLISH_TARGETS < <(resolve_publish_targets "${TRACK}" "${DISTRO}")
+# resolve_publish_targets runs in a subshell; its non-zero exit on bad input
+# cannot abort us directly, so an invalid pair yields zero targets.
+if [[ ${#PUBLISH_TARGETS[@]} -eq 0 ]]; then
+    echo "ERROR: could not resolve publish targets for track='${TRACK}' distro='${DISTRO}'." >&2
     exit 1
 fi
 
@@ -85,19 +102,32 @@ if [[ "${deb_count}" -eq 0 ]]; then
 fi
 
 # ============================================
-# Step 1: Determine the OTHER suites
+# Step 1: Determine the OTHER (untouched) suites
 # ============================================
 
-ALL_SUITES=(stable edge nightly)
+# ALL_SUITES is the 9-element set sourced from config.sh — do NOT redeclare it.
+# OTHER_SUITES = every member of ALL_SUITES that is NOT a publish target. For a
+# 24.04 publish both '<track>-2404' and the bare '<track>' alias are publish
+# targets, so both are excluded from mirror-down (D-12/D-13). The untouched
+# suites are mirrored unchanged — this is the no-clobber guarantee (T-20-07).
 OTHER_SUITES=()
 for s in "${ALL_SUITES[@]}"; do
-    if [[ "$s" != "${SUITE}" ]]; then
+    is_target=false
+    for t in "${PUBLISH_TARGETS[@]}"; do
+        if [[ "$s" == "$t" ]]; then
+            is_target=true
+            break
+        fi
+    done
+    if [[ "${is_target}" != "true" ]]; then
         OTHER_SUITES+=("$s")
     fi
 done
 
-echo "Current suite:  ${SUITE} (${deb_count} new packages)"
-echo "Other suites:   ${OTHER_SUITES[*]} (will import from live repo)"
+echo "Track:          ${TRACK}"
+echo "Distro:         ${DISTRO}"
+echo "Publish targets:${PUBLISH_TARGETS[*]} (${deb_count} new packages)"
+echo "Other suites:   ${OTHER_SUITES[*]} (will mirror from live repo)"
 echo "Live repo:      ${REPO_URL}"
 echo "Output dir:     ${OUTPUT_DIR}"
 echo ""
@@ -159,10 +189,12 @@ done
 # Step 3: Build current suite with repo_manage.sh
 # ============================================
 
-echo ">>> Building '${SUITE}' suite with repo_manage.sh..."
+echo ">>> Building target suite(s) [${PUBLISH_TARGETS[*]}] with repo_manage.sh..."
 echo ""
 
-"${toolpath}/scripts/repo_manage.sh" "${SUITE}" "${DEB_DIR}" "${OUTPUT_DIR}"
+# repo_manage.sh now resolves the same (track, distro) into PUBLISH_TARGETS and
+# feeds the fresh .debs into each target (versioned suite + 24.04 alias) itself.
+"${toolpath}/scripts/repo_manage.sh" "${TRACK}" "${DISTRO}" "${DEB_DIR}" "${OUTPUT_DIR}"
 
 echo ""
 
@@ -210,9 +242,28 @@ if [[ ${total_other_count} -gt 0 ]]; then
     echo ""
 else
     echo ">>> No packages for other suites (first deploy or no live repo)"
-    echo ">>> Only '${SUITE}' suite will be published"
+    echo ">>> Only the target suite(s) [${PUBLISH_TARGETS[*]}] will be published"
     echo ""
 fi
+
+# ============================================
+# Step 4b: Acquire-By-Hash + re-sign every exported suite (REPO-08 / D-07)
+# ============================================
+# Run AFTER all exports (target suites via repo_manage.sh, other suites in the
+# re-include loop) but BEFORE temp-dir cleanup. add_byhash_and_resign reads the
+# exported dists/ tree and re-signs in place; the GPG key is already in the
+# keyring from repo_manage.sh's import. Suites without a Release (none materialized
+# yet) are a no-op inside the helper, but we guard here too for clear logging.
+
+echo ">>> Applying Acquire-By-Hash + re-sign to all exported suites..."
+for suite in "${ALL_SUITES[@]}"; do
+    if [[ -f "${OUTPUT_DIR}/dists/${suite}/Release" ]]; then
+        echo "  by-hash + re-sign: ${suite}"
+        add_byhash_and_resign "${suite}" "${OUTPUT_DIR}"
+    fi
+done
+echo ">>> Acquire-By-Hash post-processing complete"
+echo ""
 
 # Clean up all temp dirs
 for other_suite in "${OTHER_SUITES[@]}"; do
@@ -225,9 +276,11 @@ done
 
 echo ">>> Generating index.html landing page..."
 
-# Collect available suites
+# Collect available suites across the full 9-suite set. The empty-skip below
+# (Step that appends suite info) hides suites whose Packages index is empty, so
+# the as-yet-unpopulated -2604 suites stay hidden until they carry content (D-18).
 available_suites=()
-for s in stable edge nightly; do
+for s in "${ALL_SUITES[@]}"; do
     if [[ -d "${OUTPUT_DIR}/dists/${s}" ]]; then
         available_suites+=("${s}")
     fi
@@ -385,17 +438,18 @@ echo "========================================"
 echo ">>> CI Repository Build Complete"
 echo "========================================"
 echo ""
-echo "Current suite:  ${SUITE} (${deb_count} packages from build)"
+echo "Published:      ${PUBLISH_TARGETS[*]} (${deb_count} packages from build)"
 for other_suite in "${OTHER_SUITES[@]}"; do
-    echo "Other suite:    ${other_suite} (${OTHER_SUITE_COUNTS["${other_suite}"]} packages from live repo)"
+    echo "Mirrored suite: ${other_suite} (${OTHER_SUITE_COUNTS["${other_suite}"]} packages from live repo)"
 done
+echo "Suite universe: ${ALL_SUITES[*]}"
 echo "Output:         ${OUTPUT_DIR}"
 echo ""
 
 # List contents to confirm structure
 echo "Repository structure:"
 echo "----------------------------------------"
-for suite_name in "${SUITE}" "${OTHER_SUITES[@]}"; do
+for suite_name in "${PUBLISH_TARGETS[@]}" "${OTHER_SUITES[@]}"; do
     if [[ -d "${OUTPUT_DIR}/dists/${suite_name}" ]]; then
         echo "  dists/${suite_name}/"
         for f in "${OUTPUT_DIR}/dists/${suite_name}"/*; do
