@@ -108,11 +108,21 @@ Plans:
   3. Repository metadata includes `Acquire-By-Hash: yes` on every suite, so apt clients fetching from the GitHub Pages CDN never hit a hash-sum mismatch
   4. The publish tooling routes a given track's packages into the correct `<track>-<distro>` suite without clobbering the other five suites' contents
 
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
+**Wave 1**
 
-- [ ] 20-01: TBD
+- [ ] 20-01-PLAN.md — 9-stanza conf/distributions + resolve_publish_targets routing helper + suite whitelist arrays in config.sh + 3 Wave-0 unit tests (REPO-06/07)
+- [ ] 20-02-PLAN.md — scripts/repo_byhash.sh add_byhash_and_resign (post-export by-hash + re-sign) + test_byhash_parse.sh (REPO-08)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 20-03-PLAN.md — Wire track+distro routing + alias feeding into repo_manage.sh/ci_publish.sh, call by-hash per suite, 9-suite index.html loop, CI distro arg plumbing (REPO-06/07/08)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 20-04-PLAN.md — Ubuntu-only assemble+by-hash+no-clobber integration harness + on-VM/deployed-Pages legacy-client validation checkpoint (D-15) (REPO-06/07/08)
 
 ### Phase 21: CI Build Matrix Extension to 26.04
 
@@ -176,7 +186,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 17. Upstream Automation | v2.0 | — | Complete (absorbed into Phase 18) | 2026-03-08 |
 | 18. Edge Track / Nightly Builds | v2.0 | 2/2 | Complete | 2026-03-08 |
 | 19. Per-Distro Versioning & Dependency Mapping | v3.0 | 5/5 | Complete    | 2026-06-06 |
-| 20. Repository Restructure & Migration Aliases | v3.0 | 0/? | Not started | - |
+| 20. Repository Restructure & Migration Aliases | v3.0 | 0/4 | Not started | - |
 | 21. CI Build Matrix Extension to 26.04 | v3.0 | 0/? | Not started | - |
 | 22. Migration Docs & Installability Smoke Tests | v3.0 | 0/? | Not started | - |
 
