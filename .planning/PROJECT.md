@@ -47,10 +47,12 @@ Compile and install Podman on any Debian/Ubuntu system without user interaction.
 - ✓ Scheduled auto-rebuild on upstream releases + manual trigger — v2.0
 - ✓ Nightly track built from latest upstream commits with snapshot versioning — v2.0
 
+- ✓ Per-distro version suffixes (~ubuntu24.04.podman1 / ~ubuntu26.04.podman1) with dpkg-verified ordering — v3.0 (Validated in Phase 19: Per-Distro Versioning & Dependency Mapping)
+- ✓ Per-distro dependency mapping via direct DT_NEEDED soname detection injected into nFPM configs (libgpgme45/libsubid5 self-correct on 26.04) — v3.0 (Validated in Phase 19)
+
 ### Active
 
 - [ ] Per-distro APT suites with version-based names (stable-2404/edge-2404/nightly-2404 + stable-2604/edge-2604/nightly-2604)
-- [ ] Per-distro dependency mapping in nFPM configs (packages renamed/replaced between 24.04 and 26.04)
 - [ ] CI build matrix extended to Ubuntu 26.04 (native runners preferred, container fallback)
 - [ ] All three tracks (stable/edge/nightly) published for both 24.04 and 26.04
 - [ ] Migration path for existing users on current stable/edge/nightly suite names
@@ -151,4 +153,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-05 after v3.0 milestone started*
+*Last updated: 2026-06-06 after Phase 19 completion (per-distro versioning & dependency mapping)*
