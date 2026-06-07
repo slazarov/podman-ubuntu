@@ -164,11 +164,14 @@ Plans:
   3. CI installs `podman-suite` and runs `podman info` successfully inside both real `ubuntu:24.04` and `ubuntu:26.04` containers before any publish proceeds, so an uninstallable package never reaches the live repo
   4. The GPG key path and import instructions remain unchanged across both distros (single key, single setup flow)
 
-**Plans**: TBD
+**Plans**: 3 plans in 1 wave (all parallel — disjoint files)
 
 Plans:
+**Wave 1** *(all three parallel — no file overlap)*
 
-- [ ] 22-01: TBD
+- [ ] 22-01-PLAN.md — Per-distro DEB822 setup, deprecation callout + migration section in docs/apt-repository.md (MIGR-01/03)
+- [ ] 22-02-PLAN.md — index.html distro toggle + legacy→DEB822 snippet rewrite + setDistro() + deprecation callout in ci_publish.sh (MIGR-02/03)
+- [ ] 22-03-PLAN.md — scripts/smoke_repo_install.sh (file:// install podman-suite + podman info) wired into publish job before Pages upload (MIGR-04)
 
 ## Progress
 
