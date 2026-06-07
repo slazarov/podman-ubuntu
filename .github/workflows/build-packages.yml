@@ -354,6 +354,24 @@ jobs:
           publish_distro "2404" "all-debs-2404"
           publish_distro "2604" "all-debs-2604"
 
+      # MIGR-04 installability smoke gate. Runs AFTER both ci_publish.sh runs
+      # (repo-output is fully assembled + signed) and BEFORE the Pages upload, so
+      # an uninstallable package never reaches the live repo (D-13/D-16). Each
+      # leg installs the podman-suite meta-package from the assembled file://
+      # repo inside a real ubuntu container and runs `podman info` (D-15). The
+      # helper exits 1 on failure; `set -euo pipefail` aborts the step (and thus
+      # skips configure-pages/upload-pages-artifact/deploy-pages) on a fail. No
+      # `if:` guard — the gate runs on EVERY publish (stable/edge/nightly) so
+      # regressions are caught on every push (D-18). amd64-only (D-17).
+      - name: Smoke test — install podman-suite from assembled repo per distro
+        run: |
+          set -euo pipefail
+          TRACK="${{ steps.track.outputs.track }}"
+          export TRACK
+          echo ">>> Running smoke gate for track ${TRACK}"
+          ./scripts/smoke_repo_install.sh 2404 "$PWD/repo-output"
+          ./scripts/smoke_repo_install.sh 2604 "$PWD/repo-output"
+
       - uses: actions/configure-pages@v4
 
       # Atomic deploy (CICD-08): both distros are assembled into repo-output
