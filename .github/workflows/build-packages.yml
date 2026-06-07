@@ -170,6 +170,10 @@ jobs:
         # the bootstrap step's bash install ever regresses.
         shell: sh
         run: |
+          # pid1 starttime fingerprints the container instance — compare with the
+          # same line in "Build all components" to detect a container restart
+          # (which wipes the /dev tmpfs and with it the node created here).
+          echo "pid1 starttime: $(awk '{print $22}' /proc/1/stat)"
           if [ ! -c /dev/fuse ]; then
             mknod /dev/fuse c 10 229
             chmod 666 /dev/fuse
@@ -177,6 +181,7 @@ jobs:
           else
             echo "/dev/fuse already present"
           fi
+          ls -la /dev/fuse
 
       - uses: actions/checkout@v4
 
@@ -225,6 +230,20 @@ jobs:
           # Thread the dotted DISTRO override into setup.sh so config.sh composes
           # VERSION_SUFFIX=~ubuntu${DISTRO_DOTTED}.podman1 for this cell.
           ENV_ARGS="$ENV_ARGS DISTRO=$DISTRO_DOTTED"
+          # /dev/fuse vanishes between the dedicated mknod step and this one in
+          # the 2604 container (observed in runs #142/#143: "Created /dev/fuse"
+          # then VAL-03 fails 2s later — container /dev is tmpfs and does not
+          # reliably survive across steps). Re-create it HERE, in the same shell
+          # invocation that runs setup.sh, so nothing can wipe it before the
+          # VAL-03 preflight check. pid1 starttime pairs with the same line in
+          # the mknod step to confirm/refute a container restart as root cause.
+          echo "pid1 starttime: $(awk '{print $22}' /proc/1/stat)"
+          if [[ ! -c /dev/fuse ]]; then
+            sudo mknod /dev/fuse c 10 229
+            sudo chmod 666 /dev/fuse
+            echo "Created /dev/fuse (was missing at build-step time)"
+          fi
+          ls -la /dev/fuse
           if [[ "${{ steps.track.outputs.track }}" == "stable" ]]; then
             while IFS= read -r line; do
               [[ "$line" =~ ^[[:space:]]*# || -z "$line" ]] && continue
