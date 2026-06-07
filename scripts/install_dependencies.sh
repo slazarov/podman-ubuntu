@@ -42,7 +42,8 @@ apt-get install -y \
   libsystemd-dev \
   make \
   pkg-config \
-  uidmap
+  uidmap \
+  wget
 
 
 # DISABLED from the above command
