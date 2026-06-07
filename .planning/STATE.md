@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Ubuntu 26.04 Support
-status: executing
+status: verifying
 stopped_at: Completed 22-02-PLAN.md
-last_updated: "2026-06-07T08:29:15.696Z"
+last_updated: "2026-06-07T08:43:46.440Z"
 last_activity: 2026-06-07 -- Phase 22 Plan 02 (index.html per-distro setup) complete
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 16
-  completed_plans: 15
-  percent: 81
+  completed_plans: 16
+  percent: 100
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-07)
 
 Phase: 22 (migration-docs-installability-smoke-tests) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-07 -- Phase 22 Plan 02 (index.html per-distro setup) complete
 
 Progress: [█████░░░░░] 50% (2/4 v3.0 phases)
@@ -63,6 +63,7 @@ Progress: [█████░░░░░] 50% (2/4 v3.0 phases)
 | Phase 21 P02 | 5min | 2 tasks | 2 files |
 | Phase 22 P01 | 6min | 2 tasks | 2 files |
 | Phase 22 P02 | 6min | 2 tasks | 2 files |
+| Phase 22 P03 | 4min | 2 tasks | 2 files |
 
 ## Previous Milestones
 
@@ -115,6 +116,7 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase ?]: Phase 21-02: per-distro download into separate dirs (debs-2404-*/debs-2604-*, no bare debs-* merge) + sequential ci_publish.sh 2404 then 2604 into one repo-output (Phase-20 mirror-then-include no-clobber); compact labels validated by config.sh VALID_DISTROS (T-21-05/07/08)
 - [Phase ?]: Phase 22-01: per-distro DEB822 doc sections, deprecation wording verbatim D-04/D-11, migration anchor #migrating-from-bare-suite-names shared with Plan 02; doc-grep test tests/test_docs_suites.sh added (local/manual)
 - [Phase ?]: Phase 22-02: index.html (ci_publish.sh heredoc) now ships a default-24.04 distro toggle, two DEB822 snippets per track tab (per-distro Suites), setDistro() swapper, deprecation callout to docs anchor; legacy /usr/share/keyrings one-liners rewritten to /etc/apt/keyrings DEB822 whole-file (ROADMAP SC-4). Active distro-btn reuses .tab-btn.active (white/600/#333) NOT green/blue — green stays reserved for .track.recommended. Three-column package table + available_suites loop preserved (D-10); no trusted=yes in user snippets (T-22-HTML-02). New tests/test_index_html_distro.sh (local/manual, RED→GREEN 15/15)
+- [Phase 22]: Phase 22-03: MIGR-04 CI smoke gate. scripts/smoke_repo_install.sh installs podman-suite by name from a DEB822 file:// source (Trusted: yes, CI-internal only, D-14) inside ubuntu:24.04 and ubuntu:26.04 (resolute fallback) containers, then runs podman info as the gate (D-15). Wired into the publish job between repo assembly and the Pages upload (D-13), unconditional on every publish (D-18); a failure aborts before any deploy, leaving the live repo untouched (D-16). amd64-only (D-17). Distro label and SMOKE_RUNTIME exact-match-validated before interpolation (T-22-SMOKE-01). Execution CI/Lima-deferred.
 
 ### Tech Debt
 
@@ -140,6 +142,6 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last session: 2026-06-07T08:29:03.022Z
+Last session: 2026-06-07T08:42:59.996Z
 Stopped at: Completed 22-02-PLAN.md
 Resume file: None
