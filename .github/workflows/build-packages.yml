@@ -120,19 +120,20 @@ jobs:
         # explicitly (no cartesian product + exclusions). To move a 26.04 cell
         # onto a future GA runner, change its `runner` and set `container: ''`.
         include:
-          - distro: '2404'
-            arch: amd64
-            runner: ubuntu-24.04
-            container: ''
-          - distro: '2404'
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            container: ''
+          # 2404 cells disabled while fixing 2604 container — re-enable once 2604 builds green
+          # - distro: '2404'
+          #   arch: amd64
+          #   runner: ubuntu-24.04
+          #   container: ''
+          # - distro: '2404'
+          #   arch: arm64
+          #   runner: ubuntu-24.04-arm
+          #   container: ''
           - distro: '2604'
             arch: amd64
             runner: ubuntu-24.04
             container: ubuntu:26.04
-          # arm64 2604 cell temporarily disabled while fixing container bash/fuse issues
+          # arm64 2604 cell disabled — re-enable after amd64 cell confirms green
           # - distro: '2604'
           #   arch: arm64
           #   runner: ubuntu-24.04-arm
@@ -299,7 +300,9 @@ jobs:
     # leaves the publish running with only 2404 artifacts (publish_distro already
     # skips distros whose deb dir is empty). 'failure' covers partial cell failure
     # (fail-fast: false); 'cancelled'/'skipped' means no build ran at all.
-    if: always() && (needs.build.result == 'success' || needs.build.result == 'failure')
+    # TEMP: publish disabled while 2404 matrix cells are commented out — re-enable
+    # alongside the full 4-cell matrix restore.
+    if: false && always() && (needs.build.result == 'success' || needs.build.result == 'failure')
     runs-on: ubuntu-24.04
     environment:
       name: github-pages
