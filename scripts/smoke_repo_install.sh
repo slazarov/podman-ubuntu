@@ -29,9 +29,10 @@ set -euo pipefail
 #   TRACK=<track>                 suite track (default: nightly, mirrors the
 #                                 workflow default); SUITE = "${TRACK}-<label>"
 #
-# SECURITY (T-22-SMOKE-01): the distro label and SMOKE_RUNTIME are interpolated
-# into a container-run command / suite name. Both are exact-match-validated
-# against closed whitelists ({2404,2604} and {docker,podman}) BEFORE any use.
+# SECURITY (T-22-SMOKE-01): the distro label, TRACK, and SMOKE_RUNTIME are
+# interpolated into a container-run command / suite name. All three are
+# exact-match-validated against closed whitelists ({2404,2604}, {stable,edge,nightly},
+# and {docker,podman}) BEFORE any use.
 # `Trusted: yes` is intentional here and CONFINED to this CI-internal file://
 # smoke source — it does NOT exercise the GPG Signed-By path real users hit
 # (accepted limitation, D-14) and MUST NEVER appear in user-facing docs or
@@ -56,7 +57,7 @@ echo "========================================"
 # ---------------------------------------------------------------------------
 # 1. Validate the distro-label arg (T-22-SMOKE-01). It is interpolated into the
 #    suite name and the image tag, so it MUST be exactly 2404 or 2604 — anything
-#    else is rejected before use. Derive the suite from the (constrained) TRACK.
+#    else is rejected before use.
 # ---------------------------------------------------------------------------
 LABEL="${1:-}"
 case "${LABEL}" in
@@ -65,6 +66,16 @@ case "${LABEL}" in
     *)
         echo "ERROR: distro-label must be exactly '2404' or '2604' (got '${LABEL}')." >&2
         echo "  Usage: smoke_repo_install.sh <2404|2604> [repo-dir]" >&2
+        exit 1
+        ;;
+esac
+
+# Validate TRACK (T-22-SMOKE-01). TRACK is interpolated into the APT Suites:
+# field; it MUST be exactly one of the three known tracks.
+case "${TRACK:-nightly}" in
+    stable|edge|nightly) ;;
+    *)
+        echo "ERROR: TRACK must be exactly 'stable', 'edge', or 'nightly' (got '${TRACK:-}')." >&2
         exit 1
         ;;
 esac
