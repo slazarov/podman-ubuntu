@@ -21,9 +21,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### CI/CD
 
-- [ ] **CICD-05**: A single workflow builds all four distro×arch combinations (24.04/26.04 × amd64/arm64) via a strategy matrix
-- [ ] **CICD-06**: Ubuntu 26.04 packages are built inside ubuntu:26.04 containers on existing native runners, written runner-agnostic so native ubuntu-26.04 runners are a one-line switch when GA
-- [ ] **CICD-07**: Build caches and artifacts carry a distro dimension (debs-<distro>-<arch> naming, distro in cache keys) so no cross-distro binary contamination can occur
+- [x] **CICD-05**: A single workflow builds all four distro×arch combinations (24.04/26.04 × amd64/arm64) via a strategy matrix
+- [x] **CICD-06**: Ubuntu 26.04 packages are built inside ubuntu:26.04 containers on existing native runners, written runner-agnostic so native ubuntu-26.04 runners are a one-line switch when GA
+- [x] **CICD-07**: Build caches and artifacts carry a distro dimension (debs-<distro>-<arch> naming, distro in cache keys) so no cross-distro binary contamination can occur
 - [ ] **CICD-08**: Publishing remains atomic — the publish job runs only when all four build cells succeed, leaving the live repository intact otherwise
 
 ### Migration & Docs
@@ -70,9 +70,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REPO-06 | Phase 20 | Complete |
 | REPO-07 | Phase 20 | Complete |
 | REPO-08 | Phase 20 | Complete |
-| CICD-05 | Phase 21 | Pending |
-| CICD-06 | Phase 21 | Pending |
-| CICD-07 | Phase 21 | Pending |
+| CICD-05 | Phase 21 | Complete |
+| CICD-06 | Phase 21 | Complete |
+| CICD-07 | Phase 21 | Complete |
 | CICD-08 | Phase 21 | Pending |
 | MIGR-01 | Phase 22 | Pending |
 | MIGR-02 | Phase 22 | Pending |

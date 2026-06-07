@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Ubuntu 26.04 Support
 status: executing
-stopped_at: Phase 20 complete, ready to plan Phase 21
-last_updated: "2026-06-07T02:47:13.545Z"
-last_activity: 2026-06-07 -- Phase 20 complete (UAT 8/9 on Lima VMs, verification 4/4)
+stopped_at: Completed 21-01-PLAN.md
+last_updated: "2026-06-07T03:00:28.738Z"
+last_activity: 2026-06-07 -- Phase 21 execution started
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 13
+  completed_plans: 12
   percent: 50
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-07)
 
 **Core value:** Compile and install Podman on any Debian/Ubuntu system without user interaction.
-**Current focus:** Phase 21 — CI Build Matrix Extension to 26.04
+**Current focus:** Phase 21 — ci-build-matrix-extension-to-26-04
 
 ## Current Position
 
-Phase: 21 (ci-build-matrix-extension-to-26.04)
-Plan: Not started
+Phase: 21 (ci-build-matrix-extension-to-26-04) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-06-07 -- Phase 20 complete (UAT 8/9 on Lima VMs, verification 4/4)
+Last activity: 2026-06-07 -- Phase 21 execution started
 
 Progress: [█████░░░░░] 50% (2/4 v3.0 phases)
 
@@ -58,6 +58,7 @@ Progress: [█████░░░░░] 50% (2/4 v3.0 phases)
 | Phase 20 P20-04 | checkpoint-resume | 2 tasks | 1 files |
 | Phase 20 P05 | 4min | 2 tasks | 5 files |
 | Phase 20 P06 | 12min | 2 tasks | 2 files |
+| Phase 21 P01 | 4min | 1 tasks | 1 files |
 
 ## Previous Milestones
 
@@ -103,6 +104,9 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase ?]: Phase 20-05: WR-01 reads the signing-key fingerprint via 'gpg --list-secret-keys --with-colons | awk -F: /^fpr:/' at both repo_manage.sh sites, deterministically selecting the signing key on a multi-key keyring; WR-03 quotes all four realpath toolpath bootstraps
 - [Phase ?]: 20-06: Chose verbatim-mirror for non-target bare aliases on 26.04 publishes (vs Release-Date stabilization) — lowest-risk, stays within the D-10 rebuild-the-world model (CR-02 closed)
 - [Phase 20]: Post-20-06 fix 53b778f: mirror_suite_verbatim rebuilt as a Release-driven fetch (signed Release is the manifest; indexes curled + hash-verified, by-hash reconstructed locally) — the wget -r crawl broke on path-segmented project-pages URLs AND Pages serves no directory listings. Proven by test_mirror_verbatim.sh (19/19 macOS + VM) and an end-to-end ci_publish.sh run against a path-segmented URL (UAT Test 9, 12/12)
+- [Phase ?]: Phase 21-01: build matrix uses strategy.matrix.include (explicit per-cell distro/arch/runner/container), not a cartesian product — keeps the GA-runner swap a one-line cell edit (CICD-06)
+- [Phase ?]: Phase 21-01: 26.04 cells build inside ubuntu:26.04 containers on native ubuntu-24.04 runners; matrix.arch (not runner.arch) keys the Go cache and artifacts so no cross-distro contamination (CICD-05/07)
+- [Phase ?]: Phase 21-01: publish.needs narrowed to [build]; atomic 4-cell gating + per-distro download deferred to Plan 21-02
 
 ### Tech Debt
 
@@ -128,6 +132,6 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last session: 2026-06-07T02:50:00Z
-Stopped at: Phase 20 complete, ready to plan Phase 21
+Last session: 2026-06-07T03:00:28.731Z
+Stopped at: Completed 21-01-PLAN.md
 Resume file: None

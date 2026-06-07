@@ -146,7 +146,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 21-01-PLAN.md — Collapse build-amd64/build-arm64 into one four-cell strategy.matrix (24.04/26.04 × amd64/arm64), fail-fast:false, runner-agnostic ubuntu:26.04 containers, distro-dimensioned Go caches + debs-<distro>-<arch> artifacts (CICD-05/06/07)
+- [x] 21-01-PLAN.md — Collapse build-amd64/build-arm64 into one four-cell strategy.matrix (24.04/26.04 × amd64/arm64), fail-fast:false, runner-agnostic ubuntu:26.04 containers, distro-dimensioned Go caches + debs-<distro>-<arch> artifacts (CICD-05/06/07)
 
 **Wave 2** *(blocked on Wave 1 — same workflow file)*
 
@@ -197,7 +197,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 18. Edge Track / Nightly Builds | v2.0 | 2/2 | Complete | 2026-03-08 |
 | 19. Per-Distro Versioning & Dependency Mapping | v3.0 | 5/5 | Complete    | 2026-06-06 |
 | 20. Repository Restructure & Migration Aliases | v3.0 | 6/6 | Complete    | 2026-06-07 |
-| 21. CI Build Matrix Extension to 26.04 | v3.0 | 0/2 | Planned | - |
+| 21. CI Build Matrix Extension to 26.04 | v3.0 | 1/2 | In Progress|  |
 | 22. Migration Docs & Installability Smoke Tests | v3.0 | 0/? | Not started | - |
 
 ---
