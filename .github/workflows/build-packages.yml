@@ -15,9 +15,6 @@ on:
           - nightly
         default: stable
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 permissions:
   contents: read
   pages: write
@@ -38,7 +35,7 @@ jobs:
       skip: ${{ steps.detect.outputs.skip }}
     steps:
       - name: Restore last-known SHAs
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /tmp/nightly-sha.json
           key: nightly-sha-v1-${{ github.run_number }}
@@ -127,24 +124,22 @@ jobs:
         # explicitly (no cartesian product + exclusions). To move a 26.04 cell
         # onto a future GA runner, change its `runner` and set `container: ''`.
         include:
-          # 2404 cells disabled while fixing 2604 container — re-enable once 2604 builds green
-          # - distro: '2404'
-          #   arch: amd64
-          #   runner: ubuntu-24.04
-          #   container: ''
-          # - distro: '2404'
-          #   arch: arm64
-          #   runner: ubuntu-24.04-arm
-          #   container: ''
+          - distro: '2404'
+            arch: amd64
+            runner: ubuntu-24.04
+            container: ''
+          - distro: '2404'
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            container: ''
           - distro: '2604'
             arch: amd64
             runner: ubuntu-24.04
             container: ubuntu:26.04
-          # arm64 2604 cell disabled — re-enable after amd64 cell confirms green
-          # - distro: '2604'
-          #   arch: arm64
-          #   runner: ubuntu-24.04-arm
-          #   container: ubuntu:26.04
+          - distro: '2604'
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            container: ubuntu:26.04
     steps:
       # 2604 cells start from a bare ubuntu:26.04 container as root, which lacks
       # the tooling the host runner images already ship (sudo + a sudo-capable
@@ -169,7 +164,7 @@ jobs:
       # this container. Compilation never opens /dev/fuse (it is a runtime-only
       # requirement of fuse-overlayfs), so the build step sets
       # SKIP_FUSE_CHECK=true for container cells instead of creating the node.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Resolve build track
         id: track
@@ -179,7 +174,7 @@ jobs:
           echo "Build track: ${TRACK}"
 
       - name: Cache Go modules and build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-mod
@@ -288,7 +283,7 @@ jobs:
           fi
           ./scripts/package_all.sh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           # CICD-07: distro + arch in the artifact name — the four names are
           # debs-2404-amd64, debs-2404-arm64, debs-2604-amd64, debs-2604-arm64.
@@ -312,15 +307,13 @@ jobs:
     # leaves the publish running with only 2404 artifacts (publish_distro already
     # skips distros whose deb dir is empty). 'failure' covers partial cell failure
     # (fail-fast: false); 'cancelled'/'skipped' means no build ran at all.
-    # TEMP: publish disabled while 2404 matrix cells are commented out — re-enable
-    # alongside the full 4-cell matrix restore.
-    if: false && always() && (needs.build.result == 'success' || needs.build.result == 'failure')
+    if: always() && (needs.build.result == 'success' || needs.build.result == 'failure')
     runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Run doc and HTML unit tests
         run: |
@@ -344,14 +337,14 @@ jobs:
       # the same path, so 26.04 binaries can never land in a 24.04 publish or
       # vice versa.
       - name: Download 24.04 artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: debs-2404-*
           path: all-debs-2404/
           merge-multiple: true
 
       - name: Download 26.04 artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         # 2604 build cells may have failed — continue so 2404 publish proceeds.
         continue-on-error: true
         with:
@@ -425,14 +418,14 @@ jobs:
             echo ">>> Skipping 2604 smoke — ${TRACK}-2604 suite not in repo-output (2604 build may have failed)"
           fi
 
-      - uses: actions/configure-pages@v4
+      - uses: actions/configure-pages@v6
 
       # Atomic deploy (CICD-08): both distros are assembled into repo-output
       # before this single one-shot Pages deploy. The live repository is
       # replaced in one step or not at all.
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: repo-output/
 
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
