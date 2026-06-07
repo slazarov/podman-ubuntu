@@ -76,8 +76,7 @@ assert_absent "$SRC" "/usr/share/keyrings/"     "legacy /usr/share/keyrings/ pat
 assert_absent "$SRC" "deb [signed-by="          "legacy deb one-liner snippet absent"
 assert_absent "$SRC" "trusted=yes"               "trusted=yes absent from user-facing snippets"
 
-# ----- D-10 guard: package-versions table + accumulator loop preserved -----
-assert_contains "$SRC" "available_suites"       "available_suites[] accumulator loop preserved (D-10)"
+# ----- D-10 guard: package-versions table preserved -----
 assert_contains "$SRC" "<th>Package</th>"       "package-versions table header preserved (D-10)"
 
 echo ""

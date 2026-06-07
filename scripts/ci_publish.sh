@@ -459,16 +459,6 @@ echo ">>> Generating index.html landing page..."
 # entities are not double-escaped.
 esc() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g'; }
 
-# Collect available suites across the full 9-suite set. The empty-skip below
-# (Step that appends suite info) hides suites whose Packages index is empty, so
-# the as-yet-unpopulated -2604 suites stay hidden until they carry content (D-18).
-available_suites=()
-for s in "${ALL_SUITES[@]}"; do
-    if [[ -d "${OUTPUT_DIR}/dists/${s}" ]]; then
-        available_suites+=("${s}")
-    fi
-done
-
 cat > "${OUTPUT_DIR}/index.html" << 'HTMLEOF'
 <!DOCTYPE html>
 <html lang="en">
