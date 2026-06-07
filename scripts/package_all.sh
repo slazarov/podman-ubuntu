@@ -121,8 +121,11 @@ extract_version_nightly() {
                 | head -1 | sed 's|common/v||')
             ;;
         pasta)
-            # Special case: pasta uses plain datestamp with NO tilde suffix
-            echo "${datestamp}"
+            # pasta has no semver tags; use datestamp~git<sha> so nightly versions
+            # are always distinct from stable (plain datestamp) even on the same
+            # calendar day — prevents reprepro pool collisions when nightly and
+            # stable are published in the same CI day with different upstream commits.
+            echo "${datestamp}~git${short_sha}"
             return
             ;;
         *)

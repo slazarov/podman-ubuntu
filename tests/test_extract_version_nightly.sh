@@ -224,10 +224,11 @@ result=$(extract_version_nightly "podman" "${TEST_TMPDIR}/podman")
 assert_matches "podman version format" "^5\.9\.0~git${TODAY}\.[0-9a-f]{7}$" "${result}"
 
 echo ""
-echo "Test 2: Pasta nightly version (date-only, no tilde)"
+echo "Test 2: Pasta nightly version (date~git<sha> to prevent pool collisions)"
 result=$(extract_version_nightly "pasta" "${TEST_TMPDIR}/pasta")
-# Should be a plain YYYYMMDD datestamp
-assert_matches "pasta returns plain date" "^[0-9]{8}$" "${result}"
+# Should be YYYYMMDD~git<7-char-sha> — the tilde-sha suffix prevents nightly
+# from sharing a version string with same-day stable builds in the reprepro pool.
+assert_matches "pasta returns date~git<sha>" "^[0-9]{8}~git[0-9a-f]{7}$" "${result}"
 
 echo ""
 echo "Test 3: container-configs nightly version (uses common/ tag prefix)"
