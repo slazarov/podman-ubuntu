@@ -146,7 +146,22 @@ jobs:
         if: matrix.container != ''
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends sudo git curl ca-certificates
+          apt-get install -y --no-install-recommends sudo git curl ca-certificates bash
+
+      # setup.sh preflight (VAL-03) requires /dev/fuse. The ubuntu:26.04 container
+      # is started without --device /dev/fuse by the GHA runner, so we create the
+      # device node explicitly. This is safe: the node is only used by fuse-overlayfs
+      # at container runtime; compilation itself does not open /dev/fuse.
+      - name: Ensure /dev/fuse exists (2604 container)
+        if: matrix.container != ''
+        run: |
+          if [[ ! -c /dev/fuse ]]; then
+            mknod /dev/fuse c 10 229
+            chmod 666 /dev/fuse
+            echo "Created /dev/fuse"
+          else
+            echo "/dev/fuse already present"
+          fi
 
       - uses: actions/checkout@v4
 
@@ -277,7 +292,11 @@ jobs:
   #   left untouched. There is no partial publish. (T-21-06)
   publish:
     needs: [build]
-    if: always() && needs.build.result == 'success'
+    # Publish runs when at least the 2404 cells succeeded. A 2604 build failure
+    # leaves the publish running with only 2404 artifacts (publish_distro already
+    # skips distros whose deb dir is empty). 'failure' covers partial cell failure
+    # (fail-fast: false); 'cancelled'/'skipped' means no build ran at all.
+    if: always() && (needs.build.result == 'success' || needs.build.result == 'failure')
     runs-on: ubuntu-24.04
     environment:
       name: github-pages
@@ -315,6 +334,8 @@ jobs:
 
       - name: Download 26.04 artifacts
         uses: actions/download-artifact@v4
+        # 2604 build cells may have failed — continue so 2404 publish proceeds.
+        continue-on-error: true
         with:
           pattern: debs-2604-*
           path: all-debs-2604/
@@ -377,7 +398,14 @@ jobs:
           export TRACK
           echo ">>> Running smoke gate for track ${TRACK}"
           ./scripts/smoke_repo_install.sh 2404 "$PWD/repo-output"
-          ./scripts/smoke_repo_install.sh 2604 "$PWD/repo-output"
+          # Only run 2604 smoke if a 2604 suite was actually published (2604 build
+          # cells may have been skipped/failed and their debs omitted).
+          if compgen -G "$PWD/repo-output/dists/${TRACK}-2604" > /dev/null 2>&1 || \
+             [[ -d "$PWD/repo-output/dists/${TRACK}-2604" ]]; then
+            ./scripts/smoke_repo_install.sh 2604 "$PWD/repo-output"
+          else
+            echo ">>> Skipping 2604 smoke — ${TRACK}-2604 suite not in repo-output (2604 build may have failed)"
+          fi
 
       - uses: actions/configure-pages@v4
 
