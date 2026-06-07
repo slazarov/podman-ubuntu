@@ -92,14 +92,60 @@ jobs:
           fi
 
   # ============================================
-  # Build on native amd64 runner
+  # Build all distro x arch cells in one matrix
   # ============================================
-  build-amd64:
+  # CICD-05: one strategy.matrix fans out to all four cells in a single run.
+  # fail-fast: false — a 26.04 cell failure must NOT abort the 24.04 cells.
+  # CICD-06: the runner label is a matrix FIELD (matrix.runner), not hardcoded
+  #   in any step. When GA ubuntu-26.04 / ubuntu-26.04-arm runners land, switch
+  #   a 26.04 cell off its container by editing that cell's `runner` (and
+  #   blanking its `container`) — a one-line change per cell, no step edits.
+  # CICD-07: Go cache keys and artifact names carry a distro dimension so a
+  #   26.04 build can never reuse a 24.04 cache or land in a 24.04 artifact.
+  build:
     needs: [check-changes]
     if: always() && (github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.skip != 'true')
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
+    # Empty matrix.container => GitHub Actions runs directly on the runner host
+    # (the 2404 cells). The 2604 cells run inside an ubuntu:26.04 container on
+    # the same native amd64/arm64 host runners.
+    container: ${{ matrix.container }}
     timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        # One include entry per cell pairs distro<->arch<->runner<->container
+        # explicitly (no cartesian product + exclusions). To move a 26.04 cell
+        # onto a future GA runner, change its `runner` and set `container: ''`.
+        include:
+          - distro: '2404'
+            arch: amd64
+            runner: ubuntu-24.04
+            container: ''
+          - distro: '2404'
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            container: ''
+          - distro: '2604'
+            arch: amd64
+            runner: ubuntu-24.04
+            container: ubuntu:26.04
+          - distro: '2604'
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            container: ubuntu:26.04
     steps:
+      # 2604 cells start from a bare ubuntu:26.04 container as root, which lacks
+      # the tooling the host runner images already ship (sudo + a sudo-capable
+      # user, git, curl, ca-certificates). The 2404 cells skip this — their host
+      # runner already provides these. setup.sh/install_dependencies.sh install
+      # the actual build deps; this only bootstraps enough to reach setup.sh.
+      - name: Bootstrap ubuntu:26.04 container prerequisites
+        if: matrix.container != ''
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends sudo git curl ca-certificates
+
       - uses: actions/checkout@v4
 
       - name: Resolve build track
@@ -115,16 +161,27 @@ jobs:
           path: |
             ~/.cache/go-mod
             ~/.cache/go-build
-          key: go-${{ runner.arch }}-${{ steps.track.outputs.track }}-${{ github.run_number }}
+          # CICD-07: distro + explicit matrix.arch in the key isolate caches per
+          # distro AND arch (matrix.arch is authoritative regardless of how the
+          # runner reports runner.arch), preventing cross-distro contamination.
+          key: go-${{ matrix.distro }}-${{ matrix.arch }}-${{ steps.track.outputs.track }}-${{ github.run_number }}
           restore-keys: |
-            go-${{ runner.arch }}-${{ steps.track.outputs.track }}-
-            go-${{ runner.arch }}-
+            go-${{ matrix.distro }}-${{ matrix.arch }}-${{ steps.track.outputs.track }}-
+            go-${{ matrix.distro }}-${{ matrix.arch }}-
 
       - name: Update apt cache
         run: sudo apt-get update
 
       - name: Build all components
         run: |
+          # Dotted DISTRO override (T-21-03): closed case map from the matrix
+          # label to the dotted VERSION_ID detect_distro_version_id validates
+          # against ^[0-9]+\.[0-9]+$. Anything outside the allowlist hard-fails.
+          case "${{ matrix.distro }}" in
+            2404) DISTRO_DOTTED=24.04 ;;
+            2604) DISTRO_DOTTED=26.04 ;;
+            *) echo "ERROR: unknown matrix.distro '${{ matrix.distro }}'" >&2; exit 1 ;;
+          esac
           DESTDIR="${{ runner.temp }}/podman-staging"
           mkdir -p "$DESTDIR"
           # Ensure Go cache dirs exist and are writable by root
@@ -133,6 +190,9 @@ jobs:
           # Point Go caches to runner-accessible paths for actions/cache compatibility
           ENV_ARGS="DEBIAN_FRONTEND=noninteractive DESTDIR=$DESTDIR"
           ENV_ARGS="$ENV_ARGS GOCACHE=$HOME/.cache/go-build GOMODCACHE=$HOME/.cache/go-mod"
+          # Thread the dotted DISTRO override into setup.sh so config.sh composes
+          # VERSION_SUFFIX=~ubuntu${DISTRO_DOTTED}.podman1 for this cell.
+          ENV_ARGS="$ENV_ARGS DISTRO=$DISTRO_DOTTED"
           if [[ "${{ steps.track.outputs.track }}" == "stable" ]]; then
             while IFS= read -r line; do
               [[ "$line" =~ ^[[:space:]]*# || -z "$line" ]] && continue
@@ -179,6 +239,15 @@ jobs:
 
       - name: Package all components
         run: |
+          # Same dotted DISTRO override so package_all.sh's config.sh source
+          # composes the correct per-distro VERSION_SUFFIX and the .deb filenames
+          # carry ~ubuntu${DISTRO_DOTTED}.podman1 for this cell.
+          case "${{ matrix.distro }}" in
+            2404) DISTRO_DOTTED=24.04 ;;
+            2604) DISTRO_DOTTED=26.04 ;;
+            *) echo "ERROR: unknown matrix.distro '${{ matrix.distro }}'" >&2; exit 1 ;;
+          esac
+          export DISTRO="$DISTRO_DOTTED"
           export PATH="/opt/go/$(ls /opt/go/)/bin:$HOME/go/bin:$PATH"
           export DESTDIR="${{ runner.temp }}/podman-staging"
           if [[ "${{ steps.track.outputs.track }}" == "nightly" ]]; then
@@ -188,96 +257,19 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: debs-amd64
-          path: output/*.deb
-          retention-days: 30
-
-  # ============================================
-  # Build on native arm64 runner
-  # ============================================
-  build-arm64:
-    needs: [check-changes]
-    if: always() && (github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.skip != 'true')
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 180
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Resolve build track
-        id: track
-        run: |
-          TRACK="${{ inputs.build_track || 'nightly' }}"
-          echo "track=${TRACK}" >> "$GITHUB_OUTPUT"
-          echo "Build track: ${TRACK}"
-
-      - name: Cache Go modules and build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-mod
-            ~/.cache/go-build
-          key: go-${{ runner.arch }}-${{ steps.track.outputs.track }}-${{ github.run_number }}
-          restore-keys: |
-            go-${{ runner.arch }}-${{ steps.track.outputs.track }}-
-            go-${{ runner.arch }}-
-
-      - name: Update apt cache
-        run: sudo apt-get update
-
-      - name: Build all components
-        run: |
-          DESTDIR="${{ runner.temp }}/podman-staging"
-          mkdir -p "$DESTDIR"
-          mkdir -p "$HOME/.cache/go-build" "$HOME/.cache/go-mod"
-          ENV_ARGS="DEBIAN_FRONTEND=noninteractive DESTDIR=$DESTDIR"
-          ENV_ARGS="$ENV_ARGS GOCACHE=$HOME/.cache/go-build GOMODCACHE=$HOME/.cache/go-mod"
-          if [[ "${{ steps.track.outputs.track }}" == "stable" ]]; then
-            while IFS= read -r line; do
-              [[ "$line" =~ ^[[:space:]]*# || -z "$line" ]] && continue
-              line="${line#export }"
-              key="${line%%=*}"
-              val="${line#*=}"
-              val="${val%\"}"
-              val="${val#\"}"
-              ENV_ARGS="$ENV_ARGS ${key}=${val}"
-            done < versions-stable.env
-          elif [[ "${{ steps.track.outputs.track }}" == "edge" ]]; then
-            # Edge builds components from latest tags but needs pinned build tools
-            eval "$(grep -E '^export (PROTOC_VERSION|PROTOC_TAG)=' versions-stable.env)"
-            ENV_ARGS="$ENV_ARGS PROTOC_VERSION=$PROTOC_VERSION PROTOC_TAG=$PROTOC_TAG"
-          elif [[ "${{ steps.track.outputs.track }}" == "nightly" ]]; then
-            ENV_ARGS="$ENV_ARGS NIGHTLY_BUILD=true SHALLOW_CLONE=false"
-          fi
-          sudo env $ENV_ARGS ./setup.sh
-          sudo chown -R "$(id -u):$(id -g)" "$HOME/.cache/go-build" "$HOME/.cache/go-mod"
-        timeout-minutes: 150
-
-      - name: Install nFPM
-        run: |
-          export PATH="/opt/go/$(ls /opt/go/)/bin:$HOME/go/bin:$PATH"
-          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.45.0
-
-      - name: Package all components
-        run: |
-          export PATH="/opt/go/$(ls /opt/go/)/bin:$HOME/go/bin:$PATH"
-          export DESTDIR="${{ runner.temp }}/podman-staging"
-          if [[ "${{ steps.track.outputs.track }}" == "nightly" ]]; then
-            export NIGHTLY_BUILD=true
-          fi
-          ./scripts/package_all.sh
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: debs-arm64
+          # CICD-07: distro + arch in the artifact name — the four names are
+          # debs-2404-amd64, debs-2404-arm64, debs-2604-amd64, debs-2604-arm64.
+          name: debs-${{ matrix.distro }}-${{ matrix.arch }}
           path: output/*.deb
           retention-days: 30
 
   # ============================================
   # Publish APT repository to GitHub Pages
   # ============================================
+  # Atomic 4-cell gating + per-distro download is retrofitted in Phase 21 Plan 02
   publish:
-    needs: [build-amd64, build-arm64]
-    if: always() && needs.build-amd64.result == 'success' && needs.build-arm64.result == 'success'
+    needs: [build]
+    if: always() && needs.build.result == 'success'
     runs-on: ubuntu-24.04
     environment:
       name: github-pages
