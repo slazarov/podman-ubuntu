@@ -1,27 +1,27 @@
 # APT Repository Setup
 
-This project provides a custom APT repository for Podman and its ecosystem tools, compiled from source for Ubuntu 24.04 (Noble Numbat). Packages are available for both amd64 and arm64 architectures.
+This project provides a custom APT repository for Podman and its ecosystem tools, compiled from source for **Ubuntu 24.04 (Noble Numbat)** and **Ubuntu 26.04 (Resolute Raccoon)** LTS. Packages are available for both amd64 and arm64 architectures.
 
-The repository is hosted on GitHub Pages and serves two suites:
+The repository is hosted on GitHub Pages and serves three release tracks per Ubuntu version, selected by a distro-qualified suite name:
 
-- **stable** -- tested release versions
-- **edge** -- latest upstream tags, rebuilt automatically
+- **stable** -- tested, pinned release versions (`stable-2404` / `stable-2604`)
+- **edge** -- latest upstream tags, rebuilt automatically (`edge-2404` / `edge-2604`)
+- **nightly** -- upstream HEAD, built daily (`nightly-2404` / `nightly-2604`)
 
-## Quick Start
+Pick the section below that matches your Ubuntu version.
 
-Add the repository and install the full Podman stack in 4 commands:
+> **Note:** Deprecated in v3.0 (June 2026). Bare suite names will be removed in a future v3.1 release. Monitor the changelog or watch the GitHub repository for the removal notice. The bare suite names `stable`, `edge`, and `nightly` are superseded by the distro-qualified names shown below. If you are an existing user with `Suites: stable` (or `edge`/`nightly`) in your `.sources` file, see [Migrating from Bare Suite Names](#migrating-from-bare-suite-names).
+
+## Ubuntu 24.04 (Noble Numbat)
+
+First install the GPG signing key (see [GPG Signing Key](#gpg-signing-key) below), then add the repository and install the full Podman stack:
 
 ```bash
-# Download the GPG signing key
-sudo mkdir -p /etc/apt/keyrings
-sudo wget -qO /etc/apt/keyrings/podman-ubuntu.gpg \
-  https://slazarov.github.io/podman-ubuntu/podman-ubuntu.gpg
-
 # Add the repository (DEB822 format)
 sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources << 'EOF'
 Types: deb
 URIs: https://slazarov.github.io/podman-ubuntu
-Suites: stable
+Suites: stable-2404
 Components: main
 Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
 EOF
@@ -31,25 +31,53 @@ sudo apt update
 sudo apt install -y podman-suite
 ```
 
-The `podman-suite` meta-package installs all components. See below for installing individual packages.
+To track a different release line on 24.04, change the `Suites:` line to `edge-2404` (latest upstream tags) or `nightly-2404` (daily HEAD builds).
 
-## Using the Edge Suite
+## Ubuntu 26.04 (Resolute Raccoon)
 
-The edge suite tracks the latest upstream release tags. To use edge instead of stable, change the `Suites` line in the DEB822 source file:
+First install the GPG signing key (see [GPG Signing Key](#gpg-signing-key) below), then add the repository and install the full Podman stack:
 
 ```bash
+# Add the repository (DEB822 format)
 sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources << 'EOF'
 Types: deb
 URIs: https://slazarov.github.io/podman-ubuntu
-Suites: edge
+Suites: stable-2604
 Components: main
 Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
 EOF
 
+# Update and install
 sudo apt update
+sudo apt install -y podman-suite
 ```
 
-Edge packages are rebuilt when new upstream releases are detected. Use edge if you want the newest features; use stable for production systems.
+To track a different release line on 26.04, change the `Suites:` line to `edge-2604` (latest upstream tags) or `nightly-2604` (daily HEAD builds).
+
+The `podman-suite` meta-package installs all components. See [Individual Packages](#installing-individual-packages) below for installing components separately.
+
+## GPG Signing Key
+
+The signing key is the same for every Ubuntu version and every track -- download it once. Both per-distro setup sections above reference the same `Signed-By` path (`/etc/apt/keyrings/podman-ubuntu.gpg`):
+
+```bash
+# Download the GPG signing key
+sudo mkdir -p /etc/apt/keyrings
+sudo wget -qO /etc/apt/keyrings/podman-ubuntu.gpg \
+  https://slazarov.github.io/podman-ubuntu/podman-ubuntu.gpg
+```
+
+## Track Selection
+
+Each track is published per Ubuntu version with a distro-qualified suite name. Swap the `Suites:` line in your `.sources` file to switch tracks:
+
+| Track | Ubuntu 24.04 suite | Ubuntu 26.04 suite | Description |
+|-------|--------------------|--------------------|-------------|
+| stable | `stable-2404` | `stable-2604` | Tested, pinned release versions -- recommended for production |
+| edge | `edge-2404` | `edge-2604` | Latest upstream release tags, rebuilt automatically |
+| nightly | `nightly-2404` | `nightly-2604` | Upstream HEAD, built daily -- newest features, least tested |
+
+Use stable for production systems; use edge or nightly if you want the newest features.
 
 ## Installing Individual Packages
 
@@ -83,7 +111,51 @@ This automatically pulls in required dependencies (crun, conmon, netavark, aardv
 - **amd64** (x86_64)
 - **arm64** (aarch64)
 
-Both architectures are built natively (not cross-compiled) and included in the same repository. APT selects the correct architecture automatically.
+Both architectures are built natively (not cross-compiled) for both Ubuntu 24.04 and Ubuntu 26.04, and included in the same repository. APT selects the correct architecture automatically.
+
+## Migrating from Bare Suite Names
+
+If you set up this repository before v3.0, your `.sources` file likely uses a bare suite name (`Suites: stable`, `edge`, or `nightly`). These bare names are **deprecated** and will be removed in a future v3.1 release. Switch to the distro-qualified name for your Ubuntu version.
+
+The bare suite names continue to serve **Ubuntu 24.04** packages during the deprecation window, so 24.04 users are not broken immediately -- but you should still migrate. Ubuntu 26.04 users must switch to a `-2604` suite to receive 26.04 packages.
+
+**Option 1 -- sed one-liner.** Replace the bare suite name in place (run the line matching your Ubuntu version and track; the example shows `stable`):
+
+```bash
+# Ubuntu 24.04 users
+sudo sed -i 's/Suites: stable$/Suites: stable-2404/' /etc/apt/sources.list.d/podman-ubuntu.sources
+
+# Ubuntu 26.04 users
+sudo sed -i 's/Suites: stable$/Suites: stable-2604/' /etc/apt/sources.list.d/podman-ubuntu.sources
+```
+
+For the edge or nightly tracks, substitute `edge` or `nightly` for `stable` on both sides of the replacement (e.g. `s/Suites: edge$/Suites: edge-2404/`).
+
+**Option 2 -- paste the full replacement block.** Overwrite the `.sources` file with the distro-qualified block. Ubuntu 24.04:
+
+```bash
+sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources << 'EOF'
+Types: deb
+URIs: https://slazarov.github.io/podman-ubuntu
+Suites: stable-2404
+Components: main
+Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+EOF
+```
+
+Ubuntu 26.04:
+
+```bash
+sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources << 'EOF'
+Types: deb
+URIs: https://slazarov.github.io/podman-ubuntu
+Suites: stable-2604
+Components: main
+Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+EOF
+```
+
+After editing, run `sudo apt update` to refresh the package lists.
 
 ## Troubleshooting
 
@@ -126,7 +198,7 @@ The repository URL is `https://slazarov.github.io/podman-ubuntu`. Ensure:
 
 - The `URIs` line in your sources file has no trailing slash
 - GitHub Pages is live (check the URL in a browser)
-- The `Suites` value matches an available suite (`stable` or `edge`)
+- The `Suites` value matches an available distro-qualified suite for your Ubuntu version (`stable-2404` / `edge-2404` / `nightly-2404` for 24.04; `stable-2604` / `edge-2604` / `nightly-2604` for 26.04)
 
 ### Packages conflict with official Ubuntu packages
 
@@ -143,4 +215,4 @@ sudo apt install podman
 
 - This repository uses the modern DEB822 `.sources` format with `Signed-By` for per-repository key binding. Legacy one-line source format and global key trust are not supported.
 - The GPG signing key is Ed25519, which is supported by Ubuntu 24.04 and later.
-- All packages use the `~podman1` version suffix to ensure official Ubuntu packages (when available at the same upstream version) take priority during upgrades.
+- Packages use a per-distro version suffix so the correct build is selected for your Ubuntu version: `~ubuntu24.04.podman1` on 24.04 and `~ubuntu26.04.podman1` on 26.04. This ensures official Ubuntu packages (when available at the same upstream version) take priority during upgrades, and keeps the two distros' builds distinct in the same repository.
