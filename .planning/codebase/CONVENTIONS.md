@@ -1,129 +1,194 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-03-02
+**Analysis Date:** 2026-06-07
 
-## Naming Patterns
+## Script Header
 
-**Files:**
-- All lowercase with underscores: `functions.sh`, `setup.sh`, `install_rust.sh`
-- Descriptive names that clearly indicate purpose
-- No file extensions beyond `.sh`
+Every script must open with these three lines in this exact order:
 
-**Functions:**
-- Snake case: `detect_architecture()`, `git_clone_update()`, `log_component()`
-- Prefix with underscores for private/internal functions (e.g., `_FUNCTIONS_SH_SOURCED`)
-- Meaningful names that describe what the function does
+```bash
+#!/bin/bash
+
+# Abort on Error
+set -euo pipefail
+```
+
+`set -euo pipefail` is mandatory. The `-u` flag means every variable reference
+must be initialized; use `${VAR:-default}` for optional values and
+`${VAR:?message}` where a value is required.
+
+## Toolpath Bootstrap
+
+Every script that needs to reference project files must include the canonical
+toolpath block immediately after the error-mode line, before sourcing anything:
+
+```bash
+relativepath="../"   # adjust depth: "./" for root-level, "../" for scripts/
+if [[ ! -v toolpath ]]; then
+    scriptpath=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+    toolpath=$(realpath --canonicalize-missing ${scriptpath}/${relativepath})
+fi
+```
+
+Root-level scripts (`setup.sh`, `config.sh`, `functions.sh`) use `relativepath="./"`.
+Scripts under `scripts/` use `relativepath="../"`.
+
+## Source Order
+
+For build scripts under `scripts/`, source in this fixed order:
+
+```bash
+source "${toolpath}/config.sh"
+source "${toolpath}/functions.sh"
+trap 'error_handler $? $LINENO "$BASH_SOURCE"' ERR
+```
+
+The error trap is set AFTER sourcing, not before. `config.sh` sources
+`functions.sh` internally; `functions.sh` sources `config.sh` at its tail —
+they are mutually aware but guard against re-entrant sourcing with the
+`_SOURCED` pattern (see below).
+
+## Guard Against Recursive Sourcing
+
+Files that are sourced (not executed directly) guard themselves:
+
+```bash
+[[ -n "${_FUNCTIONS_SH_SOURCED:-}" ]] && return 0
+_FUNCTIONS_SH_SOURCED=1
+```
+
+Use a unique variable per file: `_CONFIG_SH_SOURCED`, `_FUNCTIONS_SH_SOURCED`,
+etc. The variable is NOT exported so child processes re-source independently.
+
+## Naming Conventions
 
 **Variables:**
-- Environment variables: UPPERCASE with underscores (e.g., `DEBIAN_FRONTEND`, `BUILD_ROOT`)
-- Local variables: lowercase with underscores (e.g., `lcomponent`, `lfolder`)
-- Global variables exported with `export` keyword
-- Boolean flags follow shell convention (empty string = false, non-empty = true)
+- `UPPERCASE` for all environment and config variables: `ARCH`, `BUILD_ROOT`, `PODMAN_TAG`
+- `lowercase` for local script variables: `arch`, `latest`, `toolchain_ver`
+- Function parameters prefixed with `l` for clarity: `lrepository`, `lfolder`, `lcomponent`, `ltag`
+- Always quote variable expansions: `"${VAR}"` — never bare `$VAR`
 
-**Constants:**
-- All uppercase: `ARCH`, `GOARCH`, `PROTOC_ARCH`
-- Defined at script level or in config.sh
+**Functions:**
+- `snake_case` for function names: `git_clone_update`, `detect_architecture`, `log_build_output`
+- Function-local variables declared with `local`: `local lrepository="$1"`
 
-## Code Style
+**Files:**
+- Build scripts: `build_<component>.sh` (e.g., `build_podman.sh`, `build_conmon.sh`)
+- Install scripts: `install_<tool>.sh` (e.g., `install_go.sh`, `install_rust.sh`)
+- Test scripts: `test_<subject>.sh` (e.g., `test_detect_distro_depends.sh`)
 
-**Formatting:**
-- Strict mode enabled at script start: `set -euo pipefail`
-- Indentation: 2 spaces (consistent throughout)
-- Line length: No strict limit, but wrapped for readability
-- Trailing whitespace: None
+## Configuration Pattern
 
-**Linting:**
-- No explicit linter configured
-- Scripts run with bash strict mode for basic error checking
+All tuneable values live in `config.sh` and use `${VAR:-default}` overridable
+defaults. Never hardcode a version or distro value in a build script:
 
-## Import Organization
+```bash
+# Correct — overridable
+export PODMAN_TAG="${PODMAN_TAG:-}"
+export SHALLOW_CLONE="${SHALLOW_CLONE:-true}"
+export NIGHTLY_BUILD="${NIGHTLY_BUILD:-false}"
 
-**Order:**
-1. Configuration variables (if any)
-2. Toolpath determination
-3. Load external scripts: `config.sh` then `functions.sh`
-4. Set error traps
-5. Main script logic
-
-**Path Aliases:**
-- `toolpath` variable used for consistent script root reference
-- Relative paths calculated from script location
-- `realpath --canonicalize-missing` for robust path resolution
+# Wrong — hardcoded
+PODMAN_TAG="v5.5.2"
+```
 
 ## Error Handling
 
-**Patterns:**
-- Centralized `error_handler()` function in `functions.sh`
-- Trap setup: `trap 'error_handler $? $LINENO "$BASH_SOURCE"' ERR`
-- Error output sent to stderr (`>&2`)
-- Detailed error messages with script name, line number, and exit code
-- Debug suggestion: `bash -x ${script_name}`
+**Error trap:** `trap 'error_handler $? $LINENO "$BASH_SOURCE"' ERR`
 
-**Error Handler Format:**
+`error_handler` is defined in `functions.sh`. It prints script name, line
+number, and exit code to stderr with a banner, then calls `exit "${exit_code}"`.
+
+**Hard-fail vs skip:**
+- Missing/invalid required input: hard-fail with `return 1` or `exit 1`
+- Optional/platform-specific operations (e.g., dpkg on macOS): skip with a
+  `SKIP:` message and `continue` or `|| true`
+- Commands in pipelines that may fail: append `|| true` explicitly when failure
+  is acceptable: `git pull origin "${default_branch}" || true`
+
+**Running commands outside pipelines:** When the exit status of a command is
+needed, run it outside a pipeline and capture output separately (CR-01 pattern):
+
 ```bash
-error_handler() {
-    local exit_code=$1
-    local line_number=$2
-    local script_name="${3##*/}"  # basename
+# Correct
+if ! dpkg_out="$(dpkg-query -S "${resolved}" 2>&1)"; then
+    echo "ERROR: ..." >&2
+    return 1
+fi
 
-    echo "" >&2
-    echo "========================================" >&2
-    echo "ERROR: Installation Failed" >&2
-    echo "========================================" >&2
-    echo "  Script:    ${script_name}" >&2
-    echo "  Line:      ${line_number}" >&2
-    echo "  Exit Code: ${exit_code}" >&2
-    echo "========================================" >&2
-    echo "" >&2
-    echo "To debug, run: bash -x ${script_name}" >&2
-    echo "" >&2
+# Wrong — exit status lost in pipeline under set -euo pipefail
+dpkg-query -S "${resolved}" | awk '{print $1}'
+```
 
-    exit "${exit_code}"
-}
+## Progress Reporting
+
+Use `functions.sh` helpers for progress output in build scripts:
+
+```bash
+step_start "Cloning repository"
+git_clone_update https://github.com/containers/podman.git podman
+step_done
+
+step_start "Building"
+run_logged make -j "$NPROC" PREFIX=/usr
+step_done
+```
+
+`step_start` prints `"  ${name}..."` and records a timestamp.
+`step_done` prints `"  Done: ${name} (Xm Ys)"`.
+
+`run_logged` suppresses stdout/stderr on success; on failure it dumps the last
+40 lines of the build log to stderr and returns non-zero.
+
+## Helper Usage
+
+Do NOT inline logic when a `functions.sh` helper exists:
+
+| Task | Use |
+|------|-----|
+| Clone/fetch a repo | `git_clone_update <url> <dir>` |
+| Checkout a tag | `git_checkout "${TAG}"` |
+| Build with logged output | `run_logged make ...` |
+| Detect CPU arch | `detect_architecture` |
+| Detect distro version | `detect_distro_version_id` |
+
+## Indentation
+
+4-space indent inside function bodies. No tabs.
+
+## ShellCheck
+
+Run `shellcheck` over any touched script before finishing. CI does not enforce
+it, but it is expected. Suppress false positives with inline directives:
+
+```bash
+# shellcheck disable=SC1091
+source "${toolpath}/config.sh"
 ```
 
 ## Comments
 
-**When to Comment:**
-- Complex logic sections
-- Environment variable explanations
-- Version compatibility notes
-- Important configuration choices
+- Section headers use `# ============` banners (40 `=` chars)
+- Inline comments explain WHY (design decisions, pitfalls, requirement IDs)
+  not WHAT (the code already says what)
+- Requirement/decision IDs appear in comments: `(D-03)`, `(T-19-01)`, `(CR-01)`, `(WR-05)`
+- Function header comments describe parameters, return values, and behavioral
+  constraints when non-obvious
 
-**JSDoc/TSDoc:**
-- Function headers explain parameters and purpose
-- Example: `get_latest_tag() - Get latest Git tag excluding release candidates`
+## Packages and Versioning
 
-## Function Design
+- All `.deb` packages are named `podman-*`
+- Version suffix: `~ubuntu${DISTRO_VERSION_ID}.podman1` (e.g. `~ubuntu24.04.podman1`)
+- Packages declare `Conflicts`/`Replaces`/`Provides` against official Ubuntu
+  packages in `packaging/nfpm/*.yaml` — always preserve these fields
 
-**Size:**
-- Functions are focused and single-purpose
-- Typical length: 10-50 lines
-- Maximum: ~100 lines for complex operations
+## Commit Messages
 
-**Parameters:**
-- Local parameter variables prefixed with `l` (e.g., `lcomponent`, `lfolder`)
-- Validation at start of function
-- Default values handled with parameter expansion
-
-**Return Values:**
-- Use `echo` for return values
-- Functions that don't return explicitly should use `exit` for errors
-- Results captured with command substitution: `result=$(function_name)`
-
-## Module Design
-
-**Exports:**
-- Environment variables exported with `export`
-- Functions defined globally for use by sourced scripts
-- Script-level variables use `_SOURCED` pattern to prevent recursion
-
-**Barrel Files:**
-- `functions.sh` serves as main utility module
-- `config.sh` contains all configuration variables
-- No explicit barrel files pattern
+Conventional Commits style:
+- `feat:`, `fix:`, `chore:`, `ci:`, `docs:`
+- Phase-scoped: `fix(19):`, `docs(phase-21):`
+- Branch names: `fix/...`, `feat/...`
 
 ---
 
-*Convention analysis: 2026-03-02*
-```
+*Convention analysis: 2026-06-07*
