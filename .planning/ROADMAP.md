@@ -141,11 +141,16 @@ Plans:
   3. Build caches and artifacts carry a distro dimension (`debs-<distro>-<arch>` artifact names, distro in cache keys) and the publish download never merges across distros, so no 26.04 binary can leak into a 24.04 package or vice versa
   4. The publish job runs only when all four build cells succeed; if any cell fails, the live repository is left untouched
 
-**Plans**: TBD
+**Plans**: 2 plans in 2 waves
 
 Plans:
+**Wave 1**
 
-- [ ] 21-01: TBD
+- [ ] 21-01-PLAN.md — Collapse build-amd64/build-arm64 into one four-cell strategy.matrix (24.04/26.04 × amd64/arm64), fail-fast:false, runner-agnostic ubuntu:26.04 containers, distro-dimensioned Go caches + debs-<distro>-<arch> artifacts (CICD-05/06/07)
+
+**Wave 2** *(blocked on Wave 1 — same workflow file)*
+
+- [ ] 21-02-PLAN.md — Gate publish on all four cells (atomic, CICD-08), per-distro download (no cross-distro merge), per-distro ci_publish.sh runs into one repo-output, single Pages deploy, + tests/test_ci_matrix.sh contract test (CICD-05/08)
 
 ### Phase 22: Migration Docs & Installability Smoke Tests
 
@@ -192,7 +197,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 18. Edge Track / Nightly Builds | v2.0 | 2/2 | Complete | 2026-03-08 |
 | 19. Per-Distro Versioning & Dependency Mapping | v3.0 | 5/5 | Complete    | 2026-06-06 |
 | 20. Repository Restructure & Migration Aliases | v3.0 | 6/6 | Complete    | 2026-06-07 |
-| 21. CI Build Matrix Extension to 26.04 | v3.0 | 0/? | Not started | - |
+| 21. CI Build Matrix Extension to 26.04 | v3.0 | 0/2 | Planned | - |
 | 22. Migration Docs & Installability Smoke Tests | v3.0 | 0/? | Not started | - |
 
 ---
