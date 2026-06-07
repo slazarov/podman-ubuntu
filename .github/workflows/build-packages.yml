@@ -41,7 +41,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/nightly-sha.json
-          key: nightly-sha-v1
+          key: nightly-sha-v1-${{ github.run_number }}
+          restore-keys: |
+            nightly-sha-v1-
 
       - name: Detect upstream changes
         id: detect
