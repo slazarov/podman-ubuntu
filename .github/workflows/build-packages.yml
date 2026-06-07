@@ -160,29 +160,15 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends sudo git curl ca-certificates bash
 
-      # setup.sh preflight (VAL-03) requires /dev/fuse. The ubuntu:26.04 container
-      # is started without --device /dev/fuse by the GHA runner, so we create the
-      # device node explicitly. This is safe: the node is only used by fuse-overlayfs
-      # at container runtime; compilation itself does not open /dev/fuse.
-      - name: Ensure /dev/fuse exists (2604 container)
-        if: matrix.container != ''
-        # shell: sh + POSIX [ ] — keep this step bash-free so it works even if
-        # the bootstrap step's bash install ever regresses.
-        shell: sh
-        run: |
-          # pid1 starttime fingerprints the container instance — compare with the
-          # same line in "Build all components" to detect a container restart
-          # (which wipes the /dev tmpfs and with it the node created here).
-          echo "pid1 starttime: $(awk '{print $22}' /proc/1/stat)"
-          if [ ! -c /dev/fuse ]; then
-            mknod /dev/fuse c 10 229
-            chmod 666 /dev/fuse
-            echo "Created /dev/fuse"
-          else
-            echo "/dev/fuse already present"
-          fi
-          ls -la /dev/fuse
-
+      # NOTE on /dev/fuse in the 2604 container (debugged 2026-06-07): the GHA
+      # job container is created WITHOUT --device /dev/fuse. mknod'ing the node
+      # inside the container succeeds (Docker's default device cgroup allows
+      # `c *:* m`) but read/write on 10:229 stays DENIED by the device cgroup —
+      # the kernel consults it on every permission check of a device inode, even
+      # for root. So setup.sh's VAL-03 ([[ -r /dev/fuse ]]) can never pass in
+      # this container. Compilation never opens /dev/fuse (it is a runtime-only
+      # requirement of fuse-overlayfs), so the build step sets
+      # SKIP_FUSE_CHECK=true for container cells instead of creating the node.
       - uses: actions/checkout@v4
 
       - name: Resolve build track
@@ -230,33 +216,10 @@ jobs:
           # Thread the dotted DISTRO override into setup.sh so config.sh composes
           # VERSION_SUFFIX=~ubuntu${DISTRO_DOTTED}.podman1 for this cell.
           ENV_ARGS="$ENV_ARGS DISTRO=$DISTRO_DOTTED"
-          # /dev/fuse vanishes between the dedicated mknod step and this one in
-          # the 2604 container (observed in runs #142/#143: "Created /dev/fuse"
-          # then VAL-03 fails 2s later — container /dev is tmpfs and does not
-          # reliably survive across steps). Re-create it HERE, in the same shell
-          # invocation that runs setup.sh, so nothing can wipe it before the
-          # VAL-03 preflight check. pid1 starttime pairs with the same line in
-          # the mknod step to confirm/refute a container restart as root cause.
-          echo "pid1 starttime: $(awk '{print $22}' /proc/1/stat)"
-          if [[ ! -c /dev/fuse ]]; then
-            sudo mknod /dev/fuse c 10 229
-            sudo chmod 666 /dev/fuse
-            echo "Created /dev/fuse (was missing at build-step time)"
-          fi
-          ls -la /dev/fuse
-          # Root-cause diagnostics (run #144): /dev/fuse is visible to this step
-          # shell but VAL-03 fails inside `sudo env ... ./setup.sh`. Probe which
-          # primitive fails under sudo on ubuntu:26.04 (sudo-rs + uutils).
-          echo "=== sudo /dev/fuse visibility diagnostics ==="
-          sudo ls -la /dev/fuse || echo "DIAG: sudo ls FAILS"
-          sudo bash -c '[[ -c /dev/fuse ]] && echo "DIAG: sudo bash -c OK" || echo "DIAG: sudo bash -c FAIL"
-                        [[ -r /dev/fuse ]] && echo "DIAG: sudo bash -r OK" || echo "DIAG: sudo bash -r FAIL"'
-          echo "DIAG: step-shell mountinfo:"; grep ' /dev ' /proc/self/mountinfo || true
-          echo "DIAG: sudo mountinfo:"; sudo grep ' /dev ' /proc/self/mountinfo || true
-          echo "=== end diagnostics ==="
-          # Container cells: the fuse gate is advisory at build time (nothing
-          # opens /dev/fuse during compilation) — don't let the missing device
-          # under sudo block the build while the visibility issue is diagnosed.
+          # Container cells: /dev/fuse is unusable inside the job container (the
+          # device cgroup denies r/w on 10:229 even for root — see the NOTE above
+          # the checkout step). The fuse gate is advisory at build time (nothing
+          # opens /dev/fuse during compilation), so downgrade VAL-03 to a warning.
           if [[ -n "${{ matrix.container }}" ]]; then
             ENV_ARGS="$ENV_ARGS SKIP_FUSE_CHECK=true"
           fi

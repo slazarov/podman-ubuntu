@@ -236,6 +236,7 @@ run_preflight_checks() {
             "FUSE check failed but SKIP_FUSE_CHECK=true (container build environment)" \
             "fuse-overlayfs will require /dev/fuse at runtime on the target system" \
             "Only set SKIP_FUSE_CHECK=true for build-only environments"
+    else
         preflight_error "VAL-03" \
             "FUSE kernel support not available" \
             "/dev/fuse not found or not accessible" \
