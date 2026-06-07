@@ -160,52 +160,107 @@ declare -A IS_VERBATIM
 VERBATIM_SUITES=()
 total_other_count=0
 
-# mirror_suite_verbatim <suite> — copy the live dists/<suite>/ metadata tree and
-# the pool entries it references into ${OUTPUT_DIR}, preserving original
-# signatures. Returns 0 if the live tree existed and was mirrored, 1 otherwise
-# (first deploy / not published). Never aborts the caller.
+# mirror_suite_verbatim <suite> [repo-url] [output-dir] — reconstruct the live
+# dists/<suite>/ metadata tree byte-identically from the signed Release's own
+# file manifest and place it into the output repo, preserving the original
+# signatures. repo-url / output-dir default to the caller's REPO_URL /
+# OUTPUT_DIR globals (overridable so tests can drive the function directly).
+# Returns 0 if the live tree existed and was reconstructed verbatim, 1
+# otherwise (first deploy / not published / CDN integrity mismatch). Never
+# aborts the caller.
+#
+# T-20-17 fix history: the previous `wget -r` crawl broke two ways against
+# GitHub Pages — `-nH --cut-dirs=0` kept the project-pages path segment, so
+# the tree landed at <mirror>/<repo-name>/dists/... while the guard checked
+# <mirror>/dists/..., and Pages serves no directory listings for a recursive
+# crawl to enumerate anyway. The signed Release already lists every index it
+# checksums, so fetch THAT manifest explicitly: top-level signed metadata
+# verbatim, every listed index verified against its signed hash, and the
+# adjacent by-hash/<ALGO>/<hash> copies reconstructed locally — by-hash files
+# are byte-identical copies of the canonical indexes by definition (same
+# parser and layout as add_byhash_and_resign, repo_byhash.sh). No crawling,
+# no URL-shape dependency.
 mirror_suite_verbatim() {
     local lsuite="$1"
-    local lrelease_url="${REPO_URL}/dists/${lsuite}/Release"
-    local lrelease
-    lrelease=$(curl -sfL "${lrelease_url}" 2>/dev/null || true)
-    if [[ -z "${lrelease}" ]]; then
-        return 1
-    fi
+    local lrepo_url="${2:-${REPO_URL}}"
+    local loutdir="${3:-${OUTPUT_DIR}}"
+    local lbase="${lrepo_url}/dists/${lsuite}"
 
     local lmirror
     lmirror=$(mktemp -d)
-    # Mirror the whole dists/<suite>/ subtree verbatim (recursive), so
-    # Release/InRelease/Release.gpg, per-arch Packages/Release, and by-hash/
-    # arrive byte-identical to the live repo.
-    if ! wget -q -r -np -nH --cut-dirs=0 -P "${lmirror}" \
-            "${REPO_URL}/dists/${lsuite}/" 2>/dev/null; then
-        # wget unavailable or partial — fall back to an explicit fetch of the
-        # signed top-level metadata at minimum.
-        mkdir -p "${lmirror}/dists/${lsuite}"
-        local lf
-        for lf in Release InRelease Release.gpg; do
-            curl -sfL -o "${lmirror}/dists/${lsuite}/${lf}" \
-                "${REPO_URL}/dists/${lsuite}/${lf}" 2>/dev/null || true
-        done
-        for arch in amd64 arm64; do
-            mkdir -p "${lmirror}/dists/${lsuite}/main/binary-${arch}/by-hash"
-            curl -sfL -o "${lmirror}/dists/${lsuite}/main/binary-${arch}/Packages" \
-                "${REPO_URL}/dists/${lsuite}/main/binary-${arch}/Packages" 2>/dev/null || true
-            curl -sfL -o "${lmirror}/dists/${lsuite}/main/binary-${arch}/Release" \
-                "${REPO_URL}/dists/${lsuite}/main/binary-${arch}/Release" 2>/dev/null || true
-        done
-    fi
+    local ldist="${lmirror}/dists/${lsuite}"
+    mkdir -p "${ldist}"
 
-    # Place the verbatim dists/<suite>/ tree into the output unchanged.
-    if [[ -d "${lmirror}/dists/${lsuite}" ]]; then
-        mkdir -p "${OUTPUT_DIR}/dists"
-        rm -rf "${OUTPUT_DIR}/dists/${lsuite}"
-        cp -a "${lmirror}/dists/${lsuite}" "${OUTPUT_DIR}/dists/${lsuite}"
-    else
+    # The signed Release is both the existence probe and the file manifest. A
+    # fetch failure means first deploy / suite not yet published (D-14) — no-op.
+    if ! curl -sfL -o "${ldist}/Release" "${lbase}/Release" 2>/dev/null; then
         rm -rf "${lmirror}"
         return 1
     fi
+
+    # The signatures must arrive verbatim — without them the suite cannot be
+    # served unchanged, so fall back to the re-export path.
+    local lf
+    for lf in InRelease Release.gpg; do
+        if ! curl -sfL -o "${ldist}/${lf}" "${lbase}/${lf}" 2>/dev/null; then
+            echo "  WARNING: ${lsuite}: live ${lf} missing — not serving verbatim" >&2
+            rm -rf "${lmirror}"
+            return 1
+        fi
+    done
+
+    # Fetch every checksummed index the Release lists (same "<hash> <size>
+    # <relpath>" section parser as repo_byhash.sh), verify it against the
+    # signed hash, and reconstruct the adjacent by-hash copy. `tr` instead of
+    # ${algo,,} so the function stays runnable under macOS bash 3.2 in tests.
+    local algo hash relpath src bhdir cmd rh
+    for algo in SHA256 SHA512; do
+        cmd="$(echo "${algo}" | tr '[:upper:]' '[:lower:]')sum"
+        while read -r hash relpath; do
+            [[ -n "${relpath}" ]] || continue
+            src="${ldist}/${relpath}"
+            if [[ ! -f "${src}" ]]; then
+                mkdir -p "$(dirname "${src}")"
+                # A listed-but-missing index means the live tree is incomplete
+                # and cannot be reproduced verbatim.
+                if ! curl -sfL -o "${src}" "${lbase}/${relpath}" 2>/dev/null; then
+                    echo "  WARNING: ${lsuite}: listed index ${relpath} missing from live tree — not serving verbatim" >&2
+                    rm -rf "${lmirror}"
+                    return 1
+                fi
+            fi
+            # Integrity: fetched bytes must match the signed manifest, or a
+            # mid-deploy CDN race handed us a stale index — abort verbatim and
+            # let the re-export path regenerate the suite consistently.
+            if command -v "${cmd}" >/dev/null 2>&1; then
+                rh="$(${cmd} "${src}" | awk '{print $1}')"
+                if [[ "${rh}" != "${hash}" ]]; then
+                    echo "  WARNING: ${lsuite}: ${relpath} does not match signed ${algo} hash — not serving verbatim" >&2
+                    rm -rf "${lmirror}"
+                    return 1
+                fi
+            fi
+            bhdir="$(dirname "${src}")/by-hash/${algo}"
+            mkdir -p "${bhdir}"
+            cp -f "${src}" "${bhdir}/${hash}"
+        done < <(awk -v a="${algo}:" '$0==a{f=1;next} /^[A-Za-z0-9-]+:/{f=0} f{print $1, $3}' "${ldist}/Release")
+    done
+
+    # by-hash copies of the served Release itself (parity with the live tree,
+    # which carries them from add_byhash_and_resign step 3).
+    for algo in SHA256 SHA512; do
+        cmd="$(echo "${algo}" | tr '[:upper:]' '[:lower:]')sum"
+        command -v "${cmd}" >/dev/null 2>&1 || continue
+        rh="$(${cmd} "${ldist}/Release" | awk '{print $1}')"
+        mkdir -p "${ldist}/by-hash/${algo}"
+        cp -f "${ldist}/Release" "${ldist}/by-hash/${algo}/${rh}"
+    done
+
+    # Place the verbatim dists/<suite>/ tree into the output unchanged. Staged
+    # under mktemp so a mid-fetch failure never leaves a partial tree behind.
+    mkdir -p "${loutdir}/dists"
+    rm -rf "${loutdir}/dists/${lsuite}"
+    cp -a "${ldist}" "${loutdir}/dists/${lsuite}"
     rm -rf "${lmirror}"
     return 0
 }
