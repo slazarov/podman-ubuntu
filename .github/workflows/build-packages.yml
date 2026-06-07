@@ -113,6 +113,13 @@ jobs:
     # the same native amd64/arm64 host runners.
     container: ${{ matrix.container }}
     timeout-minutes: 180
+    # Container jobs default run: steps to /bin/sh (bare ubuntu:26.04 has no
+    # bash until bootstrap installs it), which breaks every [[ ]] in the build
+    # steps. Force bash for the whole job; the two pre-bash bootstrap steps
+    # below override back to sh explicitly.
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
@@ -146,6 +153,9 @@ jobs:
       # the actual build deps; this only bootstraps enough to reach setup.sh.
       - name: Bootstrap ubuntu:26.04 container prerequisites
         if: matrix.container != ''
+        # shell: sh — bash does not exist in the bare container until this step
+        # installs it, so the job-level bash default would fail here.
+        shell: sh
         run: |
           apt-get update
           apt-get install -y --no-install-recommends sudo git curl ca-certificates bash
@@ -156,6 +166,9 @@ jobs:
       # at container runtime; compilation itself does not open /dev/fuse.
       - name: Ensure /dev/fuse exists (2604 container)
         if: matrix.container != ''
+        # shell: sh + POSIX [ ] — keep this step bash-free so it works even if
+        # the bootstrap step's bash install ever regresses.
+        shell: sh
         run: |
           if [ ! -c /dev/fuse ]; then
             mknod /dev/fuse c 10 229
@@ -192,7 +205,6 @@ jobs:
         run: sudo apt-get update
 
       - name: Build all components
-        shell: bash
         run: |
           # Dotted DISTRO override (T-21-03): closed case map from the matrix
           # label to the dotted VERSION_ID detect_distro_version_id validates
@@ -249,7 +261,10 @@ jobs:
           ls -la "$DESTDIR/usr/bin/" 2>/dev/null || echo "usr/bin/ does not exist"
           echo ""
           echo "=== DESTDIR total file count ==="
-          find "$DESTDIR" -type f 2>/dev/null | wc -l
+          # `|| echo 0` — under bash -o pipefail a missing DESTDIR would fail
+          # the pipeline, and this step runs if: always() (i.e. after failures
+          # when DESTDIR may not exist).
+          find "$DESTDIR" -type f 2>/dev/null | wc -l || echo 0
 
       - name: Install nFPM
         run: |
@@ -258,7 +273,6 @@ jobs:
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.45.0
 
       - name: Package all components
-        shell: bash
         run: |
           # Same dotted DISTRO override so package_all.sh's config.sh source
           # composes the correct per-distro VERSION_SUFFIX and the .deb filenames
