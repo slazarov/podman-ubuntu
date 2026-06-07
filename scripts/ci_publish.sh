@@ -614,10 +614,13 @@ for _track in stable edge nightly; do
     done < <(awk '/^Package:/{pkg=$2} /^Version:/{print pkg, $2}' "${_pkgs_file}" | sort)
 done
 
-# Union of all known package names, sorted.
+# Union of all known package names, sorted. grep -v '^$' removes the spurious
+# empty-string element that printf emits when all three associative arrays are
+# empty, making the [[ ${#_all_pkgs[@]} -gt 0 ]] guard reliable regardless of
+# invocation order (e.g., a first-run 2604-only publish with no bare-alias files).
 readarray -t _all_pkgs < <(
     { printf '%s\n' "${!_stable_v[@]}" "${!_edge_v[@]}" "${!_nightly_v[@]}"; } \
-    | sort -u
+    | grep -v '^$' | sort -u
 )
 
 if [[ ${#_all_pkgs[@]} -gt 0 ]]; then
