@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Ubuntu 26.04 Support
 status: verifying
-stopped_at: Completed 21-01-PLAN.md
-last_updated: "2026-06-07T03:17:17.520Z"
+stopped_at: Phase 22 context gathered
+last_updated: "2026-06-07T06:42:03.321Z"
 last_activity: 2026-06-07
 progress:
   total_phases: 4
@@ -136,6 +136,6 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last session: 2026-06-07T03:07:02.864Z
-Stopped at: Completed 21-01-PLAN.md
-Resume file: None
+Last session: 2026-06-07T06:42:03.314Z
+Stopped at: Phase 22 context gathered
+Resume file: .planning/phases/22-migration-docs-installability-smoke-tests/22-CONTEXT.md
