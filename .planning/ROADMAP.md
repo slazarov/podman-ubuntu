@@ -60,7 +60,7 @@ Full v2.0 phase details archived at `.planning/milestones/v2.0-ROADMAP.md`.
 
 - [x] **Phase 19: Per-Distro Versioning & Dependency Mapping** - Distro-tagged version suffixes and per-distro runtime dependency resolution so each distro's .deb is uniquely identified and correctly installable (completed 2026-06-06)
 - [x] **Phase 20: Repository Restructure & Migration Aliases** - Six versioned suites from one URL with legacy aliases that keep existing users working (verification 4/4 passed; UAT 8/9 — production-URL smoke deferred to first CI publish, see 20-UAT.md) (completed 2026-06-07)
-- [ ] **Phase 21: CI Build Matrix Extension to 26.04** - A single distro×arch build matrix that produces native 26.04 packages with atomic, distro-isolated publishing
+- [x] **Phase 21: CI Build Matrix Extension to 26.04** - A single distro×arch build matrix that produces native 26.04 packages with atomic, distro-isolated publishing (completed 2026-06-07)
 - [ ] **Phase 22: Migration Docs & Installability Smoke Tests** - Per-distro setup docs, deprecation timeline, and CI-verified install + `podman info` in real containers
 
 ## Phase Details
@@ -150,7 +150,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 — same workflow file)*
 
-- [ ] 21-02-PLAN.md — Gate publish on all four cells (atomic, CICD-08), per-distro download (no cross-distro merge), per-distro ci_publish.sh runs into one repo-output, single Pages deploy, + tests/test_ci_matrix.sh contract test (CICD-05/08)
+- [x] 21-02-PLAN.md — Gate publish on all four cells (atomic, CICD-08), per-distro download (no cross-distro merge), per-distro ci_publish.sh runs into one repo-output, single Pages deploy, + tests/test_ci_matrix.sh contract test (CICD-05/08)
 
 ### Phase 22: Migration Docs & Installability Smoke Tests
 
@@ -197,7 +197,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 18. Edge Track / Nightly Builds | v2.0 | 2/2 | Complete | 2026-03-08 |
 | 19. Per-Distro Versioning & Dependency Mapping | v3.0 | 5/5 | Complete    | 2026-06-06 |
 | 20. Repository Restructure & Migration Aliases | v3.0 | 6/6 | Complete    | 2026-06-07 |
-| 21. CI Build Matrix Extension to 26.04 | v3.0 | 1/2 | In Progress|  |
+| 21. CI Build Matrix Extension to 26.04 | v3.0 | 2/2 | Complete   | 2026-06-07 |
 | 22. Migration Docs & Installability Smoke Tests | v3.0 | 0/? | Not started | - |
 
 ---
