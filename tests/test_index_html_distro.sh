@@ -3,7 +3,8 @@
 # test_index_html_distro.sh — string assertions on the index.html heredoc
 # emitted by scripts/ci_publish.sh Step 5. The heredoc is the authoritative
 # string, so this greps the ci_publish.sh source directly (no need to run the
-# generator). LOCAL/MANUAL only — NOT wired into CI (RESEARCH Wave 0 gap).
+# generator). Also auto-run in CI via the "Run doc and HTML unit tests" step
+# in the publish job (WR-05).
 #
 # Covers MIGR-02 (per-distro distro toggle + DEB822 snippets + setDistro JS)
 # and MIGR-03 (deprecation callout linking to the docs migration anchor).

@@ -7,8 +7,8 @@
 # that the CI-internal `trusted=yes` smoke-test shortcut never leaks into the
 # user-facing docs (T-22-DOC-01 security boundary).
 #
-# LOCAL/MANUAL only — run via `bash tests/test_docs_suites.sh`. Not auto-run in CI
-# (tests/ are not wired into .github/workflows/build-packages.yml).
+# Run via `bash tests/test_docs_suites.sh`. Also auto-run in CI via the
+# "Run doc and HTML unit tests" step in the publish job (WR-05).
 
 set -euo pipefail
 

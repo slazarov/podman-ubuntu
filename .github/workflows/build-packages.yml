@@ -285,6 +285,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Run doc and HTML unit tests
+        run: |
+          bash tests/test_docs_suites.sh
+          bash tests/test_index_html_distro.sh
+
       - name: Resolve build track
         id: track
         run: |
