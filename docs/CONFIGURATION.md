@@ -32,6 +32,7 @@ group them by purpose.
 | `SHALLOW_CLONE` | Optional | `true` | Shallow-clone git repositories to reduce network transfer. Set to `false` for development/debugging (required for nightly `git describe` support). |
 | `DESTDIR` | **Required** for packaging | none | Staging tree that build scripts install into and `package_all.sh` reads from. `package_all.sh` exits with an error if it is unset or does not point to an existing directory (example: `/tmp/podman-staging`). |
 | `BUILD_ROOT` | Optional | `${toolpath}/build` | Root directory for build artifacts. Created automatically. |
+| `SKIP_FUSE_CHECK` | Optional | `false` | When `true`, a failed VAL-03 preflight check (`/dev/fuse` missing) is downgraded from a hard error to a warning. Intended for container build environments (CI) where the device is not exposed but compilation never opens it — fuse-overlayfs only needs `/dev/fuse` at runtime on the target system. |
 
 ### Component versions (build track selection)
 

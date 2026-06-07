@@ -226,9 +226,16 @@ run_preflight_checks() {
     fi
 
     # VAL-03: FUSE support (ERROR - required for fuse-overlayfs)
+    # SKIP_FUSE_CHECK=true downgrades a failed check to a warning. Intended for
+    # container build environments (CI) where /dev/fuse is not exposed but
+    # compilation never opens the device — fuse is only needed at runtime.
     if check_fuse_support; then
         preflight_ok "VAL-03" "FUSE kernel support available"
-    else
+    elif [[ "${SKIP_FUSE_CHECK:-false}" == "true" ]]; then
+        preflight_warn "VAL-03" \
+            "FUSE check failed but SKIP_FUSE_CHECK=true (container build environment)" \
+            "fuse-overlayfs will require /dev/fuse at runtime on the target system" \
+            "Only set SKIP_FUSE_CHECK=true for build-only environments"
         preflight_error "VAL-03" \
             "FUSE kernel support not available" \
             "/dev/fuse not found or not accessible" \
