@@ -266,7 +266,13 @@ jobs:
   # ============================================
   # Publish APT repository to GitHub Pages
   # ============================================
-  # Atomic 4-cell gating + per-distro download is retrofitted in Phase 21 Plan 02
+  # CICD-08 (atomic publish): this job is gated on the matrixed `build` job's
+  #   AGGREGATE result. Because `build` is a single matrix job with
+  #   `fail-fast: false`, `needs.build.result` is 'success' ONLY when EVERY one
+  #   of the four cells (24.04/26.04 × amd64/arm64) succeeded; if any single
+  #   cell fails (e.g. a 26.04 build break) the aggregate result is 'failure'
+  #   and this publish job is skipped entirely — the live GitHub Pages repo is
+  #   left untouched. There is no partial publish. (T-21-06)
   publish:
     needs: [build]
     if: always() && needs.build.result == 'success'
@@ -282,14 +288,29 @@ jobs:
         run: |
           TRACK="${{ inputs.build_track || 'nightly' }}"
           echo "track=${TRACK}" >> "$GITHUB_OUTPUT"
-          # Single distro for this phase (24.04 only). The Phase-21 build matrix
-          # replaces this literal with a per-distro matrix var — a one-line change.
-          echo "distro=2404" >> "$GITHUB_OUTPUT"
+          echo "Build track: ${TRACK}"
+          # NOTE: distro is no longer a single step output here. Both distros
+          # (2404 and 2604) are downloaded and published in sequence below, each
+          # with its own compact label fed to ci_publish.sh.
 
-      - uses: actions/download-artifact@v4
+      # CICD-07 / T-21-05 (no cross-distro merge): each distro is downloaded into
+      # its OWN directory. `merge-multiple: true` here is scoped to a single
+      # distro's two arch artifacts only (e.g. debs-2404-amd64 + debs-2404-arm64
+      # -> all-debs-2404/). No step ever merges debs-2404-* and debs-2604-* into
+      # the same path, so 26.04 binaries can never land in a 24.04 publish or
+      # vice versa.
+      - name: Download 24.04 artifacts
+        uses: actions/download-artifact@v4
         with:
-          pattern: debs-*
-          path: all-debs/
+          pattern: debs-2404-*
+          path: all-debs-2404/
+          merge-multiple: true
+
+      - name: Download 26.04 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: debs-2604-*
+          path: all-debs-2604/
           merge-multiple: true
 
       - name: Install reprepro
@@ -297,19 +318,47 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y reprepro
 
+      # Per-distro sequential publish into ONE accumulating repo-output: 2404
+      # first, then 2604. ci_publish.sh's mirror-then-include model
+      # (OTHER_SUITES = ALL_SUITES − PUBLISH_TARGETS) means the 2604 run mirrors
+      # the 2404 run's freshly-published suites as OTHER_SUITES into the same
+      # repo-output rather than clobbering them (T-21-08, Phase-20 verified). The
+      # compact labels 2404/2604 are passed verbatim — config.sh validates them
+      # against VALID_DISTROS=(2404 2604) (T-21-07).
       - name: Build and publish repository
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
-          ./scripts/ci_publish.sh \
-            "${{ steps.track.outputs.track }}" \
-            "${{ steps.track.outputs.distro }}" \
-            "all-debs" \
-            "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}" \
-            "repo-output"
+          REPO_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          TRACK="${{ steps.track.outputs.track }}"
+
+          # publish_distro <compact-label> <deb-dir>: skip (with a logged
+          # message) if the distro's download dir holds no .deb files. Gating
+          # should prevent this, but ci_publish.sh hard-fails on an empty deb
+          # dir; skipping keeps an unexpected-but-non-fatal empty cell from
+          # aborting the publish of the populated distro.
+          publish_distro() {
+            local label="$1"
+            local deb_dir="$2"
+            local count
+            count=$(find "${deb_dir}" -maxdepth 1 -name '*.deb' -type f 2>/dev/null | wc -l)
+            if [[ "${count}" -eq 0 ]]; then
+              echo "WARNING: no .deb files in ${deb_dir} — skipping ci_publish.sh for ${label}"
+              return 0
+            fi
+            echo ">>> Publishing ${label} (${count} debs from ${deb_dir})"
+            ./scripts/ci_publish.sh "${TRACK}" "${label}" "${deb_dir}" "${REPO_URL}" "repo-output"
+          }
+
+          # 2404 first, then 2604 — explicit ordering into one repo-output.
+          publish_distro "2404" "all-debs-2404"
+          publish_distro "2604" "all-debs-2604"
 
       - uses: actions/configure-pages@v4
 
+      # Atomic deploy (CICD-08): both distros are assembled into repo-output
+      # before this single one-shot Pages deploy. The live repository is
+      # replaced in one step or not at all.
       - uses: actions/upload-pages-artifact@v3
         with:
           path: repo-output/
