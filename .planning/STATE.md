@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Ubuntu 26.04 Support
-status: Ready to plan Phase 21
-stopped_at: Phase 20 complete (UAT 8/9, verification 4/4), ready to plan Phase 21
-last_updated: "2026-06-07T02:50:00.000Z"
-last_activity: 2026-06-07 -- Phase 20 UAT executed on Lima VMs (8/9 passed, verbatim CI path proven end-to-end); phase marked complete
+status: executing
+stopped_at: Phase 20 complete, ready to plan Phase 21
+last_updated: "2026-06-07T02:47:13.545Z"
+last_activity: 2026-06-07 -- Phase 20 complete (UAT 8/9 on Lima VMs, verification 4/4)
 progress:
   total_phases: 4
   completed_phases: 2
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-07)
 
 Phase: 21 (ci-build-matrix-extension-to-26.04)
 Plan: Not started
-Status: Ready to plan
+Status: Ready to execute
 Last activity: 2026-06-07 -- Phase 20 complete (UAT 8/9 on Lima VMs, verification 4/4)
 
 Progress: [█████░░░░░] 50% (2/4 v3.0 phases)
