@@ -26,6 +26,7 @@ apt-get install -y \
 
 
 apt-get install -y \
+  gettext-base \
   git \
   iptables \
   libassuan-dev \
