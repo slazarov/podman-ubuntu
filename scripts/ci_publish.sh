@@ -492,6 +492,9 @@ pre { padding: 1rem; overflow-x: auto; }
 .tab-btn { padding: 0.5rem 1.5rem; border: 1px solid #ddd; background: #f4f4f4; cursor: pointer; font-size: 0.95em; }
 .tab-btn:first-child { border-radius: 6px 0 0 0; }
 .tab-btn:last-child { border-radius: 0 6px 0 0; }
+.distro-group { margin: 1.5rem 0 0.5rem; }
+.distro-btn { padding: 0.5rem 1.5rem; border: 1px solid #ddd; background: #f4f4f4; cursor: pointer; font-size: 0.95em; margin-right: 0.25rem; border-radius: 4px; }
+.distro-btn.active { background: #fff; border-color: #333; font-weight: 600; }
 .tab-btn.active { background: #fff; border-bottom-color: #fff; font-weight: 600; }
 .tab-content { display: none; border: 1px solid #ddd; border-top: none; border-radius: 0 0 6px 6px; padding: 1rem; }
 .tab-content.active { display: block; }
@@ -523,9 +526,16 @@ th { background: #f4f4f4; }
 
 <h2>Setup</h2>
 
+<div class="distro-group">
+  <strong>Your Ubuntu version:</strong>
+  <button class="distro-btn active" onclick="setDistro('2404')">Ubuntu 24.04</button>
+  <button class="distro-btn" onclick="setDistro('2604')">Ubuntu 26.04</button>
+</div>
+
 <p>1. Import the signing key:</p>
-<pre><code>curl -fsSL https://REPO_URL_PLACEHOLDER/podman-ubuntu.gpg \
-  | sudo tee /usr/share/keyrings/podman-ubuntu.gpg > /dev/null</code></pre>
+<pre><code>sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://REPO_URL_PLACEHOLDER/podman-ubuntu.gpg \
+  | sudo tee /etc/apt/keyrings/podman-ubuntu.gpg > /dev/null</code></pre>
 
 <p>2. Add the repository — pick your track:</p>
 <div class="tab-group">
@@ -535,18 +545,58 @@ th { background: #f4f4f4; }
     <button class="tab-btn" onclick="showTab('nightly')">nightly</button>
   </div>
   <div id="tab-stable" class="tab-content active">
-    <pre><code>echo "deb [signed-by=/usr/share/keyrings/podman-ubuntu.gpg] https://REPO_URL_PLACEHOLDER stable main" \
-  | sudo tee /etc/apt/sources.list.d/podman-ubuntu.list</code></pre>
+    <pre class="snippet" data-distro="2404"><code>sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources &lt;&lt; 'EOF'
+Types: deb
+URIs: https://REPO_URL_PLACEHOLDER
+Suites: stable-2404
+Components: main
+Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+EOF</code></pre>
+    <pre class="snippet" data-distro="2604" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources &lt;&lt; 'EOF'
+Types: deb
+URIs: https://REPO_URL_PLACEHOLDER
+Suites: stable-2604
+Components: main
+Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+EOF</code></pre>
   </div>
   <div id="tab-edge" class="tab-content">
-    <pre><code>echo "deb [signed-by=/usr/share/keyrings/podman-ubuntu.gpg] https://REPO_URL_PLACEHOLDER edge main" \
-  | sudo tee /etc/apt/sources.list.d/podman-ubuntu.list</code></pre>
+    <pre class="snippet" data-distro="2404"><code>sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources &lt;&lt; 'EOF'
+Types: deb
+URIs: https://REPO_URL_PLACEHOLDER
+Suites: edge-2404
+Components: main
+Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+EOF</code></pre>
+    <pre class="snippet" data-distro="2604" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources &lt;&lt; 'EOF'
+Types: deb
+URIs: https://REPO_URL_PLACEHOLDER
+Suites: edge-2604
+Components: main
+Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+EOF</code></pre>
   </div>
   <div id="tab-nightly" class="tab-content">
-    <pre><code>echo "deb [signed-by=/usr/share/keyrings/podman-ubuntu.gpg] https://REPO_URL_PLACEHOLDER nightly main" \
-  | sudo tee /etc/apt/sources.list.d/podman-ubuntu.list</code></pre>
+    <pre class="snippet" data-distro="2404"><code>sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources &lt;&lt; 'EOF'
+Types: deb
+URIs: https://REPO_URL_PLACEHOLDER
+Suites: nightly-2404
+Components: main
+Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+EOF</code></pre>
+    <pre class="snippet" data-distro="2604" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources &lt;&lt; 'EOF'
+Types: deb
+URIs: https://REPO_URL_PLACEHOLDER
+Suites: nightly-2604
+Components: main
+Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+EOF</code></pre>
   </div>
 </div>
+
+<p><em>Note:</em> The bare suite names <code>stable</code>, <code>edge</code>, and <code>nightly</code>
+are <strong>deprecated in v3.0</strong> and will be removed in a future v3.1 release.
+<a href="https://github.com/slazarov/podman-ubuntu/blob/main/docs/apt-repository.md#migrating-from-bare-suite-names">see the migration guide &rarr;</a></p>
 
 <p>3. Install:</p>
 <pre><code>sudo apt-get update
@@ -554,41 +604,53 @@ sudo apt-get install podman-suite</code></pre>
 <p><code>podman-suite</code> is a meta-package that installs Podman and all its dependencies
 (crun, conmon, netavark, aardvark-dns, pasta, buildah, skopeo, and more).</p>
 
-<h2>Available Suites</h2>
+<h2>Package Versions</h2>
 HTMLEOF
 
-# Append suite info dynamically (only suites with actual packages)
-for s in "${available_suites[@]}"; do
-    packages_file="${OUTPUT_DIR}/dists/${s}/main/binary-amd64/Packages"
-    pkg_count=$(grep -c "^Package:" "${packages_file}" 2>/dev/null || true)
-    pkg_count=${pkg_count:-0}
+# Build combined package versions table across stable / edge / nightly tracks.
+# Read each track's Packages index into associative arrays, then emit a single
+# table — one row per package, one column per track (WR-04 escaping preserved).
+declare -A _stable_v _edge_v _nightly_v
 
-    # Skip suites with no packages (reprepro export creates empty dists/ for all configured suites)
-    if [[ ${pkg_count} -eq 0 ]]; then
-        continue
-    fi
+for _track in stable edge nightly; do
+    _pkgs_file="${OUTPUT_DIR}/dists/${_track}/main/binary-amd64/Packages"
+    [[ ! -f "${_pkgs_file}" ]] && continue
+    while read -r _pkg _ver; do
+        case "${_track}" in
+            stable)  _stable_v["${_pkg}"]="${_ver}" ;;
+            edge)    _edge_v["${_pkg}"]="${_ver}" ;;
+            nightly) _nightly_v["${_pkg}"]="${_ver}" ;;
+        esac
+    done < <(awk '/^Package:/{pkg=$2} /^Version:/{print pkg, $2}' "${_pkgs_file}" | sort)
+done
 
-    cat >> "${OUTPUT_DIR}/index.html" << SUITEEOF
-<h3>${s} — ${pkg_count} packages <a href="dists/${s}/InRelease" style="font-size:0.8em;font-weight:normal">[InRelease]</a></h3>
+# Union of all known package names, sorted.
+readarray -t _all_pkgs < <(
+    { printf '%s\n' "${!_stable_v[@]}" "${!_edge_v[@]}" "${!_nightly_v[@]}"; } \
+    | sort -u
+)
+
+if [[ ${#_all_pkgs[@]} -gt 0 ]]; then
+    cat >> "${OUTPUT_DIR}/index.html" << 'TABLEEOF'
 <table>
-<tr><th>Package</th><th>Version</th></tr>
-SUITEEOF
+<tr><th>Package</th><th>stable</th><th>edge</th><th>nightly</th></tr>
+TABLEEOF
 
-    awk '/^Package:/{pkg=$2} /^Version:/{print pkg, $2}' "${packages_file}" \
-    | sort \
-    | while read -r pkg ver; do
-        # WR-04: escape package name + version before HTML interpolation.
-        pkg_e=$(printf '%s' "${pkg}" | esc)
-        ver_e=$(printf '%s' "${ver}" | esc)
+    for _pkg in "${_all_pkgs[@]}"; do
+        # WR-04: escape package name + all three version strings.
+        _pkg_e=$(printf '%s' "${_pkg}" | esc)
+        _s_e=$(printf '%s' "${_stable_v[${_pkg}]:-—}" | esc)
+        _e_e=$(printf '%s' "${_edge_v[${_pkg}]:-—}" | esc)
+        _n_e=$(printf '%s' "${_nightly_v[${_pkg}]:-—}" | esc)
         cat >> "${OUTPUT_DIR}/index.html" << ROWEOF
-<tr><td>${pkg_e}</td><td><code>${ver_e}</code></td></tr>
+<tr><td>${_pkg_e}</td><td><code>${_s_e}</code></td><td><code>${_e_e}</code></td><td><code>${_n_e}</code></td></tr>
 ROWEOF
     done
 
-    cat >> "${OUTPUT_DIR}/index.html" << SUITEEOF
+    cat >> "${OUTPUT_DIR}/index.html" << 'TABLEEOF'
 </table>
-SUITEEOF
-done
+TABLEEOF
+fi
 
 cat >> "${OUTPUT_DIR}/index.html" << 'HTMLEOF'
 
@@ -604,6 +666,13 @@ function showTab(track) {
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.querySelector('.tab-btn[onclick*="' + track + '"]').classList.add('active');
   document.getElementById('tab-' + track).classList.add('active');
+}
+function setDistro(ver) {
+  document.querySelectorAll('.distro-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.distro-btn[onclick*="' + ver + '"]').classList.add('active');
+  document.querySelectorAll('.snippet').forEach(s => {
+    s.style.display = s.dataset.distro === ver ? '' : 'none';
+  });
 }
 </script>
 </body>
