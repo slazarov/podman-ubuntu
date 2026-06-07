@@ -316,23 +316,27 @@ Each track tab holds two `<pre class="snippet" data-distro="2404">` / `data-dist
 | A3 | Both `<track>-2404` and `<track>-2604` carry fresh debs on every publish of the current track | Open Question 4 | If a distro suite is empty for the current track, its smoke leg has nothing to install — see OQ4; verified likely-true from the workflow |
 | A4 | Standardizing index.html on `/etc/apt/keyrings/` (vs current `/usr/share/keyrings/`) is acceptable to the user | Open Question 1 | If the user wants to keep `/usr/share/keyrings/`, the docs and page would diverge on key path — needs one-line confirmation |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **index.html snippet format: rewrite legacy → DEB822, and standardize keyring path?**
    - What we know: Live `ci_publish.sh` emits legacy `deb [signed-by=/usr/share/keyrings/podman-ubuntu.gpg] ... stable main` into a `.list` file (L527-548). Docs use DEB822 `.sources` + `/etc/apt/keyrings/podman-ubuntu.gpg` (L14-32). D-07/D-08 assume the page is already DEB822.
    - What's unclear: Whether to (a) rewrite index.html snippets to DEB822 (matches docs + D-07's own "DEB822 snippet" wording) and move the keyring to `/etc/apt/keyrings/`, or (b) keep legacy and only swap the suite name.
    - Recommendation: **Rewrite to DEB822 and standardize on `/etc/apt/keyrings/`** so the page and docs agree and D-07's wording is honored. The keyring-path change is a small scope expansion — confirm with the user in one line, then proceed.
+   - **RESOLVED:** Rewrite the index.html snippets to DEB822 and standardize on `/etc/apt/keyrings/podman-ubuntu.gpg`. This is **authorized as Claude's discretion** — the user's standing directive for this phase is "apply best practices, don't overengineer," and a consistent keyring path between `index.html` and `docs/apt-repository.md` (which already uses `/etc/apt/keyrings/`) is a best-practice consistency fix, not a scope expansion. It directly satisfies ROADMAP **SC-4** (key path consistent across both user-facing surfaces) and honors **D-07**'s "DEB822 snippet" wording. **Plan 02 implements this** (Task 2 rewrites the legacy one-liner + `/usr/share/keyrings/` to DEB822 + `/etc/apt/keyrings/`, with a Task-1 negative assertion that the legacy path is fully removed). No separate user confirmation gate is required — the keyring-path change is explicitly sanctioned here.
 
 2. **Extract smoke logic into `scripts/smoke_repo_install.sh` or keep inline?** (Discretion item.)
    - Recommendation: **Extract a helper** mirroring `scripts/smoke_install_2604.sh`. Benefits: locally runnable in Lima VMs (parity with existing smoke proof), avoids the nested-quote hazard of an inline `bash -c` heredoc, testable. The publish job calls it twice (`smoke_repo_install.sh 2404` / `2604`).
+   - **RESOLVED:** Extract the helper `scripts/smoke_repo_install.sh` (mirrors `smoke_install_2604.sh`; locally runnable in Lima, avoids the nested-quote hazard). **Plan 03 implements this** (Task 1 creates the helper; Task 2 wires it into the publish job, invoked twice for 2404/2604).
 
 3. **`ubuntu:26.04` Docker Hub tag availability.**
    - What we know: The build matrix already runs inside `ubuntu:26.04` containers (workflow L132), so the tag is expected to be pullable. `smoke_install_2604.sh` carries a `ubuntu:resolute` fallback.
    - Recommendation: Reuse the same `26.04 → resolute` fallback in the smoke step.
+   - **RESOLVED:** Reuse the existing `ubuntu:26.04` → `ubuntu:resolute` pull-fallback. **Plan 03 Task 1 implements this** (the 2604 leg tries `ubuntu:26.04` and falls back to `ubuntu:resolute`, copied from `smoke_install_2604.sh` L82-107).
 
 4. **Are both `<track>-2404` and `<track>-2604` populated on every publish?**
    - What we know: The build job builds all four cells (2404/2604 × amd64/arm64) for the current track; the publish job runs only if all four succeed (`needs.build.result == 'success'`, workflow L278). `ci_publish.sh` is invoked for both `2404` and `2604` (workflow L354-355). So both versioned suites for the current track receive fresh debs every publish.
    - Recommendation: Treat both legs as expected-populated. If a leg's suite is unexpectedly empty, `apt-get install podman-suite` will fail loudly — which is the correct gate behavior, not a false negative.
+   - **RESOLVED:** Treat both `<track>-2404` and `<track>-2604` as expected-populated on every publish (the publish job only runs when all four build cells succeed, and `ci_publish.sh` runs for both distro labels). An empty suite is NOT specially handled: `apt-get install podman-suite` against an empty suite fails loudly, which is the **correct gate behavior** (a genuine regression should fail the publish), not a false negative. No special-casing needed in Plan 03 — the loud failure is the intended signal.
 
 ## Environment Availability
 
