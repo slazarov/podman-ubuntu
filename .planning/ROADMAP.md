@@ -59,7 +59,7 @@ Full v2.0 phase details archived at `.planning/milestones/v2.0-ROADMAP.md`.
 **Milestone Goal:** Users on both Ubuntu 24.04 and 26.04 can add the APT repo, enable their distro's suite, and install Podman packages that install and run cleanly on their OS version.
 
 - [x] **Phase 19: Per-Distro Versioning & Dependency Mapping** - Distro-tagged version suffixes and per-distro runtime dependency resolution so each distro's .deb is uniquely identified and correctly installable (completed 2026-06-06)
-- [ ] **Phase 20: Repository Restructure & Migration Aliases** - Six versioned suites from one URL with legacy aliases that keep existing users working (verification 3/4 — CR-01/CR-02 closed; one blocker remains: mirror_suite_verbatim wget path bug, see 20-VERIFICATION.md)
+- [x] **Phase 20: Repository Restructure & Migration Aliases** - Six versioned suites from one URL with legacy aliases that keep existing users working (verification 4/4 passed; UAT 8/9 — production-URL smoke deferred to first CI publish, see 20-UAT.md) (completed 2026-06-07)
 - [ ] **Phase 21: CI Build Matrix Extension to 26.04** - A single distro×arch build matrix that produces native 26.04 packages with atomic, distro-isolated publishing
 - [ ] **Phase 22: Migration Docs & Installability Smoke Tests** - Per-distro setup docs, deprecation timeline, and CI-verified install + `podman info` in real containers
 
@@ -191,7 +191,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 17. Upstream Automation | v2.0 | — | Complete (absorbed into Phase 18) | 2026-03-08 |
 | 18. Edge Track / Nightly Builds | v2.0 | 2/2 | Complete | 2026-03-08 |
 | 19. Per-Distro Versioning & Dependency Mapping | v3.0 | 5/5 | Complete    | 2026-06-06 |
-| 20. Repository Restructure & Migration Aliases | v3.0 | 6/6 | Complete   | 2026-06-06 |
+| 20. Repository Restructure & Migration Aliases | v3.0 | 6/6 | Complete    | 2026-06-07 |
 | 21. CI Build Matrix Extension to 26.04 | v3.0 | 0/? | Not started | - |
 | 22. Migration Docs & Installability Smoke Tests | v3.0 | 0/? | Not started | - |
 

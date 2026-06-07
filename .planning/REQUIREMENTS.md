@@ -78,6 +78,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MIGR-02 | Phase 22 | Pending |
 | MIGR-03 | Phase 22 | Pending |
 | MIGR-04 | Phase 22 | Pending |
+| REPO-09 | Future milestone (post-deprecation window) | Deferred |
+| REPO-10 | Future milestone | Deferred |
+| PKG-11 | Future milestone | Deferred |
 
 **Coverage:**
 

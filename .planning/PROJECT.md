@@ -49,14 +49,14 @@ Compile and install Podman on any Debian/Ubuntu system without user interaction.
 
 - ✓ Per-distro version suffixes (~ubuntu24.04.podman1 / ~ubuntu26.04.podman1) with dpkg-verified ordering — v3.0 (Validated in Phase 19: Per-Distro Versioning & Dependency Mapping)
 - ✓ Per-distro dependency mapping via direct DT_NEEDED soname detection injected into nFPM configs (libgpgme45/libsubid5 self-correct on 26.04) — v3.0 (Validated in Phase 19)
+- ✓ Per-distro APT suites with version-based names (9-suite repo: stable/edge/nightly × 2404/2604 + 3 bare legacy aliases, single URL, single GPG key, Acquire-By-Hash) — v3.0 (Validated in Phase 20: 62/62 integration harness + end-to-end ci_publish on Lima)
+- ✓ Migration path for existing users on bare stable/edge/nightly suite names (verbatim-served bare aliases preserve cached Suite — no apt prompt, no .sources edit) — v3.0 (Validated in Phase 20: D-15 old→new swap simulation; production-CDN confirmation deferred to first publish)
 
 ### Active
 
-- [ ] Per-distro APT suites with version-based names (stable-2404/edge-2404/nightly-2404 + stable-2604/edge-2604/nightly-2604)
 - [ ] CI build matrix extended to Ubuntu 26.04 (native runners preferred, container fallback)
 - [ ] All three tracks (stable/edge/nightly) published for both 24.04 and 26.04
-- [ ] Migration path for existing users on current stable/edge/nightly suite names
-- [ ] Docs/setup instructions covering both distro versions
+- [ ] Docs/setup instructions covering both distro versions (incl. bare-suite deprecation timeline)
 
 ### Out of Scope
 
@@ -153,4 +153,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-06 after Phase 19 completion (per-distro versioning & dependency mapping)*
+*Last updated: 2026-06-07 after Phase 20 completion (repository restructure & migration aliases)*

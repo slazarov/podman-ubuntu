@@ -1,33 +1,17 @@
 ---
 phase: 20-repository-restructure-migration-aliases
-verified: 2026-06-07T12:00:00Z
-status: gaps_found
-score: 3/4
+verified: 2026-06-07T02:45:00Z
+status: passed
+score: 4/4
 overrides_applied: 0
 re_verification:
   previous_status: gaps_found
-  previous_score: 2/4
+  previous_score: 3/4
   gaps_closed:
-    - "add_byhash_and_resign pipefail isolation (original CR-01): RETURN-trap option restore is present in scripts/repo_byhash.sh; the helper no longer aborts mid-function on a benign pipe-head failure"
-    - "WR-01 anchored GPG key extraction: both sites in repo_manage.sh use gpg --list-secret-keys | awk '/^fpr:/{print $10; exit}'"
-    - "WR-03 quoted realpath bootstraps: all four files (config.sh, repo_byhash.sh, repo_manage.sh, ci_publish.sh) quote the path argument"
-    - "WR-04 HTML escaping: esc() helper present; pkg_e/ver_e applied in index.html row heredoc"
-    - "Test group F (pipefail regression) and Test group G (26.04 bare-alias preservation) are both present in tests/test_repo_assemble_byhash.sh"
-  gaps_remaining:
-    - "SC-3/SC-4 partially unfixed: mirror_suite_verbatim uses wget --cut-dirs=0 which, for the CI project-pages URL (https://slazarov.github.io/podman-ubuntu), saves the mirrored tree to ${lmirror}/podman-ubuntu/dists/<suite>/ instead of ${lmirror}/dists/<suite>/. wget exits 0 (success), the curl fallback is skipped, the subsequent [[ -d "${lmirror}/dists/${lsuite}" ]] check fails, and the function returns 1. IS_VERBATIM is never set to true in CI. Bare aliases on a 26.04 publish are re-exported and re-signed, defeating the CR-02 fix."
+    - "SC-3/SC-4 wget path bug (re-review CR-01 / T-20-17): mirror_suite_verbatim rebuilt as a Release-driven fetch in commit 53b778f — the signed Release is the manifest; InRelease/Release.gpg fetched verbatim, every checksummed index curled and verified against the signed hash, by-hash copies reconstructed locally. No wget crawl, no URL-shape dependency. Proven three ways: (1) tests/test_mirror_verbatim.sh sed-extracts the production function and drives it against a path-segmented URL — 19/19 on macOS AND Lima ubuntu-24; (2) end-to-end UAT (20-UAT.md Test 9): the real ci_publish.sh stable 2604 run against a live tree served at http://localhost:8098/podman-ubuntu (the exact project-pages shape that broke wget) took the verbatim path — 'Mirrored stable/stable-2404 dists/ tree verbatim (original signature preserved)', bare alias Date/InRelease/Release.gpg byte-identical, pool entries at exact Filename: paths, by-hash reconstructed, stable-2604 freshly signed with Acquire-By-Hash — 12/12; (3) full integration harness still green at HEAD, 62/0."
+  gaps_remaining: []
   regressions: []
-gaps:
-  - truth: "The publish tooling routes a given track's packages into the correct <track>-<distro> suite without clobbering the other five suites' contents (SC-4) AND repository metadata includes Acquire-By-Hash: yes on every suite so apt clients never hit a CDN hash-sum mismatch (SC-3, REPO-08)"
-    status: failed
-    reason: "mirror_suite_verbatim in scripts/ci_publish.sh uses wget -nH --cut-dirs=0 against REPO_URL=https://slazarov.github.io/podman-ubuntu. wget -nH strips the hostname; --cut-dirs=0 cuts zero path segments, so files are saved to ${lmirror}/podman-ubuntu/dists/<suite>/ not ${lmirror}/dists/<suite>/. wget exits 0 (files were fetched successfully), so the curl fallback inside `if ! wget ...` is never reached. The subsequent [[ -d "${lmirror}/dists/${lsuite}" ]] check at line 201 is false, so the else branch executes (rm -rf lmirror; return 1). mirror_suite_verbatim returns 1, IS_VERBATIM is set to false, and the bare alias goes through the Step 4 re-includedeb/re-export path and the Step 4b add_byhash_and_resign path — regenerating its Release Date + signature on byte-identical content and reopening the CDN hash-mismatch window. Test group G does not exercise mirror_suite_verbatim or wget; it simulates the corrected behavior by calling repo_manage.sh + add_byhash_and_resign directly, so the wget path bug passes all current tests."
-    artifacts:
-      - path: "scripts/ci_publish.sh"
-        issue: "Line 181: wget -q -r -np -nH --cut-dirs=0 -P ${lmirror} saves files to ${lmirror}/REPONAME/dists/<suite>/ for any project-pages URL. Line 201: [[ -d ${lmirror}/dists/${lsuite} ]] then fails because the tree is under ${lmirror}/REPONAME/dists/ not ${lmirror}/dists/. wget succeeded so curl fallback (lines 185-197) is never reached. Result: IS_VERBATIM stays false for all bare aliases in CI."
-      - path: "tests/test_repo_assemble_byhash.sh"
-        issue: "Test group G does not call mirror_suite_verbatim or ci_publish.sh. It simulates verbatim behavior by running repo_manage.sh stable 2604 and add_byhash_and_resign stable-2604 only, asserting bare 'stable' alias is unchanged. This is correct as a unit test of the logic model, but does not cover the wget path through which IS_VERBATIM is determined in production."
-    missing:
-      - "Fix mirror_suite_verbatim to correctly locate the mirrored tree after wget completes, regardless of path depth in REPO_URL. Two approaches: (a) compute cut-dirs from the URL path depth: lcut=$(awk -F/ '{print NF}' <<<\"${REPO_URL#*://*/}\") and pass --cut-dirs=${lcut}; or (b) use find after wget to locate the actual dists/<suite> directory: lsrc=$(find ${lmirror} -type d -path '*/dists/${lsuite}' -print -quit) and copy from there."
-      - "Add a test that drives mirror_suite_verbatim against a local file:// or loopback HTTP URL whose path contains a subdirectory (mimicking https://host.io/REPONAME/dists/suite/) and asserts the tree lands correctly at ${OUTPUT_DIR}/dists/<suite> and that IS_VERBATIM is set to true."
+gaps: []
 human_verification:
   - test: "Production-URL validation: after the 9-suite tree is first published to GitHub Pages by CI, run apt-get update against the live repository using bare suite names and verify no 'changed its Suite value' prompt, a ~ubuntu24.04.podman1 candidate resolves, and by-hash fetch returns HTTP 200."
     expected: "apt-get update exits 0 with no 'changed its Suite value' in output; apt-cache policy shows ~ubuntu24.04.podman1 candidate; curl against a by-hash/<algo>/<hash> path returns HTTP 200 from the Pages CDN."
@@ -37,9 +21,46 @@ human_verification:
 # Phase 20: Repository Restructure & Migration Aliases — Verification Report
 
 **Phase Goal:** The APT repository serves all six versioned suites from a single URL under one GPG key, while existing users on bare suite names keep receiving 24.04 packages with no client-side change
-**Verified:** 2026-06-07T12:00:00Z
-**Status:** gaps_found
-**Re-verification:** Yes — after gap closure plans 20-05 and 20-06
+**Verified:** 2026-06-07T02:45:00Z
+**Status:** passed (4/4)
+**Re-verification:** Yes — third round, after fix 53b778f (Release-driven verbatim fetch) and full UAT (20-UAT.md, 8/9 passed)
+
+## Re-verification Addendum (2026-06-07, post-53b778f)
+
+The single gap recorded below (mirror_suite_verbatim wget path bug) was closed by commit
+`53b778f` — "fix(20): rebuild verbatim alias mirror as Release-driven fetch (T-20-17)" —
+which replaced the `wget -r` crawl with a Release-manifest-driven curl fetch (signed Release
+is the manifest; every listed index fetched and verified against the signed hash; by-hash
+copies reconstructed locally; signatures arrive verbatim or the suite falls back to the
+re-export path). Evidence the gap is closed:
+
+1. **Unit:** `tests/test_mirror_verbatim.sh` (shipped with the fix) drives the production
+   function against a path-segmented URL mimicking `https://<owner>.github.io/<repo-name>`
+   — 19 passed / 0 failed on both the macOS dev host and Lima ubuntu-24.
+2. **End-to-end (UAT Test 9):** the real `ci_publish.sh stable 2604` was run on Lima
+   ubuntu-24 against a live tree served at `http://localhost:8098/podman-ubuntu` (the exact
+   URL shape that defeated wget). The verbatim path was taken for both live suites
+   (`IS_VERBATIM=true`); the bare `stable` alias came through byte-identical (Date,
+   InRelease, Release.gpg) with a valid signature; pool entries landed at exact `Filename:`
+   paths; by-hash was reconstructed; `stable-2604` was freshly signed with
+   `Acquire-By-Hash: yes`. 12 passed / 0 failed.
+3. **No regression:** the full integration harness (`tests/test_repo_assemble_byhash.sh`,
+   groups A–G) remains green at HEAD — 62 passed / 0 failed on Lima ubuntu-24; all
+   macOS-safe unit suites pass (43/43); the D-15 legacy-client simulation re-run at HEAD
+   passes 7/0 (no Suite-change prompt, 24.04 candidate from bare `stable`, by-hash HTTP 200).
+
+The historical report below documents the previous round (3/4) and is retained as the
+record of what the gap was; its "Still failing" findings are superseded by this addendum.
+
+## Acknowledged Gaps
+
+Acknowledged by user on 2026-06-07 during /gsd-verify-work phase completion:
+
+- **Production-URL smoke (human_verification item):** the post-deploy confirmation against
+  the live GitHub Pages CDN remains deferred — local main is 80 commits ahead of origin and
+  the 9-suite tree has never been published (live Pages still serves the old 3-suite tree).
+  The apt-client behavior is fully proven locally (UAT Tests 6 and 9); re-run the deferred
+  commands in 20-04-SUMMARY.md against the real REPO_URL after the first CI publish.
 
 ## Re-verification Summary
 

@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Ubuntu 26.04 Support
-status: executing
-stopped_at: Phase 20 verification gaps_found (3/4)
-last_updated: "2026-06-06T21:58:28.242Z"
-last_activity: 2026-06-07 -- Phase 20 gap-closure executed (20-05, 20-06); verification 3/4, wget path blocker remains
+status: Ready to plan Phase 21
+stopped_at: Phase 20 complete (UAT 8/9, verification 4/4), ready to plan Phase 21
+last_updated: "2026-06-07T02:50:00.000Z"
+last_activity: 2026-06-07 -- Phase 20 UAT executed on Lima VMs (8/9 passed, verbatim CI path proven end-to-end); phase marked complete
 progress:
   total_phases: 4
   completed_phases: 2
@@ -18,25 +18,25 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-05)
+See: .planning/PROJECT.md (updated 2026-06-07)
 
 **Core value:** Compile and install Podman on any Debian/Ubuntu system without user interaction.
-**Current focus:** Phase 20 — repository-restructure-migration-aliases
+**Current focus:** Phase 21 — CI Build Matrix Extension to 26.04
 
 ## Current Position
 
-Phase: 20 (repository-restructure-migration-aliases) — EXECUTING
-Plan: 6 of 6 (all executed; verification gaps_found)
-Status: Gap closure needed — mirror_suite_verbatim wget path bug (20-REVIEW.md CR-01)
-Last activity: 2026-06-07 -- Phase 20 gap-closure executed (20-05, 20-06); verification 3/4, wget path blocker remains
+Phase: 21 (ci-build-matrix-extension-to-26.04)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-07 -- Phase 20 complete (UAT 8/9 on Lima VMs, verification 4/4)
 
-Progress: [██████████] 100%
+Progress: [█████░░░░░] 50% (2/4 v3.0 phases)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 35 (all milestones, v1.0-v2.0)
+- Total plans completed: 41 (all milestones, v1.0-v2.0)
 - Average duration: 3min
 - Total execution time: 24min
 
@@ -48,6 +48,7 @@ Progress: [██████████] 100%
 | 15. APT Repository and Signing | 2/2 | 5min | 2.5min |
 | 18. Edge Track / Nightly Builds | 2/2 | 10min | 5min |
 | 19 | 5 | - | - |
+| 20 | 6 | - | - |
 
 *Updated after each plan completion*
 | Phase 19 P05 | 25min | 3 tasks | 6 files |
@@ -101,6 +102,7 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase ?]: Phase 20-05: CR-01 fix uses RETURN-trap option restore (save set +o, set +e +o pipefail, trap 'eval _saved_opts' RETURN) as the single restore point so add_byhash_and_resign always reaches its re-sign block; helper never re-enables set -e/pipefail itself
 - [Phase ?]: Phase 20-05: WR-01 reads the signing-key fingerprint via 'gpg --list-secret-keys --with-colons | awk -F: /^fpr:/' at both repo_manage.sh sites, deterministically selecting the signing key on a multi-key keyring; WR-03 quotes all four realpath toolpath bootstraps
 - [Phase ?]: 20-06: Chose verbatim-mirror for non-target bare aliases on 26.04 publishes (vs Release-Date stabilization) — lowest-risk, stays within the D-10 rebuild-the-world model (CR-02 closed)
+- [Phase 20]: Post-20-06 fix 53b778f: mirror_suite_verbatim rebuilt as a Release-driven fetch (signed Release is the manifest; indexes curled + hash-verified, by-hash reconstructed locally) — the wget -r crawl broke on path-segmented project-pages URLs AND Pages serves no directory listings. Proven by test_mirror_verbatim.sh (19/19 macOS + VM) and an end-to-end ci_publish.sh run against a path-segmented URL (UAT Test 9, 12/12)
 
 ### Tech Debt
 
@@ -109,7 +111,7 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ### Research Flags (v3.0)
 
-- Phase 20: physical-copy vs createsymlinks alias strategy needs live GitHub Pages test (Pages tarballs may not preserve symlinks); validate "Suite changed value" apt prompt with a real pre-v3.0 client
+- ✓ Phase 20 (closed by UAT 2026-06-07): physical-copy alias strategy chosen (no symlinks); "Suite changed value" apt prompt disproven twice via the D-15 old→new swap simulation on Lima ubuntu-24 (Plan 04 and UAT re-run at HEAD: no prompt, 24.04 candidate from bare `stable`). REMAINING: one-time production-CDN confirmation after first CI publish of the 9-suite tree (commands in 20-04-SUMMARY.md; local main is 80 commits ahead of origin — nothing published yet)
 - ✓ Phase 19 (closed by Plan 03): version suffix form confirmed via `dpkg --compare-versions` in scripts/verify_versions.sh — yields to official, 24.04 < 26.04, nightly < tagged, legacy ~podman1 < new ~ubuntu24.04.podman1
 - Phase 21: re-check whether `ubuntu-26.04` / `ubuntu-26.04-arm` runner labels are GA at implementation time; container fallback is the safe default
 
@@ -126,6 +128,6 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last session: 2026-06-06T21:58:07.689Z
-Stopped at: Phase 20 context gathered
-Resume file: .planning/phases/20-repository-restructure-migration-aliases/20-CONTEXT.md
+Last session: 2026-06-07T02:50:00Z
+Stopped at: Phase 20 complete, ready to plan Phase 21
+Resume file: None
