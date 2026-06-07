@@ -3,7 +3,7 @@ status: partial
 phase: 20-repository-restructure-migration-aliases
 source: 20-01-SUMMARY.md, 20-02-SUMMARY.md, 20-03-SUMMARY.md, 20-04-SUMMARY.md, 20-05-SUMMARY.md, 20-06-SUMMARY.md
 started: 2026-06-07T02:03:01Z
-updated: 2026-06-07T02:20:00Z
+updated: 2026-06-07T02:35:00Z
 ---
 
 ## Current Test
@@ -48,10 +48,20 @@ result: blocked
 blocked_by: release-build
 reason: "The 9-suite tree has not been published: local main is 80 commits ahead of origin/main (all phase 19+20 work unpushed), and live Pages (https://slazarov.github.io/podman-ubuntu) still serves the old 3-suite tree — dists/stable|edge|nightly return HTTP 200, all versioned -2404/-2604 suites 404. Re-run the deferred commands after push + first CI publish. Per 20-04-SUMMARY.md this is a production confirmation, not a phase gate — the apt-client behavior is already proven locally (Test 6)."
 
+### 8. Verbatim-mirror Release-driven fetch unit test (post-SUMMARY fix 53b778f)
+expected: `tests/test_mirror_verbatim.sh` sed-extracts the production `mirror_suite_verbatim` and drives it against a path-segmented file:// URL mimicking `https://<owner>.github.io/<repo-name>` — tree lands at `<out>/dists/<suite>` byte-identical with by-hash reconstructed; 404, missing index, hash mismatch, and missing signature all return 1 with no partial output.
+result: pass
+evidence: "19 passed, 0 failed on the macOS dev host AND on Lima ubuntu-24 at HEAD e42d1df."
+
+### 9. End-to-end verbatim path through the real ci_publish.sh (closes the 20-VERIFICATION.md gap)
+expected: A real `ci_publish.sh stable 2604` run against a live 24.04 tree served at a path-segmented URL (`http://localhost:8098/podman-ubuntu`, the exact project-pages shape that broke the old wget crawl) takes the verbatim path: IS_VERBATIM=true for the live suites, bare `stable` alias byte-stable (Date + InRelease + Release.gpg) with valid signature, pool entries at exact `Filename:` paths, by-hash reconstructed, and `stable-2604` freshly signed with `Acquire-By-Hash: yes`.
+result: pass
+evidence: "12 passed, 0 failed on Lima ubuntu-24. Publish log shows '>>> Mirrored 'stable' dists/ tree verbatim (original signature preserved)' and the same for 'stable-2404'; bare alias Date/InRelease/Release.gpg byte-identical through the real publish entry point; stable-2604 carries the 26.04 fixture, freshly signed. This exercises the exact mirror_suite_verbatim/CI code path that 20-VERIFICATION.md flagged as untested (Test group G simulated it); the wget path bug recorded there is fixed by 53b778f and now proven end-to-end."
+
 ## Summary
 
-total: 7
-passed: 6
+total: 9
+passed: 8
 issues: 0
 pending: 0
 skipped: 0
