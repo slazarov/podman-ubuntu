@@ -29,7 +29,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 ### Migration & Docs
 
 - [x] **MIGR-01**: A user on either distro can set up the repo from copy-paste DEB822 .sources blocks specific to their Ubuntu version in the documentation
-- [ ] **MIGR-02**: The repository index page (index.html) presents per-distro setup instructions
+- [x] **MIGR-02**: The repository index page (index.html) presents per-distro setup instructions
 - [x] **MIGR-03**: The deprecation timeline for bare `stable`/`edge`/`nightly` suite names is documented
 - [ ] **MIGR-04**: CI verifies installability before publish — installs podman-suite and runs `podman info` in real ubuntu:24.04 and ubuntu:26.04 containers
 
@@ -75,7 +75,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CICD-07 | Phase 21 | Complete |
 | CICD-08 | Phase 21 | Complete |
 | MIGR-01 | Phase 22 | Complete |
-| MIGR-02 | Phase 22 | Pending |
+| MIGR-02 | Phase 22 | Complete |
 | MIGR-03 | Phase 22 | Complete |
 | MIGR-04 | Phase 22 | Pending |
 | REPO-09 | Future milestone (post-deprecation window) | Deferred |

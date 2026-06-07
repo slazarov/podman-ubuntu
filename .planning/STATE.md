@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Ubuntu 26.04 Support
 status: executing
-stopped_at: Phase 22 UI-SPEC approved
+stopped_at: Completed 22-02-PLAN.md
 last_updated: "2026-06-07T08:29:15.696Z"
-last_activity: 2026-06-07 -- Phase 22 execution started
+last_activity: 2026-06-07 -- Phase 22 Plan 02 (index.html per-distro setup) complete
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 16
-  completed_plans: 14
-  percent: 75
+  completed_plans: 15
+  percent: 81
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-07)
 ## Current Position
 
 Phase: 22 (migration-docs-installability-smoke-tests) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
-Last activity: 2026-06-07 -- Phase 22 execution started
+Last activity: 2026-06-07 -- Phase 22 Plan 02 (index.html per-distro setup) complete
 
 Progress: [█████░░░░░] 50% (2/4 v3.0 phases)
 
@@ -62,6 +62,7 @@ Progress: [█████░░░░░] 50% (2/4 v3.0 phases)
 | Phase 21 P01 | 4min | 1 tasks | 1 files |
 | Phase 21 P02 | 5min | 2 tasks | 2 files |
 | Phase 22 P01 | 6min | 2 tasks | 2 files |
+| Phase 22 P02 | 6min | 2 tasks | 2 files |
 
 ## Previous Milestones
 
@@ -113,6 +114,7 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase ?]: Phase 21-02: publish job gated on needs.build.result == 'success' (single fail-fast:false matrix job's aggregate result) — any one of four cells failing skips publish entirely, leaving the live repo untouched (CICD-08/T-21-06)
 - [Phase ?]: Phase 21-02: per-distro download into separate dirs (debs-2404-*/debs-2604-*, no bare debs-* merge) + sequential ci_publish.sh 2404 then 2604 into one repo-output (Phase-20 mirror-then-include no-clobber); compact labels validated by config.sh VALID_DISTROS (T-21-05/07/08)
 - [Phase ?]: Phase 22-01: per-distro DEB822 doc sections, deprecation wording verbatim D-04/D-11, migration anchor #migrating-from-bare-suite-names shared with Plan 02; doc-grep test tests/test_docs_suites.sh added (local/manual)
+- [Phase ?]: Phase 22-02: index.html (ci_publish.sh heredoc) now ships a default-24.04 distro toggle, two DEB822 snippets per track tab (per-distro Suites), setDistro() swapper, deprecation callout to docs anchor; legacy /usr/share/keyrings one-liners rewritten to /etc/apt/keyrings DEB822 whole-file (ROADMAP SC-4). Active distro-btn reuses .tab-btn.active (white/600/#333) NOT green/blue — green stays reserved for .track.recommended. Three-column package table + available_suites loop preserved (D-10); no trusted=yes in user snippets (T-22-HTML-02). New tests/test_index_html_distro.sh (local/manual, RED→GREEN 15/15)
 
 ### Tech Debt
 
@@ -139,5 +141,5 @@ All decisions logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last session: 2026-06-07T08:29:03.022Z
-Stopped at: Phase 22 UI-SPEC approved
-Resume file: .planning/phases/22-migration-docs-installability-smoke-tests/22-UI-SPEC.md
+Stopped at: Completed 22-02-PLAN.md
+Resume file: None

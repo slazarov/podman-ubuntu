@@ -170,7 +170,7 @@ Plans:
 **Wave 1** *(all three parallel — no file overlap)*
 
 - [x] 22-01-PLAN.md — Per-distro DEB822 setup, deprecation callout + migration section in docs/apt-repository.md (MIGR-01/03)
-- [ ] 22-02-PLAN.md — index.html distro toggle + legacy→DEB822 snippet rewrite + setDistro() + deprecation callout in ci_publish.sh (MIGR-02/03)
+- [x] 22-02-PLAN.md — index.html distro toggle + legacy→DEB822 snippet rewrite + setDistro() + deprecation callout in ci_publish.sh (MIGR-02/03)
 - [ ] 22-03-PLAN.md — scripts/smoke_repo_install.sh (file:// install podman-suite + podman info) wired into publish job before Pages upload (MIGR-04)
 
 ## Progress
@@ -201,7 +201,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 19. Per-Distro Versioning & Dependency Mapping | v3.0 | 5/5 | Complete    | 2026-06-06 |
 | 20. Repository Restructure & Migration Aliases | v3.0 | 6/6 | Complete    | 2026-06-07 |
 | 21. CI Build Matrix Extension to 26.04 | v3.0 | 2/2 | Complete    | 2026-06-07 |
-| 22. Migration Docs & Installability Smoke Tests | v3.0 | 1/3 | In Progress|  |
+| 22. Migration Docs & Installability Smoke Tests | v3.0 | 2/3 | In Progress|  |
 
 ---
 
