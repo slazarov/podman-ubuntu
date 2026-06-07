@@ -69,7 +69,11 @@ apt-get install -y make git gcc build-essential pkgconf libtool \
 apt-get install -y libfuse3-dev
 
 # Dependencies to build Toolbox
-apt-get install -y libsubid-dev meson codespell cmake
+# bash-completion: toolbox's meson build only generates+installs its bash
+# completions when the bash-completion pkg-config is present (host runners
+# preinstall it; bare containers do not), and packaging/nfpm/toolbox.yaml
+# globs usr/share/bash-completion/completions/toolbox*.
+apt-get install -y libsubid-dev meson codespell cmake bash-completion
 apt-get install -y systemd-dev
 
 # Dependencies to install Protoc
