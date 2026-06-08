@@ -266,6 +266,29 @@ mirror_suite_verbatim() {
 }
 
 for other_suite in "${OTHER_SUITES[@]}"; do
+    # Cross-pass no-clobber (multi-distro publish): when several distros publish
+    # sequentially into ONE accumulating OUTPUT_DIR, a suite already materialized
+    # by an EARLIER pass must be preserved, not re-mirrored from the live repo.
+    # That suite is either a freshly built target of a prior pass (e.g.
+    # stable-2404 + the bare `stable` alias, built on the 2404 pass and now an
+    # "other suite" on the 2604 pass) or a verbatim mirror an earlier pass already
+    # placed (edge-*/nightly-*). In both cases the live tree is STALE relative to
+    # what this run just built, so re-mirroring would overwrite the fresh packages
+    # with the old ones — the cross-distro clobber that froze stable-2404 at an old
+    # podman version while stable-2604 advanced. Serve the in-place tree verbatim
+    # (it already carries the correct content, pool entries, by-hash and signature)
+    # and skip both the live mirror and the live deb re-download for it.
+    if [[ -f "${OUTPUT_DIR}/dists/${other_suite}/Release" ]]; then
+        echo ">>> '${other_suite}' already published by an earlier distro pass — preserving in place (no live mirror)"
+        IS_VERBATIM["${other_suite}"]=true
+        VERBATIM_SUITES+=("${other_suite}")
+        # Empty placeholder dir so the Step 4 / cleanup loops over OTHER_SUITES
+        # stay safe under `set -u`; count 0 keeps it out of the re-include gate.
+        OTHER_SUITE_DEBS_DIRS["${other_suite}"]=$(mktemp -d)
+        OTHER_SUITE_COUNTS["${other_suite}"]=0
+        continue
+    fi
+
     echo ">>> Mirroring existing '${other_suite}' suite from live repo..."
 
     # CR-02: attempt to serve this non-target suite's signed dists/ tree verbatim.
