@@ -6,7 +6,7 @@ Compile and install the latest Podman container stack from source on Debian/Ubun
 | | |
 |---|---|
 | **License** | AGPL-3.0 |
-| **Platform** | Ubuntu 24.04 (Noble Numbat) |
+| **Platforms** | Ubuntu 24.04 (Noble Numbat), Ubuntu 26.04 (Resolute Raccoon) |
 | **Architectures** | amd64 (x86_64), arm64 (aarch64) |
 
 Forked from [luckylinux/podman-debian](https://github.com/luckylinux/podman-debian) with significant additions: arm64 support, fully non-interactive builds, a hosted APT repository, CI/CD pipelines, 12 packaged components, opt-in build caching, and three release tracks (stable, edge, nightly).
@@ -23,11 +23,12 @@ sudo mkdir -p /etc/apt/keyrings
 sudo wget -qO /etc/apt/keyrings/podman-ubuntu.gpg \
   https://slazarov.github.io/podman-ubuntu/podman-ubuntu.gpg
 
-# Add the repository (DEB822 format)
+# Add the repository (DEB822 format).
+# Use the suite for your Ubuntu version: stable-2404 (24.04) or stable-2604 (26.04).
 sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources << 'EOF'
 Types: deb
 URIs: https://slazarov.github.io/podman-ubuntu
-Suites: stable
+Suites: stable-2404
 Components: main
 Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
 EOF
@@ -43,24 +44,26 @@ For full details, troubleshooting, and per-package installation, see [docs/apt-r
 
 ### Release Tracks
 
-Three suites are published, each serving a different use case:
+Each track is published per Ubuntu version with a distro-qualified suite name:
 
-| Suite | Description | Update Frequency |
-|-------|-------------|------------------|
-| **stable** | Pinned, tested release versions | Manual promotion |
-| **edge** | Latest upstream release tags | On new upstream release |
-| **nightly** | HEAD commits from upstream repos | Daily at 4:30 AM UTC |
+| Track | Ubuntu 24.04 suite | Ubuntu 26.04 suite | Update Frequency |
+|-------|--------------------|--------------------|------------------|
+| **stable** | `stable-2404` | `stable-2604` | Manual promotion |
+| **edge** | `edge-2404` | `edge-2604` | On new upstream release |
+| **nightly** | `nightly-2404` | `nightly-2604` | Daily at 4:30 AM UTC |
 
 Use **stable** for production systems, **edge** for the newest released features, and **nightly** for bleeding-edge development.
 
 To switch tracks, change the `Suites:` line in your sources file and re-run `apt update`:
 
 ```bash
-# Example: switch from stable to edge
-sudo sed -i 's/^Suites: .*/Suites: edge/' /etc/apt/sources.list.d/podman-ubuntu.sources
+# Example: switch from stable to edge on Ubuntu 24.04
+sudo sed -i 's/^Suites: .*/Suites: edge-2404/' /etc/apt/sources.list.d/podman-ubuntu.sources
 sudo apt update
 sudo apt upgrade
 ```
+
+> **Note:** The bare suite names `stable`, `edge`, and `nightly` are deprecated as of v3.0 (June 2026) and will be removed in v3.1. They continue to serve Ubuntu 24.04 packages during the deprecation window. New setups should use the distro-qualified names above; existing users should migrate (see [docs/apt-repository.md](docs/apt-repository.md)).
 
 ---
 
@@ -97,7 +100,7 @@ For users who prefer to compile everything locally rather than using the APT rep
 
 ### Prerequisites
 
-- Debian or Ubuntu system (tested on Ubuntu 24.04)
+- Debian or Ubuntu system (tested on Ubuntu 24.04 and 26.04)
 - Root or sudo access
 - Internet access
 
@@ -180,17 +183,17 @@ Pinned in [`versions-stable.env`](versions-stable.env):
 
 | Component | Version |
 |-----------|---------|
-| Podman | v5.8.0 |
-| Buildah | v1.43.0 |
+| Podman | v5.8.2 |
+| Buildah | v1.43.1 |
 | Skopeo | v1.22.0 |
-| crun | 1.26 |
+| crun | 1.28 |
 | conmon | v2.2.1 |
 | Netavark | v1.17.2 |
-| Aardvark-DNS | v1.17.0 |
+| Aardvark-DNS | v1.17.1 |
 | fuse-overlayfs | v1.16 |
 | catatonit | v0.2.1 |
 | Toolbox | 0.3 |
-| containers-common | common/v0.67.0 |
+| containers-common | common/v0.67.1 |
 
 The **edge** track automatically pulls the latest upstream release tags. The **nightly** track builds from upstream HEAD daily.
 
@@ -201,8 +204,9 @@ The **edge** track automatically pulls the latest upstream release tags. The **n
 | Platform | Architectures |
 |----------|--------------|
 | Ubuntu 24.04 (Noble Numbat) | amd64 (x86_64), arm64 (aarch64) |
+| Ubuntu 26.04 (Resolute Raccoon) | amd64 (x86_64), arm64 (aarch64) |
 
-Both architectures are built natively in CI (not cross-compiled), and APT selects the correct one automatically.
+Every distro × architecture cell is built natively in CI (not cross-compiled), and APT selects the correct one automatically.
 
 ---
 
