@@ -91,6 +91,30 @@ jobs:
           fi
 
   # ============================================
+  # Republish guard (manual stable/edge dispatch)
+  # ============================================
+  # A manual stable/edge dispatch otherwise rebuilds + republishes all four
+  # cells unconditionally, even when nothing changed. This job short-circuits
+  # the run when every tagged component is already published at the version this
+  # dispatch would build (pasta is excluded — it floats by date on every track;
+  # see scripts/check_republish_needed.sh). It is strictly conservative: any
+  # fetch/resolution uncertainty yields skip=false, so it can only ever avoid a
+  # redundant rebuild, never skip a needed one. Nightly is untouched —
+  # check-changes already guards the scheduled run.
+  check-republish:
+    if: github.event_name == 'workflow_dispatch' && (inputs.build_track == 'stable' || inputs.build_track == 'edge')
+    runs-on: ubuntu-24.04
+    outputs:
+      skip: ${{ steps.guard.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Compare resolved versions against the live repository
+        id: guard
+        run: |
+          REPO_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          ./scripts/check_republish_needed.sh "${{ inputs.build_track }}" "${REPO_URL}"
+
+  # ============================================
   # Build all distro x arch cells in one matrix
   # ============================================
   # CICD-05: one strategy.matrix fans out to all four cells in a single run.
@@ -102,8 +126,14 @@ jobs:
   # CICD-07: Go cache keys and artifact names carry a distro dimension so a
   #   26.04 build can never reuse a 24.04 cache or land in a 24.04 artifact.
   build:
-    needs: [check-changes]
-    if: always() && (github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.skip != 'true')
+    needs: [check-changes, check-republish]
+    # Gate order: check-changes guards scheduled nightly; check-republish guards
+    # manual stable/edge no-ops. A SKIPPED guard job yields an empty output, and
+    # '' != 'true', so neither guard blocks a run it doesn't apply to.
+    if: >-
+      always()
+      && (github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.skip != 'true')
+      && needs.check-republish.outputs.skip != 'true'
     runs-on: ${{ matrix.runner }}
     # Empty matrix.container => GitHub Actions runs directly on the runner host
     # (the 2404 cells). The 2604 cells run inside an ubuntu:26.04 container on
@@ -289,7 +319,10 @@ jobs:
           # debs-2404-amd64, debs-2404-arm64, debs-2604-amd64, debs-2604-arm64.
           name: debs-${{ matrix.distro }}-${{ matrix.arch }}
           path: output/*.deb
-          retention-days: 30
+          # The publish job consumes these within the same run; retention only
+          # serves post-hoc debugging. Kept short so daily nightly x 4 cells
+          # don't accumulate ~30 days of .deb artifacts in Actions storage.
+          retention-days: 7
 
   # ============================================
   # Publish APT repository to GitHub Pages
