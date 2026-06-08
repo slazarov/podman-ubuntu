@@ -390,11 +390,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y reprepro
 
+      # Gate the publish on the repo-assembly regression tests. These drive the
+      # real ci_publish.sh / repo_manage.sh hermetically (throwaway GPG, temp
+      # dirs, a local mock HTTP repo — they never touch the live repo or deploy).
+      # test_ci_publish_multipass reproduces the two-pass cross-distro clobber
+      # that froze stable-2404 at an old version; a regression here blocks deploy.
+      - name: Run repo-assembly regression tests
+        run: |
+          bash tests/test_repo_assemble_byhash.sh
+          bash tests/test_ci_publish_multipass.sh
+
       # Per-distro sequential publish into ONE accumulating repo-output: 2404
       # first, then 2604. ci_publish.sh's mirror-then-include model
-      # (OTHER_SUITES = ALL_SUITES − PUBLISH_TARGETS) means the 2604 run mirrors
-      # the 2404 run's freshly-published suites as OTHER_SUITES into the same
-      # repo-output rather than clobbering them (T-21-08, Phase-20 verified). The
+      # (OTHER_SUITES = ALL_SUITES − PUBLISH_TARGETS) re-mirrors non-target suites
+      # from the live repo, EXCEPT any suite an earlier pass already materialized
+      # into the accumulating repo-output — those are preserved in place so the
+      # 2604 pass cannot clobber the 2404 pass's freshly-built suites (the
+      # cross-distro clobber fixed in "preserve earlier-pass suites"). The
       # compact labels 2404/2604 are passed verbatim — config.sh validates them
       # against VALID_DISTROS=(2404 2604) (T-21-07).
       - name: Build and publish repository
