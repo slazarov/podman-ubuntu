@@ -340,7 +340,7 @@ jobs:
     # leaves the publish running with only 2404 artifacts (publish_distro already
     # skips distros whose deb dir is empty). 'failure' covers partial cell failure
     # (fail-fast: false); 'cancelled'/'skipped' means no build ran at all.
-    if: always() && (needs.build.result == 'success' || needs.build.result == 'failure')
+    if: always() && github.ref == 'refs/heads/main' && (needs.build.result == 'success' || needs.build.result == 'failure')
     runs-on: ubuntu-24.04
     environment:
       name: github-pages
