@@ -183,17 +183,17 @@ Pinned in [`versions-stable.env`](versions-stable.env):
 
 | Component | Version |
 |-----------|---------|
-| Podman | v5.8.2 |
-| Buildah | v1.43.1 |
-| Skopeo | v1.22.0 |
+| Podman | v6.0.0 |
+| Buildah | v1.44.0 |
+| Skopeo | v1.23.0 |
 | crun | 1.28 |
 | conmon | v2.2.1 |
-| Netavark | v1.17.2 |
-| Aardvark-DNS | v1.17.1 |
+| Netavark | v2.0.0 |
+| Aardvark-DNS | v2.0.0 |
 | fuse-overlayfs | v1.16 |
 | catatonit | v0.2.1 |
 | Toolbox | 0.3 |
-| containers-common | common/v0.67.1 |
+| containers-common | common/v0.68.0 |
 
 The **edge** track automatically pulls the latest upstream release tags. The **nightly** track builds from upstream HEAD daily.
 
