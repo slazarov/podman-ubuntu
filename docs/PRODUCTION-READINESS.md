@@ -47,12 +47,12 @@ judgment, Tier 3 improves the code an outsider never sees.
 
 ## Tier 2 — Trust & security signals (medium effort)
 
-- [ ] **Pin GitHub Actions to commit SHAs** (currently floating majors) + add `.github/dependabot.yml` to keep them fresh `impact:high / effort:low`
-- [ ] Add `SECURITY.md` (how to report vulnerabilities — matters for a package repo) `impact:med / effort:low`
-- [ ] Add `.github/PULL_REQUEST_TEMPLATE.md` and `.github/ISSUE_TEMPLATE/` `impact:med / effort:low`
-- [ ] Add `CHANGELOG.md` + cut a real **GitHub Release** from your existing version tags `impact:med / effort:med`
-- [ ] Add a secret-scanning hook/CI step (e.g. `gitleaks`) — you already scan docs manually `impact:med / effort:low`
-- [ ] Consider signing published Releases / documenting the GPG key rotation policy `impact:low / effort:med`
+- [x] **GitHub Actions pinned to commit SHAs** (both workflows, `# vX` comments) + `.github/dependabot.yml` (weekly, grouped) to keep them fresh
+- [x] **`SECURITY.md`** — private reporting path, package-integrity notes, supported versions
+- [x] **`.github/PULL_REQUEST_TEMPLATE.md`** + **`.github/ISSUE_TEMPLATE/`** (bug, feature, config with security/upstream links; blank issues disabled)
+- [x] **`CHANGELOG.md`** (Keep a Changelog, seeded from tags + untagged work) — ⚠️ *still to do: push and cut the actual GitHub Release / tag `v2.0`/`v3.0`*
+- [x] **Secret scanning** — `gitleaks` in pre-commit + a CI job (informational until first run confirms history is clean, then make blocking)
+- [ ] Document the GPG key rotation policy for published Releases `impact:low / effort:med`
 
 ---
 

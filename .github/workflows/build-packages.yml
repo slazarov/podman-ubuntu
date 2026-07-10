@@ -35,7 +35,7 @@ jobs:
       skip: ${{ steps.detect.outputs.skip }}
     steps:
       - name: Restore last-known SHAs
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: /tmp/nightly-sha.json
           key: nightly-sha-v1-${{ github.run_number }}
@@ -107,7 +107,7 @@ jobs:
     outputs:
       skip: ${{ steps.guard.outputs.skip }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Compare resolved versions against the live repository
         id: guard
         run: |
@@ -194,7 +194,7 @@ jobs:
       # this container. Compilation never opens /dev/fuse (it is a runtime-only
       # requirement of fuse-overlayfs), so the build step sets
       # SKIP_FUSE_CHECK=true for container cells instead of creating the node.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Resolve build track
         id: track
@@ -204,7 +204,7 @@ jobs:
           echo "Build track: ${TRACK}"
 
       - name: Cache Go modules and build cache
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: |
             ~/.cache/go-mod
@@ -313,7 +313,7 @@ jobs:
           fi
           ./scripts/package_all.sh
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           # CICD-07: distro + arch in the artifact name — the four names are
           # debs-2404-amd64, debs-2404-arm64, debs-2604-amd64, debs-2604-arm64.
@@ -346,7 +346,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Run doc and HTML unit tests
         run: |
@@ -370,14 +370,14 @@ jobs:
       # the same path, so 26.04 binaries can never land in a 24.04 publish or
       # vice versa.
       - name: Download 24.04 artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           pattern: debs-2404-*
           path: all-debs-2404/
           merge-multiple: true
 
       - name: Download 26.04 artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         # 2604 build cells may have failed — continue so 2404 publish proceeds.
         continue-on-error: true
         with:
@@ -463,14 +463,14 @@ jobs:
             echo ">>> Skipping 2604 smoke — ${TRACK}-2604 suite not in repo-output (2604 build may have failed)"
           fi
 
-      - uses: actions/configure-pages@v6
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
 
       # Atomic deploy (CICD-08): both distros are assembled into repo-output
       # before this single one-shot Pages deploy. The live repository is
       # replaced in one step or not at all.
-      - uses: actions/upload-pages-artifact@v5
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: repo-output/
 
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5

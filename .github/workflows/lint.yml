@@ -16,12 +16,12 @@ jobs:
     name: shellcheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       # Blocking, but scoped to real breakage (severity=error) so it is green
       # today; tighten to `warning` then default as existing warnings are fixed.
       # Reads .shellcheckrc from the repo root (external-sources, SC1091 off).
       - name: ShellCheck
-        uses: ludeeus/action-shellcheck@2.0.0
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
         with:
           severity: error
 
@@ -29,7 +29,7 @@ jobs:
     name: shfmt (informational)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       # Not blocking yet — surfaces formatting drift against the house style
       # (.editorconfig / .pre-commit-config.yaml). Promote to blocking after a
       # one-time `shfmt -w` normalization pass.
@@ -41,7 +41,7 @@ jobs:
     name: bash unit tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Run tests/*.sh
         run: |
           fail=0
@@ -51,3 +51,19 @@ jobs:
             echo "::endgroup::"
           done
           exit "${fail}"
+
+  gitleaks:
+    name: gitleaks (secret scan, informational)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0   # full history so the scan covers past commits
+      # Informational until the first run confirms history is clean — the repo's
+      # early experimental phase could surface findings. Once green, drop
+      # continue-on-error to make it blocking (and add a .gitleaksignore for any
+      # reviewed false positives). pre-commit runs gitleaks on staged changes.
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
