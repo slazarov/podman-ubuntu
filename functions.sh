@@ -381,8 +381,10 @@ git_checkout() {
        if [[ "${SHALLOW_CLONE:-true}" == "true" ]]; then
            git fetch --tags
        fi
-       git checkout $(get_latest_tag)
-       export GIT_CHECKED_OUT_TAG=$(get_latest_tag)
+       local latest_tag
+       latest_tag=$(get_latest_tag)
+       git checkout "${latest_tag}"
+       export GIT_CHECKED_OUT_TAG="${latest_tag}"
     fi
 
 }

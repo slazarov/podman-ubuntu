@@ -35,6 +35,29 @@ severity; coordinated disclosure is appreciated.
 - Report any signature, key, or index-integrity concern through the private
   channel above.
 
+## Signing key rotation
+
+The repository signing key lives only as the `GPG_PRIVATE_KEY` GitHub Actions
+secret; its public half ships in the repo as `packaging/repo/pubkey.gpg` and is
+published as `podman-ubuntu.gpg` (installed by users into
+`/etc/apt/keyrings/`).
+
+Because `apt` will reject a suite signed by a key it doesn't already trust,
+rotation is done with a transition window rather than a hard swap:
+
+1. Generate the new keypair; add its public key to `packaging/repo/pubkey.gpg`
+   **alongside** the current one so the published `podman-ubuntu.gpg` carries
+   both.
+2. Publish once with the combined keyring so every user's next `apt update`
+   picks up the new public key while the old signature is still trusted.
+3. After a transition window (announce it in the README/release notes), replace
+   the `GPG_PRIVATE_KEY` secret with the new private key so suites are signed by
+   the new key only.
+4. Drop the retired public key from `pubkey.gpg` in a later release.
+
+Rotate promptly (skipping the window) if the private key is believed
+compromised, and disclose via the channel above. Never commit a private key.
+
 ## Supported versions
 
 Only the **latest published build of each track** (stable / edge / nightly) for

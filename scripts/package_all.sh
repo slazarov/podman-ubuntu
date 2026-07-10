@@ -285,36 +285,9 @@ declare -A COMPONENT_TAGS=(
     ["container-configs"]="${CONTAINER_LIBS_TAG}"
 )
 
-# Component-to-binary mapping (DESTDIR-relative paths to the native ELF binaries
-# each component ships). Used to derive system-library depends at build time via
-# detect_runtime_depends. Multi-binary components use a space-separated value
-# (e.g. pasta ships both passt and pasta). Components with no native ELF binary
-# (container-configs, toolbox) have no entry — detection is skipped for them.
-declare -A COMPONENT_BINARIES=(
-    ["podman"]="usr/bin/podman usr/bin/podman-remote"
-    ["crun"]="usr/bin/crun"
-    ["conmon"]="usr/bin/conmon"
-    ["netavark"]="usr/bin/netavark"
-    ["aardvark-dns"]="usr/bin/aardvark-dns"
-    ["pasta"]="usr/bin/passt usr/bin/pasta"
-    ["fuse-overlayfs"]="usr/bin/fuse-overlayfs"
-    ["catatonit"]="usr/bin/catatonit"
-    ["buildah"]="usr/bin/buildah"
-    ["skopeo"]="usr/bin/skopeo"
-)
-
-# Inject-only components (WR-02): their nFPM YAML has NO literal `depends:` key
-# and no static items — the entire depends block is the injected fragment. For
-# these the injected fragment must carry its own `depends:` header, emitted only
-# when the detected set is non-empty, so a fully-static binary yields no key at
-# all (rather than a bare `depends:` with zero items, which parses as null).
-# Components NOT listed here (podman/buildah/skopeo) keep their literal
-# `depends:` key with static suite deps and receive list items only.
-declare -A INJECT_ONLY_DEPENDS=(
-    ["crun"]=1
-    ["conmon"]=1
-    ["pasta"]=1
-)
+# Component maps (COMPONENT_BINARIES, INJECT_ONLY_DEPENDS) — shared with
+# verify_depends.sh so the packaging and verification paths cannot drift.
+source "${toolpath}/scripts/component_maps.sh"
 
 # ============================================
 # Create Output Directory
@@ -407,13 +380,14 @@ for component in "${COMPONENTS[@]}"; do
     fi
     export DETECTED_DEPENDS
 
-    nfpm_config="/tmp/nfpm-${component}.yaml"
+    nfpm_config="$(mktemp)"
     envsubst '${VERSION} ${ARCH} ${DESTDIR} ${DETECTED_DEPENDS}' < "${NFPM_DIR}/${component}.yaml" > "${nfpm_config}"
 
     nfpm pkg \
         --config "${nfpm_config}" \
         --target "${OUTPUT_DIR}" \
         --packager deb
+    rm -f "${nfpm_config}"
 
     echo ">>> Done: podman-${component}"
     echo ""
@@ -443,12 +417,14 @@ export VERSION="${suite_version}"
 export ARCH="${ARCH}"
 export DESTDIR="${DESTDIR}"
 
-envsubst '${VERSION} ${ARCH} ${DESTDIR}' < "${NFPM_DIR}/suite.yaml" > "/tmp/nfpm-suite.yaml"
+suite_config="$(mktemp)"
+envsubst '${VERSION} ${ARCH} ${DESTDIR}' < "${NFPM_DIR}/suite.yaml" > "${suite_config}"
 
 nfpm pkg \
-    --config "/tmp/nfpm-suite.yaml" \
+    --config "${suite_config}" \
     --target "${OUTPUT_DIR}" \
     --packager deb
+rm -f "${suite_config}"
 
 echo ">>> Done: podman-suite"
 echo ""

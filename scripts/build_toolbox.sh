@@ -22,7 +22,6 @@ cd "${BUILD_ROOT}" || exit
 # Initialize build logging
 log_build_output "toolbox"
 
-# Required Fix otherwise go complains about 1.22.6 vs 1.23 mismatch
 export PATH="$GOPATH:$PATH"
 
 step_start "Cloning repository"
@@ -36,10 +35,6 @@ step_done
 
 step_start "Logging version"
 log_component "toolbox"
-step_done
-
-step_start "Applying pre-build fixes"
-[[ -f go.mod ]] && sed -Ei "s|^go 1.22.6$|go 1.23|" go.mod
 step_done
 
 step_start "Configuring"

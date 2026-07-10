@@ -52,18 +52,22 @@ judgment, Tier 3 improves the code an outsider never sees.
 - [x] **`.github/PULL_REQUEST_TEMPLATE.md`** + **`.github/ISSUE_TEMPLATE/`** (bug, feature, config with security/upstream links; blank issues disabled)
 - [x] **`CHANGELOG.md`** (Keep a Changelog, seeded from tags + untagged work) — ⚠️ *still to do: push and cut the actual GitHub Release / tag `v2.0`/`v3.0`*
 - [x] **Secret scanning** — `gitleaks` in pre-commit + a CI job (informational until first run confirms history is clean, then make blocking)
-- [ ] Document the GPG key rotation policy for published Releases `impact:low / effort:med`
+- [x] **GPG key rotation policy** documented in `SECURITY.md` (transition-window procedure + compromise path)
 
 ---
 
 ## Tier 3 — Structural code cleanup (real engineering, invisible to casual reviewers)
 
-- [ ] **Remove dead `go 1.22.6` sed patches** in `build_buildah.sh`, `build_skopeo.sh`, `build_toolbox.sh`, `build_go-md2man.sh` (silent no-ops on newer `go.mod`) `impact:med / effort:low`
-- [ ] **Kill sync-by-comment duplication**: extract `COMPONENT_BINARIES` / `INJECT_ONLY_DEPENDS` (duplicated in `package_all.sh` and `verify_depends.sh`) into one sourced file `impact:med / effort:med`
-- [ ] **Decompose `ci_publish.sh`** (~740-line state machine) into named functions/sub-scripts — it's covered by `test_ci_publish_multipass.sh`, so you can refactor behind the gate `impact:med / effort:high`
-- [ ] Replace hardcoded `/tmp/nfpm-*.yaml` render paths in `package_all.sh` with `mktemp` `impact:low / effort:low`
-- [ ] Resolve the `container-configs` triple-naming mismatch (repo `container-libs` / package `podman-container-configs` / var `CONTAINER_LIBS_TAG`) or document it in one place `impact:low / effort:med`
-- [ ] De-duplicate `get_latest_tag` double-call on the no-tag path in `git_checkout` `impact:low / effort:low`
+> Builds/integration run on Linux only, so these were verified with `bash -n`,
+> the `severity=error` ShellCheck gate, and the full unit-test suite (13/13).
+> The packaging/publish paths themselves still get their real proof in CI/VM.
+
+- [x] **Removed dead `go 1.22.6` sed patches** — the 4 no-op `"Applying pre-build fixes"` steps (buildah, skopeo, toolbox, go-md2man) and 11 orphaned/misplaced `1.22.6` comments (incl. in Rust/C scripts with no `go.mod`, and `install_protoc.sh`)
+- [x] **Killed sync-by-comment duplication** — extracted `COMPONENT_BINARIES` / `INJECT_ONLY_DEPENDS` into `scripts/component_maps.sh`, sourced by both `package_all.sh` and `verify_depends.sh` (verified: 10 + 3 keys load identically)
+- [x] **`mktemp`'d the nFPM render paths** in `package_all.sh` (+ added the cleanup the hardcoded `/tmp/nfpm-*.yaml` version lacked)
+- [x] **De-duplicated the `get_latest_tag` double-call** in `git_checkout` (compute once, quoted — also clears an unquoted-expansion finding)
+- [ ] **Decompose `ci_publish.sh`** (~740-line state machine) — ⚠️ **DEFERRED to a Lima VM.** Its guard tests (`test_ci_publish_multipass.sh`, `test_mirror_verbatim.sh`) need reprepro/gpg and self-skip on macOS, and `test_index_html_distro.sh` only greps the source — so a refactor of the live-repo publish path can't be runtime-validated here. Do it in `ubuntu-24`/`ubuntu-26` where those tests actually run. `impact:med / effort:high`
+- [ ] Resolve or explicitly document the `container-configs` triple-naming mismatch (repo `container-libs` / package `podman-container-configs` / var `CONTAINER_LIBS_TAG`) — left as an accepted quirk (a rename touches package names + versions env; not worth the risk for cosmetics) `impact:low / effort:med`
 
 ---
 
