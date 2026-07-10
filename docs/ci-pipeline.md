@@ -1,4 +1,3 @@
-<!-- generated-by: gsd-doc-writer -->
 # CI/CD Release Pipeline
 
 ## Overview

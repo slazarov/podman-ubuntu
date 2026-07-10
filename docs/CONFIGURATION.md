@@ -1,4 +1,3 @@
-<!-- generated-by: gsd-doc-writer -->
 # Configuration
 
 This project builds the Podman container stack from source and packages it into `.deb`

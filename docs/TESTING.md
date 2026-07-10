@@ -1,4 +1,3 @@
-<!-- generated-by: gsd-doc-writer -->
 # Testing
 
 This project is a shell-orchestrated build and packaging pipeline, not an

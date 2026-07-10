@@ -1,4 +1,3 @@
-<!-- generated-by: gsd-doc-writer -->
 # podman-ubuntu
 
 Compile and install the latest Podman container stack from source on Debian/Ubuntu, or install pre-built packages from the hosted APT repository.
