@@ -95,9 +95,8 @@ New tests follow the conventions established by
 
 ## Coverage Requirements
 
-No coverage tooling or threshold is configured for this project. The Bash test
-harness does not measure line, branch, or function coverage, and there is no
-`.nycrc`, coverage config, or equivalent in the repository.
+No coverage tooling or threshold is configured; the Bash harness does not
+measure line, branch, or function coverage.
 
 Current test scope is focused on the packaging version-derivation logic
 (`extract_version_nightly` in `scripts/package_all.sh`), covering each
@@ -109,17 +108,32 @@ normalization (toolbox), and Debian tilde-sort ordering.
 
 ## CI Integration
 
-The project's GitHub Actions workflow
+Two GitHub Actions workflows cover this repository.
+
+The **lint** workflow
+([`.github/workflows/lint.yml`](../.github/workflows/lint.yml)) is the fast
+quality gate, running on every push to `main` and every pull request. It has
+four jobs:
+
+- **ShellCheck** — `severity=error`, **blocking**. Reads `.shellcheckrc`
+  (external-sources, SC1091 off) and fails the run on real breakage.
+- **shfmt** — a formatting diff against the house style (`shfmt -i 4 -ci -sr`),
+  **informational** (`continue-on-error`), surfacing drift without blocking.
+- **bash unit tests** — runs every `tests/test_*.sh` script in a loop and exits
+  non-zero if any test fails, so a failing unit test **blocks** the run.
+- **gitleaks** — a secret scan over full history, **informational** for now
+  (to be promoted to blocking once history is confirmed clean).
+
+The **build-packages** workflow
 ([`.github/workflows/build-packages.yml`](../.github/workflows/build-packages.yml),
-"Build and Publish Packages") is a build-and-publish pipeline and does **not**
-currently invoke the scripts in `tests/`. It is triggered by:
+"Build and Publish Packages") is the build-and-publish pipeline, triggered by:
 
 - a daily schedule (`cron: '30 4 * * *'`, 4:30 AM UTC) for nightly builds, and
-- manual `workflow_dispatch` runs.
+- manual `workflow_dispatch` runs (with a `stable` / `edge` / `nightly` choice).
 
-Its jobs build the Podman component packages natively on `ubuntu-24.04` (amd64)
-and `ubuntu-24.04-arm` (arm64) runners and then publish the resulting APT
-repository in a separate `publish` job. Because the tests are standalone Bash
-scripts with a non-zero exit on failure, they can be wired into a CI job (for
-example, a `for t in tests/*.sh` loop as shown above) if automated test
-enforcement is desired in the future.
+Its matrix `build` job compiles the component packages natively across four
+cells — 24.04 and 26.04, each on amd64 (`ubuntu-24.04`) and arm64
+(`ubuntu-24.04-arm`) — and a separate `publish` job assembles and deploys the
+reprepro APT repository to GitHub Pages. That publish job also runs a subset of
+`tests/` inline as deploy gates (doc/HTML tests and the repo-assembly
+regression tests) before uploading, so a regression there blocks the deploy.

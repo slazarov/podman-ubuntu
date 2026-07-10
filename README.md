@@ -66,7 +66,7 @@ sudo apt update
 sudo apt upgrade
 ```
 
-> **Note:** The bare suite names `stable`, `edge`, and `nightly` are deprecated as of v3.0 (June 2026) and will be removed in v3.1. They continue to serve Ubuntu 24.04 packages during the deprecation window. New setups should use the distro-qualified names above; existing users should migrate (see [docs/apt-repository.md](docs/apt-repository.md)).
+> **Note:** The bare suite names `stable`, `edge`, and `nightly` are deprecated as of v1.3 and will be removed in a future release. They continue to serve Ubuntu 24.04 packages during the deprecation window. New setups should use the distro-qualified names above; existing users should migrate (see [docs/apt-repository.md](docs/apt-repository.md)).
 
 ---
 
@@ -210,6 +210,12 @@ The **edge** track automatically pulls the latest upstream release tags. The **n
 | Ubuntu 26.04 (Resolute Raccoon) | amd64 (x86_64), arm64 (aarch64) |
 
 Every distro × architecture cell is built natively in CI (not cross-compiled), and APT selects the correct one automatically.
+
+---
+
+## Non-Goals
+
+To stay focused, the project deliberately does **not** provide: end-user version pinning (each track always follows its latest), a GUI installer, non-Debian/Ubuntu distributions, 32-bit ARM, resumable or partial builds, component selection, or CNI networking (removed upstream in Podman 5.0).
 
 ---
 

@@ -24,5 +24,5 @@
 
 ## Testing
 
-<!-- How did you verify this? macOS `bash -n` + unit tests, Lima VM build,
-     CI run, etc. Builds only run on Linux — see CONTRIBUTING.md. -->
+<!-- How did you verify this? macOS `bash -n` + unit tests, an Ubuntu VM/container
+     build, a CI run, etc. Builds only run on Linux — see CONTRIBUTING.md. -->

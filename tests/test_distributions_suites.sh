@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Test that packaging/repo/conf/distributions declares the 9 reprepro
-# distributions of the v3.0 six-suite restructure (REPO-06 / REPO-07).
+# distributions of the six-suite restructure (REPO-06 / REPO-07).
 #
 # Pure parse assertions over a static config file — no reprepro/gpg/apt needed,
 # so this runs everywhere (including the macOS dev host).

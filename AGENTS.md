@@ -5,10 +5,11 @@ Guidance for AI agents working in this repository.
 ## What This Project Is
 
 A **shell-orchestrated build pipeline** (not an application) that compiles the
-Podman container stack (12 components) from upstream source on Ubuntu 24.04
-(amd64 + arm64), packages it into `.deb` files with nFPM, and publishes a
-reprepro APT repository via GitHub Pages with three suites: **stable** (pinned
-tags), **edge** (latest upstream tags), **nightly** (upstream HEAD, daily CI).
+Podman container stack (12 components) from upstream source on Ubuntu 24.04 and
+26.04 (amd64 + arm64), packages it into `.deb` files with nFPM, and publishes a
+reprepro APT repository via GitHub Pages across three release tracks — **stable**
+(pinned tags), **edge** (latest upstream tags), **nightly** (upstream HEAD, daily
+CI) — each published as a per-distro suite (`{track}-{2404,2604}`).
 
 There is no package.json, no compiler, no app server. Everything is Bash.
 
@@ -18,7 +19,7 @@ There is no package.json, no compiler, no app server. Everything is Bash.
   you can edit scripts but cannot execute the pipeline locally. Don't try to
   "verify" by running `setup.sh` or `build_*.sh` outside Linux; use
   `bash -n <script>` for syntax checks and reason through the logic instead.
-  For real execution, use the Lima VMs (see "Lima VM Testing" below).
+  For real execution, use a disposable Ubuntu VM/container or CI.
 - `setup.sh` writes to system paths and requires root — full builds belong in a
   disposable VM/container or CI.
 - The same scripts serve all three release tracks, selected **entirely by
@@ -43,7 +44,8 @@ There is no package.json, no compiler, no app server. Everything is Bash.
 | `versions-stable.env` / `versions-nightly.env` | Track version pins (sourced before `setup.sh`) |
 | `tests/` | Bash unit tests, run directly: `bash tests/<test>.sh` |
 | `.github/workflows/build-packages.yml` | CI: native amd64 + arm64 builds, repo publish |
-| `docs/` | Architecture, configuration, testing, APT repo details, project/deployment guides |
+| `.github/workflows/lint.yml` | CI gate: ShellCheck + shfmt + `tests/` + gitleaks (every PR) |
+| `docs/` | Architecture (incl. CI/CD), configuration, APT repo, testing |
 
 Component source checkouts (`podman/`, `crun/`, etc.) are cloned into `build/`
 (`BUILD_ROOT`) at build time and are gitignored — never commit them.
@@ -70,46 +72,6 @@ sudo NIGHTLY_BUILD=true SHALLOW_CLONE=false ./setup.sh  # nightly (HEAD)
 ./scripts/package_all.sh
 ```
 
-## Lima VM Testing
-
-On-Ubuntu verification (UAT, `verify_depends.sh`, `smoke_install_2604.sh`, full
-builds) runs in Lima VMs: **`ubuntu-24`** (24.04) and **`ubuntu-26`** (26.04).
-Configs live in `lima/*.yaml`; the repo is mounted **writable** at
-`/opt/podman-debian` in both VMs.
-
-```bash
-# Command pattern (ignore the harmless "cd: /Users/...: No such file" noise —
-# lima tries to chdir to the host CWD first)
-limactl shell ubuntu-24 -- bash -c 'cd /opt/podman-debian && <command>'
-
-# Full pipeline must run as root with DESTDIR set; detach long builds and log
-limactl shell ubuntu-24 -- bash -c \
-  'sudo -b env HOME=/root nohup bash -c \
-   "cd /opt/podman-debian && source versions-stable.env && \
-    export DESTDIR=/root/podman-staging && ./setup.sh" > /tmp/setup.log 2>&1'
-```
-
-Rules learned the hard way:
-
-- **Run `sudo apt-get update` before the first build** — fresh VMs carry stale
-  apt indexes and `install_dependencies.sh` will 404 on superseded versions.
-- **`setup.sh` requires root** (`apt-get` is called directly, no sudo wrapper).
-  Use `sudo env HOME=/root ...`; convention: `DESTDIR=/root/podman-staging`.
-- **`nfpm` is NOT installed by `setup.sh`.** After the Go toolchain exists:
-  `sudo env HOME=/root PATH="/opt/go/<ver>/bin:$PATH" go install
-  github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.45.0` → lands in `/root/go/bin`;
-  put that on PATH for `package_all.sh` / `verify_depends.sh`.
-- **Never build both distros against the shared mount.** `BUILD_ROOT` is
-  `<repo>/build` — shared by both VMs through the mount. make/cargo reuse by
-  mtime would install binaries linked against the *other* distro's libs. Build
-  one distro on the mount, and for the second VM rsync the repo to VM-local
-  disk first (exclude `build/`, `output/`, `.git/`), e.g. to
-  `/root/podman-debian-build`, and build there.
-- **`smoke_install_2604.sh` needs a container runtime** — `ubuntu-26` has
-  distro podman installed for this; run as root with `SMOKE_RUNTIME=podman`.
-- 24.04/26.04-built `.deb`s coexist in `output/` (distinct
-  `~ubuntu{24.04,26.04}.podman1` suffixes in filenames).
-
 ## Code Style
 
 - `#!/bin/bash` + `set -euo pipefail` at the top of every script.
@@ -122,8 +84,8 @@ Rules learned the hard way:
   parameters prefixed `l` (`lcomponent`, `lfolder`). Always quote expansions:
   `"${VAR}"`. 4-space indent inside functions.
 - snake_case function names; guard sourced files with the `_SOURCED` pattern.
-- Run ShellCheck over touched scripts before finishing (not enforced by CI,
-  but expected).
+- Run ShellCheck over touched scripts before finishing (CI enforces it at
+  `severity=error` via `.github/workflows/lint.yml`).
 
 ## Conventions
 
@@ -138,8 +100,7 @@ Rules learned the hard way:
 
 ## Where Things Are Documented
 
-- `docs/ARCHITECTURE.md` — pipeline stages end to end
-- `docs/CONFIGURATION.md` — every env var
-- `docs/TESTING.md` — test patterns and CI integration
-- `docs/build-scripts.md` / `docs/ci-pipeline.md` / `docs/apt-repository.md`
-- `docs/project-overview.md` / `docs/tech-stack.md` / `docs/source-tree-analysis.md` / `docs/deployment-guide.md`
+- `docs/ARCHITECTURE.md` — pipeline stages end to end, incl. CI/CD & publishing
+- `docs/CONFIGURATION.md` — every env var and config file
+- `docs/apt-repository.md` — end-user APT setup and troubleshooting
+- `docs/TESTING.md` — test suite and CI integration

@@ -8,8 +8,7 @@ in the APT repository, not here; this file tracks the **pipeline** itself.
 
 ## [Unreleased]
 
-Work landed since `v1.2` that predates a formal tag. Cutting a `v2.0` /
-`v3.0` GitHub Release from these is tracked in `docs/PRODUCTION-READINESS.md`.
+Work landed since `v1.2`, slated for the next release, `v1.3`.
 
 ### Added
 - **Debian packaging** — every component built into a `podman-*` `.deb` via nFPM,

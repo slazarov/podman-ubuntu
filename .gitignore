@@ -30,6 +30,7 @@ ltmain.sh
 _bmad/
 _bmad-output/
 harness-config.toml
+CLAUDE.local.md
 
 # Codanna / MCP caches
 .codanna/

@@ -10,7 +10,7 @@ The repository is hosted on GitHub Pages and serves three release tracks per Ubu
 
 Pick the section below that matches your Ubuntu version.
 
-> **Note:** Deprecated in v3.0 (June 2026). Bare suite names will be removed in a future v3.1 release. Monitor the changelog or watch the GitHub repository for the removal notice. The bare suite names `stable`, `edge`, and `nightly` are superseded by the distro-qualified names shown below. If you are an existing user with `Suites: stable` (or `edge`/`nightly`) in your `.sources` file, see [Migrating from Bare Suite Names](#migrating-from-bare-suite-names).
+> **Note:** Deprecated as of v1.3. Bare suite names will be removed in a future release. Monitor the changelog or watch the GitHub repository for the removal notice. The bare suite names `stable`, `edge`, and `nightly` are superseded by the distro-qualified names shown below. If you are an existing user with `Suites: stable` (or `edge`/`nightly`) in your `.sources` file, see [Migrating from Bare Suite Names](#migrating-from-bare-suite-names).
 
 ## Ubuntu 24.04 (Noble Numbat)
 
@@ -115,7 +115,7 @@ Both architectures are built natively (not cross-compiled) for both Ubuntu 24.04
 
 ## Migrating from Bare Suite Names
 
-If you set up this repository before v3.0, your `.sources` file likely uses a bare suite name (`Suites: stable`, `edge`, or `nightly`). These bare names are **deprecated** and will be removed in a future v3.1 release. Switch to the distro-qualified name for your Ubuntu version.
+If you set up this repository before v1.3, your `.sources` file likely uses a bare suite name (`Suites: stable`, `edge`, or `nightly`). These bare names are **deprecated** and will be removed in a future release. Switch to the distro-qualified name for your Ubuntu version.
 
 The bare suite names continue to serve **Ubuntu 24.04** packages during the deprecation window, so 24.04 users are not broken immediately -- but you should still migrate. Ubuntu 26.04 users must switch to a `-2604` suite to receive 26.04 packages.
 
@@ -210,6 +210,21 @@ To revert to official packages, remove the podman-ubuntu packages and reinstall 
 sudo apt remove podman-suite
 sudo apt install podman
 ```
+
+### Rootless runtime prerequisites
+
+Rootless Podman needs a few host features. The source build's preflight
+(`preflight_check.sh`) enforces these; APT users should verify them too:
+
+- **cgroups v2** — required for rootless. If missing, add
+  `systemd.unified_cgroup_hierarchy=1` to the kernel command line and reboot.
+- **subuid/subgid ranges** — without a subordinate UID/GID range rootless mode
+  will not work:
+  `sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 "$USER"`.
+- **FUSE** — `/dev/fuse` and the `fuse3` package are needed by `fuse-overlayfs`
+  for rootless storage.
+- **No `noexec` on `/tmp` or `$HOME`** — it blocks build/runtime processes;
+  remove it from the mount options or point `TMPDIR` at an executable filesystem.
 
 ## Important Notes
 

@@ -176,22 +176,34 @@ upgrade.
 
 ### APT repository layout: `packaging/repo/conf/`
 
-The [`distributions`](../packaging/repo/conf/distributions) file defines three reprepro
-suites. Each shares `Origin: podman-ubuntu`, `Architectures: amd64 arm64`,
-`Components: main`, and `SignWith: yes`:
+The [`distributions`](../packaging/repo/conf/distributions) file defines nine reprepro
+suites. Each shares `Origin: podman-ubuntu`, `Label: Podman Ubuntu`,
+`Architectures: amd64 arm64`, `Components: main`, and `SignWith: yes`:
 
 | Suite / Codename | Purpose |
 |------------------|---------|
-| `stable` | Pinned stable releases. |
-| `edge` | Latest tagged upstream. |
-| `nightly` | Nightly git snapshots. |
+| `stable` | DEPRECATED rolling alias for `stable-2404` (Ubuntu 24.04). |
+| `edge` | DEPRECATED rolling alias for `edge-2404` (Ubuntu 24.04). |
+| `nightly` | DEPRECATED rolling alias for `nightly-2404` (Ubuntu 24.04). |
+| `stable-2404` | Ubuntu 24.04 — pinned stable releases. |
+| `edge-2404` | Ubuntu 24.04 — latest tagged upstream. |
+| `nightly-2404` | Ubuntu 24.04 — nightly git snapshots. |
+| `stable-2604` | Ubuntu 26.04 — pinned stable releases. |
+| `edge-2604` | Ubuntu 26.04 — latest tagged upstream. |
+| `nightly-2604` | Ubuntu 26.04 — nightly git snapshots. |
+
+The three bare aliases (`stable`, `edge`, `nightly`) are deprecated in favour of the
+distro-versioned suites; each pins to its Ubuntu 24.04 equivalent for backward
+compatibility.
 
 The [`options`](../packaging/repo/conf/options) file sets reprepro's `verbose` and
-`basedir .`. `repo_manage.sh` and `ci_publish.sh` validate that the requested suite is one
-of `stable`, `edge`, or `nightly`.
+`basedir .`. `repo_manage.sh` and `ci_publish.sh` take a `track` (`stable`, `edge`, or
+`nightly`) and a `distro` (`2404` or `2604`) argument, validated against `VALID_TRACKS`
+and `VALID_DISTROS` in `config.sh`; `resolve_publish_targets` composes them into the
+versioned suite (e.g. `stable-2404`), plus the bare legacy alias when the distro is `2404`.
 
 `packaging/repo/pubkey.gpg` is the committed public signing key used to verify the
-repository. <!-- VERIFY: the live repository base URL and GitHub Pages hosting target -->
+repository.
 
 ## Required vs optional settings
 
