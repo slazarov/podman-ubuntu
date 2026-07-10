@@ -2,6 +2,10 @@
 
 Compile and install the latest Podman container stack from source on Debian/Ubuntu, or install pre-built packages from the hosted APT repository.
 
+[![lint](https://github.com/slazarov/podman-ubuntu/actions/workflows/lint.yml/badge.svg)](https://github.com/slazarov/podman-ubuntu/actions/workflows/lint.yml)
+[![build](https://github.com/slazarov/podman-ubuntu/actions/workflows/build-packages.yml/badge.svg)](https://github.com/slazarov/podman-ubuntu/actions/workflows/build-packages.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+
 | | |
 |---|---|
 | **License** | AGPL-3.0 |

@@ -1,0 +1,53 @@
+name: lint
+
+# Fast quality gate on every push and PR. The heavier reprepro/gpg integration
+# harnesses run in the publish job of build-packages.yml; here we run ShellCheck,
+# an informational shfmt diff, and the portable bash unit tests.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Blocking, but scoped to real breakage (severity=error) so it is green
+      # today; tighten to `warning` then default as existing warnings are fixed.
+      # Reads .shellcheckrc from the repo root (external-sources, SC1091 off).
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          severity: error
+
+  shfmt:
+    name: shfmt (informational)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Not blocking yet — surfaces formatting drift against the house style
+      # (.editorconfig / .pre-commit-config.yaml). Promote to blocking after a
+      # one-time `shfmt -w` normalization pass.
+      - name: shfmt diff
+        continue-on-error: true
+        run: docker run --rm -v "${PWD}:/w" -w /w mvdan/shfmt:v3.10.0 -i 4 -ci -sr -d .
+
+  tests:
+    name: bash unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests/*.sh
+        run: |
+          fail=0
+          for t in tests/test_*.sh; do
+            echo "::group::${t}"
+            bash "${t}" || fail=1
+            echo "::endgroup::"
+          done
+          exit "${fail}"

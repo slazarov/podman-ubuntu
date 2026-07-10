@@ -488,7 +488,7 @@ cat > "${OUTPUT_DIR}/index.html" << 'HTMLEOF'
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Podman for Debian — APT Repository</title>
+<title>Podman for Ubuntu — APT Repository</title>
 <style>
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; line-height: 1.6; }
 h1 { border-bottom: 2px solid #333; padding-bottom: 0.5rem; }
@@ -518,7 +518,7 @@ th { background: #f4f4f4; }
 </style>
 </head>
 <body>
-<h1>Podman for Debian — APT Repository</h1>
+<h1>Podman for Ubuntu — APT Repository</h1>
 <p>Pre-built <code>.deb</code> packages for Podman and its dependencies on Debian (amd64 &amp; arm64).</p>
 
 <h2>Choose a Track</h2>

@@ -43,9 +43,7 @@ There is no package.json, no compiler, no app server. Everything is Bash.
 | `versions-stable.env` / `versions-nightly.env` | Track version pins (sourced before `setup.sh`) |
 | `tests/` | Bash unit tests, run directly: `bash tests/<test>.sh` |
 | `.github/workflows/build-packages.yml` | CI: native amd64 + arm64 builds, repo publish |
-| `docs/` | Architecture, configuration, testing, APT repo details |
-| `docs/bmad/` | BMAD-generated project docs (index, architecture, dev/deploy guides) |
-| `_bmad/` | BMAD tooling config and modules |
+| `docs/` | Architecture, configuration, testing, APT repo details, project/deployment guides |
 
 Component source checkouts (`podman/`, `crun/`, etc.) are cloned into `build/`
 (`BUILD_ROOT`) at build time and are gitignored — never commit them.
@@ -144,5 +142,4 @@ Rules learned the hard way:
 - `docs/CONFIGURATION.md` — every env var
 - `docs/TESTING.md` — test patterns and CI integration
 - `docs/build-scripts.md` / `docs/ci-pipeline.md` / `docs/apt-repository.md`
-- `docs/bmad/` — BMAD-generated project docs (start at `docs/bmad/index.md`)
-- `_bmad-output/project-context.md` — critical implementation rules for AI agents
+- `docs/project-overview.md` / `docs/tech-stack.md` / `docs/source-tree-analysis.md` / `docs/deployment-guide.md`

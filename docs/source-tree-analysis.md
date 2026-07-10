@@ -41,7 +41,7 @@ podman-ubuntu/
 ├── lima/
 │   ├── ubuntu-24.yaml            # Lima VM: Ubuntu 24.04 (repo mounted writable at /opt/podman-debian)
 │   └── ubuntu-26.yaml            # Lima VM: Ubuntu 26.04
-├── docs/                         # Documentation (hand-maintained + docs/bmad/ generated set)
+├── docs/                         # Documentation (architecture, config, testing, APT repo, guides)
 ├── .github/workflows/
 │   └── build-packages.yml        # CI: 4-cell distro×arch native build matrix + gated publish
 ├── index.html                    # Stale root landing page (authoritative page is generated in ci_publish.sh)
