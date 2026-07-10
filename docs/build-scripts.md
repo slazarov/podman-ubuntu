@@ -1,4 +1,3 @@
-<!-- generated-by: gsd-doc-writer -->
 # Build Scripts Reference
 
 This document is a reference for every shell script in this repository that

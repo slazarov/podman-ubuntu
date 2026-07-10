@@ -102,7 +102,7 @@ detect_distro_version_id() {
 #     ITS OWN transitive deps. Walking the full ldd closure over-reported the
 #     deps-of-deps (e.g. gpgme -> libassuan0/libgpg-error0, libsystemd0 ->
 #     libgcrypt20/liblz4-1/liblzma5/libzstd1) — the transitive-closure bug
-#     diagnosed in the Phase 19 UAT (.planning/debug/detector-transitive-closure.md).
+#     fixed here by reading only the direct DT_NEEDED sonames per binary.
 #   - Each direct NEEDED soname is resolved to the absolute on-disk object THIS
 #     binary loads via the per-binary `ldd` match (soname => /path), so the
 #     resolved path is multiarch-correct. linux-vdso and the ld-linux loader

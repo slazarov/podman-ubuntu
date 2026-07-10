@@ -1,4 +1,3 @@
-<!-- generated-by: gsd-doc-writer -->
 # Contributing to podman-ubuntu
 
 Thanks for your interest in contributing. This project compiles the Podman

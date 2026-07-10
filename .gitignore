@@ -23,11 +23,10 @@ ltmain.sh
 *.swp
 *.swo
 
-# AI tooling (machine-local; .planning/ docs are committed)
+# AI tooling (machine-local)
 .claude/
 .opencode/
 .codex/
-.planning/tmp/
 
 # Codanna / MCP caches
 .codanna/

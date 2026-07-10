@@ -44,7 +44,8 @@ There is no package.json, no compiler, no app server. Everything is Bash.
 | `tests/` | Bash unit tests, run directly: `bash tests/<test>.sh` |
 | `.github/workflows/build-packages.yml` | CI: native amd64 + arm64 builds, repo publish |
 | `docs/` | Architecture, configuration, testing, APT repo details |
-| `.planning/` | GSD planning state — committed, synced across machines |
+| `docs/bmad/` | BMAD-generated project docs (index, architecture, dev/deploy guides) |
+| `_bmad/` | BMAD tooling config and modules |
 
 Component source checkouts (`podman/`, `crun/`, etc.) are cloned into `build/`
 (`BUILD_ROOT`) at build time and are gitignored — never commit them.
@@ -104,7 +105,7 @@ Rules learned the hard way:
   `<repo>/build` — shared by both VMs through the mount. make/cargo reuse by
   mtime would install binaries linked against the *other* distro's libs. Build
   one distro on the mount, and for the second VM rsync the repo to VM-local
-  disk first (exclude `build/`, `output/`, `.git/`, `.planning/`), e.g. to
+  disk first (exclude `build/`, `output/`, `.git/`), e.g. to
   `/root/podman-debian-build`, and build there.
 - **`smoke_install_2604.sh` needs a container runtime** — `ubuntu-26` has
   distro podman installed for this; run as root with `SMOKE_RUNTIME=podman`.
@@ -129,7 +130,7 @@ Rules learned the hard way:
 ## Conventions
 
 - Commits: Conventional Commits (`feat:`, `fix(ci):`, `chore:`, `ci:`),
-  matching existing history. GSD phase work uses `fix(19):`-style scoping.
+  matching existing history.
 - Branch off `main` with descriptive names (`fix/...`, `feat/...`).
 - Packages are named `podman-*` and declare Conflicts/Replaces/Provides
   against official Ubuntu packages — keep that intact when touching
@@ -143,4 +144,5 @@ Rules learned the hard way:
 - `docs/CONFIGURATION.md` — every env var
 - `docs/TESTING.md` — test patterns and CI integration
 - `docs/build-scripts.md` / `docs/ci-pipeline.md` / `docs/apt-repository.md`
-- `.planning/` — GSD roadmap, phase plans, research, debug session notes
+- `docs/bmad/` — BMAD-generated project docs (start at `docs/bmad/index.md`)
+- `_bmad-output/project-context.md` — critical implementation rules for AI agents

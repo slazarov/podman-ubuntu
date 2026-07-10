@@ -249,7 +249,7 @@ EOF_C
 
         # Must NOT contain any of libsystemd0's own transitive deps — these are
         # the false-positive packages that the old ldd-closure detector injected
-        # (diagnosed in .planning/debug/resolved/detector-transitive-closure.md).
+        # (the direct-DT_NEEDED detector must not re-introduce them).
         # A regression back to transitive-closure logic would re-introduce them.
         _transitive_extras=( liblz4-1 liblzma5 libzstd1 libgcrypt20 libgpg-error0 )
         _found_transitive=()

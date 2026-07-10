@@ -1,4 +1,3 @@
-<!-- generated-by: gsd-doc-writer -->
 # Development
 
 This guide covers local development of the podman-ubuntu build and packaging
