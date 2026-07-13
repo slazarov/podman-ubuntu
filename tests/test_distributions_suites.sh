@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Test that packaging/repo/conf/distributions declares the 9 reprepro
-# distributions of the v3.0 six-suite restructure (REPO-06 / REPO-07).
+# Test that packaging/repo/conf/distributions declares the 8 reprepro
+# distributions: 2 bare legacy aliases (stable/nightly) + 6 versioned suites.
+# The v5 track (formerly edge) is distro-qualified only — no bare `v5` alias.
 #
 # Pure parse assertions over a static config file — no reprepro/gpg/apt needed,
 # so this runs everywhere (including the macOS dev host).
@@ -64,7 +65,7 @@ assert_absent() {
 
 echo ""
 echo "========================================"
-echo "Test: conf/distributions 9-suite parse"
+echo "Test: conf/distributions 8-suite parse"
 echo "========================================"
 echo ""
 
@@ -77,16 +78,16 @@ fi
 
 # ----- stanza counts -----
 
-echo "Test 1: exactly 9 Suite lines and 9 Codename lines"
+echo "Test 1: exactly 8 Suite lines and 8 Codename lines"
 suite_count="$(grep -c '^Suite:' "${DISTRIBUTIONS}")"
 codename_count="$(grep -c '^Codename:' "${DISTRIBUTIONS}")"
-assert_equals "9 Suite: lines" "9" "${suite_count}"
-assert_equals "9 Codename: lines" "9" "${codename_count}"
+assert_equals "8 Suite: lines" "8" "${suite_count}"
+assert_equals "8 Codename: lines" "8" "${codename_count}"
 
 echo ""
-echo "Test 2: exactly 9 SignWith: yes lines (single-key signing, REPO-06)"
+echo "Test 2: exactly 8 SignWith: yes lines (single-key signing, REPO-06)"
 signwith_count="$(grep -c '^SignWith: yes$' "${DISTRIBUTIONS}")"
-assert_equals "9 SignWith: yes lines" "9" "${signwith_count}"
+assert_equals "8 SignWith: yes lines" "8" "${signwith_count}"
 
 echo ""
 echo "Test 3: Suite == Codename for every stanza (D-03)"
@@ -95,22 +96,24 @@ codenames="$(grep '^Codename:' "${DISTRIBUTIONS}" | sed 's/^Codename: //')"
 assert_equals "Suite list equals Codename list" "${suites}" "${codenames}"
 
 echo ""
-echo "Test 4: bare legacy aliases present (REPO-07 mechanism)"
+echo "Test 4: bare legacy aliases present (REPO-07 mechanism) — stable/nightly only"
 suite_lines="$(grep '^Suite:' "${DISTRIBUTIONS}")"
-for alias in "Suite: stable" "Suite: edge" "Suite: nightly"; do
+for alias in "Suite: stable" "Suite: nightly"; do
     assert_contains_line "alias '${alias}' present unsuffixed" "${alias}" "${suite_lines}"
 done
+# v5 is distro-qualified only; there must be NO bare `v5` alias line.
+assert_absent "no bare 'Suite: v5' alias" "^Suite: v5\$"
 
 echo ""
 echo "Test 5: all 6 versioned suites present"
-for v in stable-2404 edge-2404 nightly-2404 stable-2604 edge-2604 nightly-2604; do
+for v in stable-2404 v5-2404 nightly-2404 stable-2604 v5-2604 nightly-2604; do
     assert_contains_line "versioned suite '${v}' present" "Suite: ${v}" "${suite_lines}"
 done
 
 echo ""
-echo "Test 6: exactly 3 alias Descriptions carry DEPRECATED (D-04)"
+echo "Test 6: exactly 2 alias Descriptions carry DEPRECATED (D-04)"
 deprecated_count="$(grep -c 'DEPRECATED' "${DISTRIBUTIONS}")"
-assert_equals "3 DEPRECATED descriptions" "3" "${deprecated_count}"
+assert_equals "2 DEPRECATED descriptions" "2" "${deprecated_count}"
 
 echo ""
 echo "Test 7: no createsymlinks token (real distributions only, D-01)"

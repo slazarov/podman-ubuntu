@@ -108,9 +108,9 @@ result="$(resolve_publish_targets stable 2404)"
 assert_equals "stable 2404 targets" $'stable-2404\nstable' "${result}"
 
 echo ""
-echo "Test 2: resolve_publish_targets edge 2604 -> exactly 'edge-2604' (no alias)"
-result="$(resolve_publish_targets edge 2604)"
-assert_equals "edge 2604 single target" "edge-2604" "${result}"
+echo "Test 2: resolve_publish_targets v5 2404 -> exactly 'v5-2404' (no bare alias)"
+result="$(resolve_publish_targets v5 2404)"
+assert_equals "v5 2404 single target (distro-qualified only)" "v5-2404" "${result}"
 
 echo ""
 echo "Test 3: resolve_publish_targets nightly 2404 -> 'nightly-2404' then 'nightly'"
@@ -128,6 +128,9 @@ echo ""
 echo "Test 5: is_valid_suite whitelist enforcement"
 assert_succeeds "is_valid_suite stable-2604 ok" is_valid_suite stable-2604
 assert_succeeds "is_valid_suite stable (bare alias) ok" is_valid_suite stable
+assert_succeeds "is_valid_suite v5-2404 ok" is_valid_suite v5-2404
+assert_fails "is_valid_suite bare 'v5' rejected (no bare alias)" is_valid_suite v5
+assert_fails "is_valid_suite legacy 'edge' rejected" is_valid_suite edge
 assert_fails "is_valid_suite bogus rejected" is_valid_suite bogus
 
 # ============================================

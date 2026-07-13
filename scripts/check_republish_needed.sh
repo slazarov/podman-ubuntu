@@ -4,9 +4,10 @@ set -euo pipefail
 # ============================================================================
 # check_republish_needed.sh
 # ============================================================================
-# Decides whether a manually-dispatched `stable` or `edge` build would produce
-# anything new, by comparing the versions that WOULD be built against what is
-# already published in the live APT repository.
+# Decides whether a `stable` or `v5` build (manual dispatch or daily cron) would
+# produce anything new, by comparing the versions that WOULD be built — resolved by
+# scripts/resolve_versions.sh from versions-${track}.env — against what is already
+# published in the live APT repository.
 #
 # Emits `skip=true`  -> every tagged component is already published at the
 #                       target version (across both distros and both arches);
@@ -16,13 +17,13 @@ set -euo pipefail
 #                       ever prevent a redundant rebuild, never skip a needed
 #                       one. Any error path falls through to skip=false.
 #
-# Usage:  check_republish_needed.sh <stable|edge> [repo-url]
+# Usage:  check_republish_needed.sh <stable|v5> [repo-url]
 # Output: writes `skip=<bool>` to stdout and to $GITHUB_OUTPUT when set.
 #
 # Scope / deliberate exclusions:
 #   * `pasta` is NOT compared. build_pasta.sh versions it by `date +%Y%m%d`
 #     (it has no upstream tag pin on any track), so it changes every day. A
-#     stable/edge rebuild therefore always yields a fresh pasta even when every
+#     stable/v5 rebuild therefore always yields a fresh pasta even when every
 #     pinned component is unchanged. Comparing it would make this guard never
 #     fire. pasta still rides along on whatever build a real component change
 #     triggers, and the nightly track refreshes it daily.
@@ -37,7 +38,7 @@ set -euo pipefail
 
 REPO_URL_DEFAULT="https://slazarov.github.io/podman-ubuntu"
 
-# component | deb package name | stable *_TAG var | upstream repo (edge resolve)
+# component | deb package name | resolved *_TAG var | upstream repo (provenance)
 # pasta is intentionally absent (see header). container-configs uses the
 # namespaced container-libs repo whose tags look like `common/vX.Y.Z`.
 COMPONENT_ROWS=(
@@ -63,7 +64,7 @@ ARCHES=("amd64" "arm64")
 # ----------------------------------------------------------------------------
 
 # extract_base <tag> <component> -> upstream base version with no distro suffix.
-# Mirrors scripts/package_all.sh:extract_version for the stable/edge cases.
+# Mirrors scripts/package_all.sh:extract_version for the resolved-tag cases.
 extract_base() {
     local ltag="$1"
     local lcomponent="$2"
@@ -90,34 +91,6 @@ get_pkg_version() {
     ' "${lfile}"
 }
 
-# resolve_edge_tag <repo-url> <component> -> highest stable upstream tag.
-# Mirrors functions.sh:get_latest_tag selection (exclude rc, version-sort,
-# pick highest) but over `git ls-remote` so no clone is required.
-resolve_edge_tag() {
-    local lurl="$1"
-    local lcomponent="$2"
-    local lrefs
-    lrefs=$(git ls-remote --tags --refs "${lurl}" 2>/dev/null | awk '{print $2}' | sed 's|refs/tags/||') || return 1
-    [[ -z "${lrefs}" ]] && return 1
-
-    if [[ "${lcomponent}" == "container-configs" ]]; then
-        # namespaced common/vX.Y.Z tags; rank by the numeric part
-        echo "${lrefs}" \
-            | grep -E '^common/v[0-9]' \
-            | grep -v 'rc' \
-            | while read -r t; do echo "${t#common/v} ${t}"; done \
-            | sort --reverse --version-sort -k1 \
-            | head -n1 | cut -d' ' -f2
-    else
-        echo "${lrefs}" \
-            | grep -v 'rc' \
-            | grep -E '^v?[0-9]' \
-            | while read -r t; do echo "${t#v} ${t}"; done \
-            | sort --reverse --version-sort -k1 \
-            | head -n1 | cut -d' ' -f2
-    fi
-}
-
 # emit_skip <true|false> [reason] — write the decision and exit 0. The guard
 # itself never fails the workflow; an indecisive guard must default to building.
 emit_skip() {
@@ -141,20 +114,34 @@ main() {
     local repo_url="${2:-${REPO_URL_DEFAULT}}"
 
     case "${track}" in
-        stable|edge) ;;
-        *) emit_skip false "Track '${track}' is not stable/edge — not guarded; build proceeds." ;;
+        stable|v5) ;;
+        *) emit_skip false "Track '${track}' is not stable/v5 — not guarded; build proceeds." ;;
     esac
 
     echo ">>> Republish guard: track=${track} repo=${repo_url}" >&2
 
-    # Resolve target tags per component.
-    if [[ "${track}" == "stable" ]]; then
-        if [[ ! -f versions-stable.env ]]; then
-            emit_skip false "versions-stable.env not found — cannot resolve stable pins."
-        fi
-        # shellcheck disable=SC1091
-        source versions-stable.env
+    # Resolve target tags with the SAME resolver the build uses, so the guard's
+    # targets are exactly what a build would produce (versions-${track}.env policy).
+    # The resolver distinguishes its two HOLD causes by exit code:
+    #   3 = deterministic (upstream reachable, nothing soaked yet) -> genuinely
+    #       nothing to build -> skip=true (quiet).
+    #   other non-zero = uncertain (upstream unreachable) -> we do NOT know, so honor
+    #       this guard's "never skip a needed build" contract and build (skip=false).
+    local script_dir repo_root policy resolver_out rrc
+    script_dir="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
+    repo_root="$(cd "${script_dir}/.." && pwd)"
+    policy="${repo_root}/versions-${track}.env"
+    if [[ ! -f "${policy}" ]]; then
+        emit_skip false "Policy file ${policy} not found — cannot resolve ${track} targets."
     fi
+    resolver_out="$( "${script_dir}/resolve_versions.sh" "${policy}" 2>/dev/null )" && rrc=0 || rrc=$?
+    if [[ "${rrc}" -eq 3 ]]; then
+        emit_skip true "Resolver: no soaked target yet for ${track} (upstream reachable) — nothing to build."
+    elif [[ "${rrc}" -ne 0 ]]; then
+        emit_skip false "Resolver uncertain for ${track} (upstream unreachable) — build to be safe."
+    fi
+    # shellcheck disable=SC1090
+    eval "${resolver_out}"
 
     # Download the four published Packages indices once (2 distros x 2 arches).
     local tmpdir
@@ -180,17 +167,16 @@ main() {
     done
 
     # Compare every tagged component (pasta excluded) across all four indices.
-    local row comp pkg tagvar repo tag base target published
+    local row comp pkg tagvar tag base target published
     for row in "${COMPONENT_ROWS[@]}"; do
-        IFS='|' read -r comp pkg tagvar repo <<< "${row}"
+        # The 4th column (upstream repo URL) documents provenance but is no longer
+        # read here (the resolver owns tag resolution), so it is discarded into `_`.
+        IFS='|' read -r comp pkg tagvar _ <<< "${row}"
 
-        if [[ "${track}" == "stable" ]]; then
-            tag="${!tagvar:-}"
-            [[ -z "${tag}" ]] && emit_skip false "Stable pin ${tagvar} is empty — build."
-        else
-            tag=$(resolve_edge_tag "${repo}" "${comp}") || tag=""
-            [[ -z "${tag}" ]] && emit_skip false "Could not resolve latest edge tag for ${comp} — build."
-        fi
+        # Tag comes from the resolver's materialized environment (eval'd above),
+        # the single source of truth shared with the build.
+        tag="${!tagvar:-}"
+        [[ -z "${tag}" ]] && emit_skip false "Resolved ${tagvar} is empty for ${comp} — build."
 
         base=$(extract_base "${tag}" "${comp}")
         [[ -z "${base}" ]] && emit_skip false "Empty base version for ${comp} (tag '${tag}') — build."

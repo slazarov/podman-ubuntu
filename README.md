@@ -1,7 +1,10 @@
-<!-- generated-by: gsd-doc-writer -->
 # podman-ubuntu
 
 Compile and install the latest Podman container stack from source on Debian/Ubuntu, or install pre-built packages from the hosted APT repository.
+
+[![lint](https://github.com/slazarov/podman-ubuntu/actions/workflows/lint.yml/badge.svg)](https://github.com/slazarov/podman-ubuntu/actions/workflows/lint.yml)
+[![build](https://github.com/slazarov/podman-ubuntu/actions/workflows/build-packages.yml/badge.svg)](https://github.com/slazarov/podman-ubuntu/actions/workflows/build-packages.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 
 | | |
 |---|---|
@@ -9,7 +12,7 @@ Compile and install the latest Podman container stack from source on Debian/Ubun
 | **Platforms** | Ubuntu 24.04 (Noble Numbat), Ubuntu 26.04 (Resolute Raccoon) |
 | **Architectures** | amd64 (x86_64), arm64 (aarch64) |
 
-Forked from [luckylinux/podman-debian](https://github.com/luckylinux/podman-debian) with significant additions: arm64 support, fully non-interactive builds, a hosted APT repository, CI/CD pipelines, 12 packaged components, opt-in build caching, and three release tracks (stable, edge, nightly).
+Forked from [luckylinux/podman-debian](https://github.com/luckylinux/podman-debian) with significant additions: arm64 support, fully non-interactive builds, a hosted APT repository, CI/CD pipelines, 12 packaged components, opt-in build caching, and three release tracks (stable, v5, nightly).
 
 ---
 
@@ -48,22 +51,22 @@ Each track is published per Ubuntu version with a distro-qualified suite name:
 
 | Track | Ubuntu 24.04 suite | Ubuntu 26.04 suite | Update Frequency |
 |-------|--------------------|--------------------|------------------|
-| **stable** | `stable-2404` | `stable-2604` | Manual promotion |
-| **edge** | `edge-2404` | `edge-2604` | On new upstream release |
+| **stable** | `stable-2404` | `stable-2604` | Podman 6.x, auto-updated within the major (soak window) |
+| **v5** | `v5-2404` | `v5-2604` | Podman 5.x maintenance, auto-updated within the series |
 | **nightly** | `nightly-2404` | `nightly-2604` | Daily at 4:30 AM UTC |
 
-Use **stable** for production systems, **edge** for the newest released features, and **nightly** for bleeding-edge development.
+Use **stable** for the current Podman 6.x line, **v5** to stay on the Podman 5.x maintenance line, and **nightly** for bleeding-edge development.
 
 To switch tracks, change the `Suites:` line in your sources file and re-run `apt update`:
 
 ```bash
-# Example: switch from stable to edge on Ubuntu 24.04
-sudo sed -i 's/^Suites: .*/Suites: edge-2404/' /etc/apt/sources.list.d/podman-ubuntu.sources
+# Example: switch from stable to v5 on Ubuntu 24.04
+sudo sed -i 's/^Suites: .*/Suites: v5-2404/' /etc/apt/sources.list.d/podman-ubuntu.sources
 sudo apt update
 sudo apt upgrade
 ```
 
-> **Note:** The bare suite names `stable`, `edge`, and `nightly` are deprecated as of v3.0 (June 2026) and will be removed in v3.1. They continue to serve Ubuntu 24.04 packages during the deprecation window. New setups should use the distro-qualified names above; existing users should migrate (see [docs/apt-repository.md](docs/apt-repository.md)).
+> **Note:** The bare suite names `stable` and `nightly` are deprecated as of v1.3 and will be removed in a future release. They continue to serve Ubuntu 24.04 packages during the deprecation window. The `v5` track has no bare alias — always use its distro-qualified name (`v5-2404` / `v5-2604`). New setups should use the distro-qualified names above; existing users should migrate (see [docs/apt-repository.md](docs/apt-repository.md)).
 
 ---
 
@@ -112,8 +115,8 @@ The build auto-detects the Go and Rust toolchain versions from upstream sources 
 git clone https://github.com/slazarov/podman-ubuntu.git
 cd podman-ubuntu
 
-# Source version pins (stable track)
-source versions-stable.env
+# Resolve the stable-track policy into concrete version tags (Podman 6.x)
+eval "$(./scripts/resolve_versions.sh versions-stable.env)"
 
 # Run the build (as root, preserving the environment)
 sudo -E ./setup.sh
@@ -121,7 +124,7 @@ sudo -E ./setup.sh
 
 `setup.sh` runs a pre-flight validation step, then builds and installs all 12 components from source. The build is fully non-interactive and auto-detects the system architecture (amd64 or arm64).
 
-To build the nightly track from upstream HEAD instead, source `versions-nightly.env` before running `setup.sh`.
+To build the Podman 5.x maintenance track, resolve `versions-v5.env` instead (`eval "$(./scripts/resolve_versions.sh versions-v5.env)"`). To build the nightly track from upstream HEAD, source `versions-nightly.env` before running `setup.sh`.
 
 ### Build Options
 
@@ -137,7 +140,7 @@ export CCACHE_ENABLED=true
 # Enable mold linker for Rust builds (5-10x faster linking)
 export MOLD_ENABLED=true
 
-source versions-stable.env
+eval "$(./scripts/resolve_versions.sh versions-stable.env)"
 sudo -E ./setup.sh
 ```
 
@@ -177,25 +180,9 @@ The project builds and packages the following 12 components from upstream source
 | Toolbox | [containers/toolbox](https://github.com/containers/toolbox) | Containerized CLI development environments |
 | containers-common | [containers/common](https://github.com/containers/common) | Shared config files, seccomp profiles, policy |
 
-### Current Versions (Stable Track)
+### Track Versions
 
-Pinned in [`versions-stable.env`](versions-stable.env):
-
-| Component | Version |
-|-----------|---------|
-| Podman | v6.0.0 |
-| Buildah | v1.44.0 |
-| Skopeo | v1.23.0 |
-| crun | 1.28 |
-| conmon | v2.2.1 |
-| Netavark | v2.0.0 |
-| Aardvark-DNS | v2.0.0 |
-| fuse-overlayfs | v1.16 |
-| catatonit | v0.2.1 |
-| Toolbox | 0.3 |
-| containers-common | common/v0.68.0 |
-
-The **edge** track automatically pulls the latest upstream release tags. The **nightly** track builds from upstream HEAD daily.
+Versions are not hand-pinned. The **stable** track follows the Podman 6.x line and the **v5** track follows the Podman 5.x maintenance line; each auto-updates within its series. [`scripts/resolve_versions.sh`](scripts/resolve_versions.sh) reads a policy file ([`versions-stable.env`](versions-stable.env) / [`versions-v5.env`](versions-v5.env)) declaring per-component series caps and a soak window (a new upstream tag is only adopted once its commit is at least `STABLE_SOAK_DAYS`, default 7, old), then materializes the concrete tags — with Buildah derived from Podman's `go.mod`. The concrete versions currently published are shown in the package-versions table on the repository's [`index.html`](https://slazarov.github.io/podman-ubuntu/). The **nightly** track builds from upstream HEAD daily.
 
 ---
 
@@ -207,6 +194,12 @@ The **edge** track automatically pulls the latest upstream release tags. The **n
 | Ubuntu 26.04 (Resolute Raccoon) | amd64 (x86_64), arm64 (aarch64) |
 
 Every distro × architecture cell is built natively in CI (not cross-compiled), and APT selects the correct one automatically.
+
+---
+
+## Non-Goals
+
+To stay focused, the project deliberately does **not** provide: end-user pinning to an arbitrary version (each track auto-updates within its own policy — major series plus a soak window), a GUI installer, non-Debian/Ubuntu distributions, 32-bit ARM, resumable or partial builds, component selection, or CNI networking (removed upstream in Podman 5.0).
 
 ---
 

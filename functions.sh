@@ -102,7 +102,7 @@ detect_distro_version_id() {
 #     ITS OWN transitive deps. Walking the full ldd closure over-reported the
 #     deps-of-deps (e.g. gpgme -> libassuan0/libgpg-error0, libsystemd0 ->
 #     libgcrypt20/liblz4-1/liblzma5/libzstd1) — the transitive-closure bug
-#     diagnosed in the Phase 19 UAT (.planning/debug/detector-transitive-closure.md).
+#     fixed here by reading only the direct DT_NEEDED sonames per binary.
 #   - Each direct NEEDED soname is resolved to the absolute on-disk object THIS
 #     binary loads via the per-binary `ldd` match (soname => /path), so the
 #     resolved path is multiarch-correct. linux-vdso and the ld-linux loader
@@ -212,26 +212,119 @@ detect_runtime_depends() {
 # NOTE: config.sh is sourced at the END of this file (after all function definitions)
 # This is required because config.sh calls get_required_go_version(), get_required_rust_version(), etc.
 
+# _rank_upstream_tags <component> [series] -- ranking core shared by get_latest_tag,
+# list_upstream_tags, and the republish guard. Reads raw tag names on stdin (one per
+# line) and prints the matching tags highest-version first.
+#
+#   <component>  "container-configs" selects the namespaced common/vX.Y.Z tag shape
+#                (strip "common/v"); anything else uses the standard [v]X.Y.Z shape
+#                (strip a leading "v"), tolerating numeric-only tags like 1.28 / 0.3.
+#   [series]     optional anchored dotted-version prefix (e.g. "6", "1.43"): only
+#                tags whose numeric version is exactly <series> or begins "<series>."
+#                pass, so "6" matches 6.x but never 7.x or 60.x, and "1.43" matches
+#                1.43.x but never 1.430.x.
+#
+# rc/pre-release tags are excluded, matching the historical selection.
+_rank_upstream_tags() {
+    local lcomponent="$1"
+    local lseries="${2:-}"
+    local lfilter lstrip lseries_re=""
+
+    if [[ "${lcomponent}" == "container-configs" ]]; then
+        lfilter='^common/v[0-9]'
+        lstrip='common/v'
+    else
+        lfilter='^v?[0-9]'
+        lstrip='v'
+    fi
+
+    # Escape dots so a series like "1.43" is a literal prefix, then anchor on a
+    # dot-or-end boundary (see docstring). Empty series => no filtering.
+    if [[ -n "${lseries}" ]]; then
+        lseries_re="^${lseries//./\\.}(\\.|\$)"
+    fi
+
+    # Drop real pre-release tags (vX.Y.Z-rcN / X.Y.Z.rcN) only — anchored on a
+    # separator so a legitimate tag that merely contains the substring "rc"
+    # (e.g. "march-1.0") is NOT excluded.
+    grep -Eiv '(-|\.|_)rc[0-9]*' | grep -E "${lfilter}" | while read -r lt; do
+        [[ -n "${lt}" ]] || continue
+        local lsv="${lt#"${lstrip}"}"
+        if [[ -n "${lseries_re}" ]] && ! [[ "${lsv}" =~ ${lseries_re} ]]; then
+            continue
+        fi
+        printf '%s %s\n' "${lsv}" "${lt}"
+    done | sort --reverse --version-sort -k1 | awk '{print $2}'
+}
+
 get_latest_tag() {
-    # Input Parameters
-    # ...
+    # Highest stable tag of the currently checked-out repo (the unpinned clone-time
+    # fallback in git_checkout). Component-agnostic: the standard [v]X.Y.Z shape.
+    git tag --list --sort -creatordate | _rank_upstream_tags "" "" | head -n1
+}
 
-    # List all Tags excluding rc Patterns
-    # This seems to Fail on 1.14 being latest -> 1.9 being used e.g. on fuse-overlayfs
-    # latest=$(git tag --list --sort -tag | grep -v rc | head -n1)
+# list_upstream_tags <repo-url> <component> [series] -- highest-version-first list of
+# an upstream repo's tags WITHOUT cloning (over `git ls-remote`), filtered/ranked by
+# _rank_upstream_tags. Returns non-zero (and prints nothing) if the remote yields no
+# refs. This is the clone-free selection the republish guard and resolver share.
+list_upstream_tags() {
+    local lurl="$1"
+    local lcomponent="$2"
+    local lseries="${3:-}"
+    local lrefs
+    lrefs=$(git ls-remote --tags --refs "${lurl}" 2>/dev/null | awk '{print $2}' | sed 's|refs/tags/||') || return 1
+    [[ -n "${lrefs}" ]] || return 1
+    printf '%s\n' "${lrefs}" | _rank_upstream_tags "${lcomponent}" "${lseries}"
+}
 
-    # This seems to do better
-    # latest=$(git tag --list --sort -creatordate | grep -v rc | head -n1)
+# tag_commit_epoch <repo-url> <tag> -- Unix epoch (committer date) of <tag>'s target
+# commit, via a shallow single-tag fetch into a throwaway repo. Mirrors the shallow
+# fetch git_checkout already uses; needs no GitHub API/token and works for any git
+# host and for local file:// fixtures (so the resolver's soak logic is unit-testable
+# offline). Prints nothing and returns non-zero on failure.
+tag_commit_epoch() {
+    local lurl="$1"
+    local ltag="$2"
+    local ltmp lepoch=""
+    ltmp=$(mktemp -d) || return 1
+    if git init -q "${ltmp}" 2>/dev/null \
+       && git -C "${ltmp}" fetch -q --depth 1 "${lurl}" tag "${ltag}" 2>/dev/null; then
+        lepoch=$(git -C "${ltmp}" log -1 --format=%ct FETCH_HEAD 2>/dev/null) || lepoch=""
+    fi
+    rm -rf "${ltmp}"
+    [[ -n "${lepoch}" ]] || return 1
+    printf '%s\n' "${lepoch}"
+}
 
-    # Take the latest highest stable Version release
-    # Handle both v-prefixed (v5.5.2) and numeric-only (1.26) tags
-    # Sort by version (stripping v prefix for comparison) while preserving original tag name
-    latest=$(git tag --list --sort -creatordate | grep -v rc | grep -E '^v?[0-9]' | \
-             while read tag; do echo "${tag#v} $tag"; done | \
-             sort --reverse --version-sort -k1 | head -n1 | cut -d' ' -f2)
+# parse_buildah_gomod_version -- read go.mod text on stdin, print the required
+# buildah RELEASE version WITHOUT a leading v (e.g. 1.43.2), or nothing. Handles
+# both module paths: github.com/containers/buildah (podman 5.x) and
+# go.podman.io/buildah (podman 6.x). Only a clean X.Y.Z release is emitted: a Go
+# pseudo-version (e.g. v1.44.1-0.20260101-abcdef, used when podman tracks buildah
+# between releases) is NOT a real git tag, so it is rejected — the caller then
+# falls back to the BUILDAH_SERIES cap. Split out so it is unit-testable offline.
+parse_buildah_gomod_version() {
+    local lver
+    lver=$(grep -E '/buildah[[:space:]]+v[0-9]' \
+        | grep -v '// indirect' \
+        | head -n1 \
+        | sed -E 's|.*/buildah[[:space:]]+v([0-9][^[:space:]]*).*|\1|')
+    # Reject anything that is not a plain release tag (X.Y.Z).
+    [[ "${lver}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 0
+    printf '%s\n' "${lver}"
+}
 
-    # Return Result
-    echo "${latest}"
+# get_required_buildah_tag [podman-ref] -- buildah version blessed by podman at the
+# given ref, read from podman's go.mod. Prints a v-prefixed tag (e.g. v1.43.2);
+# returns non-zero on failure so the caller can fall back to a BUILDAH_SERIES cap.
+get_required_buildah_tag() {
+    local lref="${1:-main}"
+    [[ -n "${lref}" ]] || lref="main"
+    local lgomod lver
+    lgomod=$(curl -sf "https://raw.githubusercontent.com/containers/podman/${lref}/go.mod" 2>/dev/null) || return 1
+    lver=$(printf '%s\n' "${lgomod}" | parse_buildah_gomod_version)
+    [[ -n "${lver}" ]] || return 1
+    printf 'v%s\n' "${lver}"
 }
 
 get_latest_protoc_version() {
@@ -381,8 +474,10 @@ git_checkout() {
        if [[ "${SHALLOW_CLONE:-true}" == "true" ]]; then
            git fetch --tags
        fi
-       git checkout $(get_latest_tag)
-       export GIT_CHECKED_OUT_TAG=$(get_latest_tag)
+       local latest_tag
+       latest_tag=$(get_latest_tag)
+       git checkout "${latest_tag}"
+       export GIT_CHECKED_OUT_TAG="${latest_tag}"
     fi
 
 }
@@ -573,5 +668,13 @@ run_logged() {
 # ============================================
 # This sources config.sh which calls get_required_go_version(), get_required_rust_version(), etc.
 # Those functions must be defined BEFORE this line!
-
-source "${toolpath}/config.sh"
+#
+# SKIP_CONFIG_SOURCE escape hatch: lightweight consumers that need only the
+# pure tag-selection helpers below (scripts/resolve_versions.sh and its offline
+# unit test) set SKIP_CONFIG_SOURCE=1 so sourcing functions.sh does NOT pull in
+# config.sh — whose load-time architecture/distro detection hard-fails off-Ubuntu
+# (detect_distro_version_id) and whose toolchain auto-detection makes network
+# calls. Normal build scripts leave it unset and get config.sh as before.
+if [[ -z "${SKIP_CONFIG_SOURCE:-}" ]]; then
+    source "${toolpath}/config.sh"
+fi

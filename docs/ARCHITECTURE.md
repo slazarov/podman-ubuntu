@@ -1,10 +1,9 @@
-<!-- generated-by: gsd-doc-writer -->
 # Architecture
 
 ## System Overview
 
 This project is a **source-to-package build and distribution system** for the
-Podman container stack on Ubuntu 24.04 (amd64 and arm64). It takes upstream
+Podman container stack on Ubuntu 24.04 and 26.04 (amd64 and arm64). It takes upstream
 source repositories (Podman, Buildah, crun, etc.) as input and produces signed
 `.deb` packages plus a hosted APT repository as output.
 
@@ -16,9 +15,10 @@ staging tree (`DESTDIR`). A packaging stage (`scripts/package_all.sh`) converts
 the staging tree into Debian packages with [nFPM](https://nfpm.goreleaser.com/),
 and a publishing stage (`scripts/repo_manage.sh` / `scripts/ci_publish.sh`)
 assembles those packages into a [reprepro](https://wiki.debian.org/reprepro)
-APT repository deployed to GitHub Pages. A GitHub Actions workflow drives the
-whole pipeline across three release tracks (stable, edge, nightly) on native
-amd64 and arm64 runners.
+APT repository of 8 suites (two rolling aliases plus per-distro suites for
+Ubuntu 24.04 and 26.04) deployed to GitHub Pages. A GitHub Actions workflow
+drives the whole pipeline across three release tracks (stable, v5, nightly)
+on native amd64 and arm64 runners.
 
 ## Component Diagram
 
@@ -80,12 +80,19 @@ native architecture runners before merging artifacts in a single publish job.
 A typical end-to-end run (driven by `.github/workflows/build-packages.yml`)
 moves through the system as follows:
 
-1. **Track resolution.** The workflow resolves a build track (`stable`, `edge`,
-   or `nightly`). For `stable`, version pins are read from `versions-stable.env`
-   and passed as environment variables. For `edge`, component tags are left
-   empty so the latest upstream tag is auto-detected. For `nightly`,
-   `NIGHTLY_BUILD=true` and `SHALLOW_CLONE=false` are set to build from upstream
-   HEAD.
+1. **Track resolution.** The workflow resolves a build track (`stable`, `v5`,
+   or `nightly`). For `stable` (the Podman 6.x line) and `v5` (the Podman 5.x
+   maintenance line), `scripts/resolve_versions.sh` reads a *policy* file
+   (`versions-stable.env` / `versions-v5.env`) and materializes concrete
+   `*_TAG`s. Precedence per component is: an exact `*_TAG` freeze wins; otherwise
+   a `*_SERIES` anchored-prefix cap (e.g. `PODMAN_SERIES=6` selects the highest
+   `6.x` tag); otherwise the tag floats to the latest upstream release. Buildah
+   is *derived* from Podman's `go.mod` at the resolved Podman tag rather than
+   resolved independently. Every non-frozen tag is subject to a **soak window**
+   (`STABLE_SOAK_DAYS`, default 7): a new upstream tag is only adopted once its
+   commit is at least that many days old, so a same-day bad release is never
+   picked up. For `nightly`, `NIGHTLY_BUILD=true` and `SHALLOW_CLONE=false` are
+   set to build from upstream HEAD.
 
 2. **Pre-flight + configuration.** `setup.sh` sources `config.sh` (which sources
    `functions.sh`), detecting the architecture via `detect_architecture()` and
@@ -111,12 +118,75 @@ moves through the system as follows:
 
 6. **Publishing.** `scripts/ci_publish.sh` downloads the other suites' existing
    packages from the live repository, then calls `scripts/repo_manage.sh` to
-   build a reprepro repository (using `packaging/repo/conf/`), signs it with the
-   GPG key, generates `index.html`, and the workflow deploys the result to
-   GitHub Pages.
+   build a reprepro repository (using `packaging/repo/conf/`) and signs it with
+   the GPG key. `scripts/repo_byhash.sh` re-enables Acquire-By-Hash on the
+   published suites and re-signs the Release, and the workflow deploys the
+   result to GitHub Pages.
 
 7. **Consumption.** End users add the published APT repository and install
    `podman-suite`, which pulls in all 12 `podman-*` component packages.
+
+## CI & Publishing
+
+The deployment artifact is not a running server but a static, GPG-signed APT
+repo. `.github/workflows/build-packages.yml` drives the whole thing.
+
+**Triggers:** three daily crons — `30 4 * * *` (nightly), `30 5 * * *`
+(stable), `30 6 * * *` (v5) — and `workflow_dispatch` with a `build_track`
+choice. A **resolve-track** job maps the firing cron (or the dispatch input) to
+a single track for the rest of the run. **Permissions:** `pages: write`,
+`id-token: write`; concurrency group `pages`.
+
+**Jobs:**
+
+1. **check-changes** (nightly only) — compares upstream HEAD SHAs against a
+   cached `nightly-sha.json`; `skip=true` when nothing changed.
+2. **check-republish** (stable/v5 only) — `check_republish_needed.sh`;
+   `skip=true` only when every would-build version already matches what's
+   published.
+3. **build** — one matrix job (`fail-fast: false`, `timeout-minutes: 180`) of
+   four native cells (no emulation):
+
+   | Cell | Runner | Container |
+   |------|--------|-----------|
+   | 2404 amd64 | `ubuntu-24.04` | none |
+   | 2404 arm64 | `ubuntu-24.04-arm` | none |
+   | 2604 amd64 | `ubuntu-24.04` | `ubuntu:26.04` |
+   | 2604 arm64 | `ubuntu-24.04-arm` | `ubuntu:26.04` |
+
+   26.04 cells bootstrap the bare container then set `SKIP_FUSE_CHECK=true`; Go
+   caches are keyed per distro+arch; artifacts are named `debs-<distro>-<arch>`.
+4. **publish** — gated `if: always() && github.ref == 'refs/heads/main'`. Runs
+   the doc/repo-assembly tests, then per-distro `ci_publish.sh` into one
+   accumulating `repo-output` (2404 then 2604), gates on `smoke_repo_install.sh`,
+   and deploys via `configure-pages` → `upload-pages-artifact` → `deploy-pages`
+   (atomic). A single matrix job means publish requires all four cells.
+
+**Local reproduction:**
+
+```bash
+# Assemble one (track, distro) into an accumulating output dir
+./scripts/ci_publish.sh <stable|v5|nightly> <2404|2604> <deb-dir> <repo-url> repo-output
+# Single-suite build (no mirroring)
+./scripts/repo_manage.sh <track> <distro> <deb-dir> [out]
+```
+
+`ci_publish.sh` preserves earlier-pass Release files, mirrors untouched suites
+**verbatim** (a byte-identical signed tree so the CDN hash window stays closed),
+builds the target suites, and applies Acquire-By-Hash + re-sign to every
+non-verbatim suite.
+
+**Signing.** `GPG_PRIVATE_KEY` is imported with ultimate ownertrust; reprepro
+signs each suite; `repo_byhash.sh` re-signs after injecting `Acquire-By-Hash`
+(editing `Release` invalidates reprepro's signature). `packaging/repo/pubkey.gpg`
+is published as `podman-ubuntu.gpg`.
+
+**Republish gating.** stable/v5 runs (cron or manual dispatch) run
+`check_republish_needed.sh`, which compares would-build versions against what's
+published across both distros × arches and emits `skip=true` only on a full
+match (`pasta` excluded — it floats by date). It is strictly conservative — any
+fetch/resolve uncertainty → `skip=false` — and unit-pinned by
+`test_check_republish.sh`.
 
 ## Key Abstractions
 
@@ -140,14 +210,22 @@ config conventions. The most significant are:
 - **`extract_version()` / `extract_version_nightly()`** —
   `scripts/package_all.sh`. Convert git tags (or source-file versions, for
   nightly) into Debian package versions, applying the `~podman1` suffix.
-- **`resolve_tag_from_repo()`** — `scripts/package_all.sh`. For edge builds,
-  reads the actually checked-out tag back out of each `build/<component>/` repo.
+- **`resolve_tag_from_repo()`** — `scripts/package_all.sh`. Fallback for
+  unpinned components (e.g. nightly): reads the actually checked-out tag back
+  out of each `build/<component>/` repo.
 - **nFPM package configs** — `packaging/nfpm/*.yaml`. Declarative per-component
   package definitions (depends/conflicts/replaces/contents); `${VERSION}`,
-  `${ARCH}`, `${DESTDIR}`, and `${CRUN_PARSER_DEPEND}` are filled in at build time.
+  `${ARCH}`, `${DESTDIR}`, and `${DETECTED_DEPENDS}` are filled in at build time.
+  `detect_runtime_depends()` (`scripts/package_all.sh`) fills `${DETECTED_DEPENDS}`
+  from each shipped binary's `objdump` DT_NEEDED sonames.
 - **reprepro distribution config** — `packaging/repo/conf/distributions`.
-  Defines the `stable`, `edge`, and `nightly` suites (each: amd64 + arm64,
-  `main` component, GPG-signed).
+  Defines 8 suites (each: amd64 + arm64, `main` component, GPG-signed): two
+  rolling aliases (`stable`, `nightly`) plus six distro-versioned suites
+  (`stable-2404`/`v5-2404`/`nightly-2404` for Ubuntu 24.04,
+  `stable-2604`/`v5-2604`/`nightly-2604` for Ubuntu 26.04). The rolling aliases
+  point at the Ubuntu 24.04 build. `v5` is **distro-qualified only** — it has no
+  bare alias, since it is a new track with no legacy subscribers; only the
+  pre-existing `stable`/`nightly` keep their deprecated bare aliases.
 
 ## Directory Structure Rationale
 
@@ -159,17 +237,26 @@ The repository is organized around the pipeline stages described above:
 ├── uninstall.sh            # Removes source-installed components
 ├── config.sh               # Build configuration: arch, toolchain, versions, caching
 ├── functions.sh            # Shared shell library (git, logging, error handling)
-├── versions-stable.env     # Pinned component versions for the stable track
+├── versions-stable.env     # Stable-track policy (Podman 6.x series caps + soak)
+├── versions-v5.env         # v5-track policy (Podman 5.x maintenance series caps)
 ├── versions-nightly.env    # Version overrides for the nightly track
 ├── config/                 # Container runtime config shipped with packages
 │   └── containers.conf
 ├── scripts/                # Per-stage and per-component scripts
 │   ├── preflight_check.sh  # Host validation before building
+│   ├── resolve_versions.sh # Materializes concrete *_TAGs from a track policy file
 │   ├── install_*.sh        # Toolchain installers (rust, go, protoc, deps, ...)
 │   ├── build_*.sh          # One compile script per upstream component
 │   ├── package_all.sh      # Builds all .deb packages via nFPM
+│   ├── component_maps.sh   # Shared COMPONENT_BINARIES / INJECT_ONLY_DEPENDS maps
 │   ├── repo_manage.sh      # Builds a single-suite reprepro APT repo
-│   └── ci_publish.sh       # Multi-suite repo assembly + index.html for CI
+│   ├── ci_publish.sh       # Multi-suite repo assembly for CI
+│   ├── repo_byhash.sh      # Re-enables Acquire-By-Hash + re-signs Release
+│   ├── check_republish_needed.sh  # Skips publish when nothing changed
+│   ├── verify_depends.sh   # Post-build runtime-dependency verification
+│   ├── verify_versions.sh  # Verifies per-distro version-suffix ordering
+│   ├── smoke_repo_install.sh      # apt-installs podman-suite from the built repo
+│   └── smoke_install_2604.sh      # apt-install proof of a 26.04-built .deb
 ├── packaging/
 │   ├── nfpm/               # nFPM .deb definitions (one YAML per component + suite)
 │   └── repo/               # reprepro repository config + public GPG key
@@ -189,7 +276,9 @@ The repository is organized around the pipeline stages described above:
   sequence in `setup.sh` map one-to-one to files.
 - **`packaging/`** separates declarative package/repository metadata (nFPM and
   reprepro config) from the imperative build logic in `scripts/`.
-- **`versions-stable.env` / `versions-nightly.env`** externalize version pins so
-  the same scripts serve all three release tracks by environment alone.
+- **`versions-stable.env` / `versions-v5.env` / `versions-nightly.env`**
+  externalize each track's version *policy* (series caps + soak, or nightly
+  flags) so the same scripts serve all three release tracks by environment
+  alone; `resolve_versions.sh` turns a stable/v5 policy into concrete tags.
 - **`build/` and `log/`** are runtime workspaces (cloned sources and logs), kept
   out of the logic directories so they can be cleaned between runs.

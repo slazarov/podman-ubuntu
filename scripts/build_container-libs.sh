@@ -25,7 +25,6 @@ log_build_output "container-libs"
 # Fix for cloud-init where HOME is not set
 export HOME="${HOME:-/root}"
 
-# Required Fix otherwise go complains about 1.22.6 vs 1.23 mismatch
 export PATH="$GOPATH:$PATH"
 
 step_start "Cloning repository"

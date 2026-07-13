@@ -61,7 +61,8 @@ assert_contains "$SRC" "distro-btn"             ".distro-btn CSS/markup present"
 # ----- Per-distro DEB822 suite names (MIGR-02 / D-02) -----
 assert_contains "$SRC" "stable-2404"            "suite stable-2404 in heredoc"
 assert_contains "$SRC" "stable-2604"            "suite stable-2604 in heredoc"
-assert_contains "$SRC" "edge-2604"              "suite edge-2604 in heredoc"
+assert_contains "$SRC" "v5-2404"                "suite v5-2404 in heredoc"
+assert_contains "$SRC" "v5-2604"                "suite v5-2604 in heredoc"
 assert_contains "$SRC" "nightly-2604"           "suite nightly-2604 in heredoc"
 
 # ----- DEB822 Signed-By keyring path (ROADMAP SC-4) -----

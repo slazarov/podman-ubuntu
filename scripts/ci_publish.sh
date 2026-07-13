@@ -33,7 +33,7 @@ trap 'error_handler $? $LINENO "$BASH_SOURCE"' ERR
 usage() {
     echo "Usage: $(basename "$0") <track> <distro> <deb-directory> <repo-url> <output-directory>"
     echo ""
-    echo "  track            Release track being published: 'stable', 'edge', or 'nightly'"
+    echo "  track            Release track being published: 'stable', 'v5', or 'nightly'"
     echo "  distro           Target distro: '2404' or '2604'"
     echo "  deb-directory    Path containing freshly built .deb files for this track"
     echo "  repo-url         Live repository URL (e.g., https://slazarov.github.io/podman-ubuntu)"
@@ -41,7 +41,8 @@ usage() {
     echo ""
     echo "  The (track, distro) pair is resolved to its publish targets via"
     echo "  resolve_publish_targets (config.sh): the versioned '<track>-<distro>'"
-    echo "  suite, plus the bare '<track>' legacy alias when distro is 2404 (D-12)."
+    echo "  suite, plus the bare '<track>' legacy alias when distro is 2404 AND the"
+    echo "  track is a legacy track (stable/nightly); v5 is distro-qualified only (D-12)."
     echo ""
     echo "Environment variables:"
     echo "  GPG_PRIVATE_KEY  If set, imports this GPG key before signing (for CI)"
@@ -51,7 +52,7 @@ usage() {
     echo "  2. Builds the published target suite(s) from fresh .debs via repo_manage.sh"
     echo "  3. Re-includes the mirrored suites and exports each suite per-suite"
     echo "  4. Applies Acquire-By-Hash + re-sign to every suite (Plan 02)"
-    echo "  5. Produces a complete 9-suite repository with no clobbering"
+    echo "  5. Produces a complete 8-suite repository with no clobbering"
     exit 1
 }
 
@@ -105,7 +106,7 @@ fi
 # Step 1: Determine the OTHER (untouched) suites
 # ============================================
 
-# ALL_SUITES is the 9-element set sourced from config.sh — do NOT redeclare it.
+# ALL_SUITES is the 8-element set sourced from config.sh — do NOT redeclare it.
 # OTHER_SUITES = every member of ALL_SUITES that is NOT a publish target. For a
 # 24.04 publish both '<track>-2404' and the bare '<track>' alias are publish
 # targets, so both are excluded from mirror-down (D-12/D-13). The untouched
@@ -272,7 +273,7 @@ for other_suite in "${OTHER_SUITES[@]}"; do
     # That suite is either a freshly built target of a prior pass (e.g.
     # stable-2404 + the bare `stable` alias, built on the 2404 pass and now an
     # "other suite" on the 2604 pass) or a verbatim mirror an earlier pass already
-    # placed (edge-*/nightly-*). In both cases the live tree is STALE relative to
+    # placed (v5-*/nightly-*). In both cases the live tree is STALE relative to
     # what this run just built, so re-mirroring would overwrite the fresh packages
     # with the old ones — the cross-distro clobber that froze stable-2404 at an old
     # podman version while stable-2604 advanced. Serve the in-place tree verbatim
@@ -488,7 +489,7 @@ cat > "${OUTPUT_DIR}/index.html" << 'HTMLEOF'
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Podman for Debian — APT Repository</title>
+<title>Podman for Ubuntu — APT Repository</title>
 <style>
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; line-height: 1.6; }
 h1 { border-bottom: 2px solid #333; padding-bottom: 0.5rem; }
@@ -518,18 +519,18 @@ th { background: #f4f4f4; }
 </style>
 </head>
 <body>
-<h1>Podman for Debian — APT Repository</h1>
+<h1>Podman for Ubuntu — APT Repository</h1>
 <p>Pre-built <code>.deb</code> packages for Podman and its dependencies on Debian (amd64 &amp; arm64).</p>
 
 <h2>Choose a Track</h2>
 <div class="tracks">
   <div class="track recommended">
     <h3>stable</h3>
-    <p>Pinned, tested versions. Best for production and daily use.</p>
+    <p>Podman 6.x, auto-updated with a soak window. Best for production and daily use.</p>
   </div>
   <div class="track">
-    <h3>edge</h3>
-    <p>Latest upstream tags. For testing new features before they reach stable.</p>
+    <h3>v5</h3>
+    <p>Podman 5.x maintenance line, auto-updated with a soak window. For hosts not yet ready for the Podman 6.0 breaking changes.</p>
   </div>
   <div class="track">
     <h3>nightly</h3>
@@ -554,7 +555,7 @@ curl -fsSL https://REPO_URL_PLACEHOLDER/podman-ubuntu.gpg \
 <div class="tab-group">
   <div class="tab-buttons">
     <button class="tab-btn active" onclick="showTab('stable')">stable</button>
-    <button class="tab-btn" onclick="showTab('edge')">edge</button>
+    <button class="tab-btn" onclick="showTab('v5')">v5</button>
     <button class="tab-btn" onclick="showTab('nightly')">nightly</button>
   </div>
   <div id="tab-stable" class="tab-content active">
@@ -573,18 +574,18 @@ Components: main
 Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
 EOF</code></pre>
   </div>
-  <div id="tab-edge" class="tab-content">
+  <div id="tab-v5" class="tab-content">
     <pre class="snippet" data-distro="2404"><code>sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources &lt;&lt; 'EOF'
 Types: deb
 URIs: https://REPO_URL_PLACEHOLDER
-Suites: edge-2404
+Suites: v5-2404
 Components: main
 Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
 EOF</code></pre>
     <pre class="snippet" data-distro="2604" style="display:none"><code>sudo tee /etc/apt/sources.list.d/podman-ubuntu.sources &lt;&lt; 'EOF'
 Types: deb
 URIs: https://REPO_URL_PLACEHOLDER
-Suites: edge-2604
+Suites: v5-2604
 Components: main
 Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
 EOF</code></pre>
@@ -607,8 +608,9 @@ EOF</code></pre>
   </div>
 </div>
 
-<p><em>Note:</em> The bare suite names <code>stable</code>, <code>edge</code>, and <code>nightly</code>
-are <strong>deprecated in v3.0</strong> and will be removed in a future v3.1 release.
+<p><em>Note:</em> The bare suite names <code>stable</code> and <code>nightly</code>
+are <strong>deprecated</strong> and will be removed in a future release (the <code>v5</code>
+track is distro-qualified only — always use <code>v5-2404</code> / <code>v5-2604</code>).
 <a href="https://github.com/slazarov/podman-ubuntu/blob/main/docs/apt-repository.md#migrating-from-bare-suite-names">see the migration guide &rarr;</a></p>
 
 <p>3. Install:</p>
@@ -620,18 +622,20 @@ sudo apt-get install podman-suite</code></pre>
 <h2>Package Versions</h2>
 HTMLEOF
 
-# Build combined package versions table across stable / edge / nightly tracks.
+# Build combined package versions table across stable / v5 / nightly tracks.
 # Read each track's Packages index into associative arrays, then emit a single
 # table — one row per package, one column per track (WR-04 escaping preserved).
-declare -A _stable_v _edge_v _nightly_v
+# Read the distro-qualified 2404 suite (always present) rather than the bare alias:
+# the v5 track has no bare alias, and the -2404 suite carries identical debs.
+declare -A _stable_v _v5_v _nightly_v
 
-for _track in stable edge nightly; do
-    _pkgs_file="${OUTPUT_DIR}/dists/${_track}/main/binary-amd64/Packages"
+for _track in stable v5 nightly; do
+    _pkgs_file="${OUTPUT_DIR}/dists/${_track}-2404/main/binary-amd64/Packages"
     [[ ! -f "${_pkgs_file}" ]] && continue
     while read -r _pkg _ver; do
         case "${_track}" in
             stable)  _stable_v["${_pkg}"]="${_ver}" ;;
-            edge)    _edge_v["${_pkg}"]="${_ver}" ;;
+            v5)      _v5_v["${_pkg}"]="${_ver}" ;;
             nightly) _nightly_v["${_pkg}"]="${_ver}" ;;
         esac
     done < <(awk '/^Package:/{pkg=$2} /^Version:/{print pkg, $2}' "${_pkgs_file}" | sort)
@@ -642,21 +646,21 @@ done
 # empty, making the [[ ${#_all_pkgs[@]} -gt 0 ]] guard reliable regardless of
 # invocation order (e.g., a first-run 2604-only publish with no bare-alias files).
 readarray -t _all_pkgs < <(
-    { printf '%s\n' "${!_stable_v[@]}" "${!_edge_v[@]}" "${!_nightly_v[@]}"; } \
+    { printf '%s\n' "${!_stable_v[@]}" "${!_v5_v[@]}" "${!_nightly_v[@]}"; } \
     | grep -v '^$' | sort -u
 )
 
 if [[ ${#_all_pkgs[@]} -gt 0 ]]; then
     cat >> "${OUTPUT_DIR}/index.html" << 'TABLEEOF'
 <table>
-<tr><th>Package</th><th>stable</th><th>edge</th><th>nightly</th></tr>
+<tr><th>Package</th><th>stable</th><th>v5</th><th>nightly</th></tr>
 TABLEEOF
 
     for _pkg in "${_all_pkgs[@]}"; do
         # WR-04: escape package name + all three version strings.
         _pkg_e=$(printf '%s' "${_pkg}" | esc)
         _s_e=$(printf '%s' "${_stable_v[${_pkg}]:-—}" | esc)
-        _e_e=$(printf '%s' "${_edge_v[${_pkg}]:-—}" | esc)
+        _e_e=$(printf '%s' "${_v5_v[${_pkg}]:-—}" | esc)
         _n_e=$(printf '%s' "${_nightly_v[${_pkg}]:-—}" | esc)
         cat >> "${OUTPUT_DIR}/index.html" << ROWEOF
 <tr><td>${_pkg_e}</td><td><code>${_s_e}</code></td><td><code>${_e_e}</code></td><td><code>${_n_e}</code></td></tr>

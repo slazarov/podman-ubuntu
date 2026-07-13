@@ -76,32 +76,9 @@ for tool in dpkg-query ldd realpath envsubst nfpm; do
     fi
 done
 
-# ---------------------------------------------------------------------------
-# COMPONENT_BINARIES — mirrors scripts/package_all.sh (DESTDIR-relative ELF
-# paths). Keep in sync with that map; components with no native ELF binary
-# (container-configs, toolbox) are intentionally absent.
-# ---------------------------------------------------------------------------
-declare -A COMPONENT_BINARIES=(
-    ["podman"]="usr/bin/podman usr/bin/podman-remote"
-    ["crun"]="usr/bin/crun"
-    ["conmon"]="usr/bin/conmon"
-    ["netavark"]="usr/bin/netavark"
-    ["aardvark-dns"]="usr/bin/aardvark-dns"
-    ["pasta"]="usr/bin/passt usr/bin/pasta"
-    ["fuse-overlayfs"]="usr/bin/fuse-overlayfs"
-    ["catatonit"]="usr/bin/catatonit"
-    ["buildah"]="usr/bin/buildah"
-    ["skopeo"]="usr/bin/skopeo"
-)
-
-# Inject-only components (WR-02) — mirrors scripts/package_all.sh. Their YAML
-# has no literal `depends:` key; the injected fragment carries its own header,
-# emitted only when the detected set is non-empty. Keep in sync with that map.
-declare -A INJECT_ONLY_DEPENDS=(
-    ["crun"]=1
-    ["conmon"]=1
-    ["pasta"]=1
-)
+# Component maps (COMPONENT_BINARIES, INJECT_ONLY_DEPENDS) — shared with
+# scripts/package_all.sh so the packaging and verification paths cannot drift.
+source "${toolpath}/scripts/component_maps.sh"
 
 # ---------------------------------------------------------------------------
 # D-14 baseline (24.04, t64-adjusted). Per RESEARCH Pitfall 1 + Open Question 2:

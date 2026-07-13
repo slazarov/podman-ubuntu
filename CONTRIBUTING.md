@@ -1,4 +1,3 @@
-<!-- generated-by: gsd-doc-writer -->
 # Contributing to podman-ubuntu
 
 Thanks for your interest in contributing. This project compiles the Podman
@@ -10,7 +9,7 @@ packaging definitions, CI pipeline, and documentation are all welcome.
 
 This is a shell-based build pipeline; there is no compiled application to set up.
 To work on the build itself, clone the repository and run the build on a Debian
-or Ubuntu host (tested on Ubuntu 24.04):
+or Ubuntu host (Ubuntu 24.04 and 26.04, amd64 and arm64):
 
 ```bash
 git clone https://github.com/slazarov/podman-ubuntu.git
@@ -33,30 +32,64 @@ A few notes for contributors specifically:
 - Run `sudo ./uninstall.sh` to remove source-installed components from a test
   host.
 
+### Build tracks
+
+The same scripts serve three release tracks, selected entirely by environment:
+
+| Track | Invoke | Behavior |
+|-------|--------|----------|
+| **stable** | `eval "$(./scripts/resolve_versions.sh versions-stable.env)" && sudo -E env … ./setup.sh` | Podman 6.x; the resolver materializes tags from the `versions-stable.env` policy (series cap + soak). |
+| **v5** | `eval "$(./scripts/resolve_versions.sh versions-v5.env)" && sudo -E env … ./setup.sh` | Podman 5.x maintenance line; same resolver, `versions-v5.env` policy. |
+| **nightly** | `sudo NIGHTLY_BUILD=true SHALLOW_CLONE=false ./setup.sh` | Builds from upstream HEAD with full clones. |
+
+The full set of build-influencing environment variables is documented in
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+
 ## Coding Standards
 
-All build logic is written in Bash. There is no automated linter or formatter
-configured in the repository, so follow the conventions already present in the
-existing scripts:
+All build logic is written in Bash. Conventions are machine-enforced by
+`.shellcheckrc`, `.editorconfig`, and `.pre-commit-config.yaml` (ShellCheck +
+shfmt + gitleaks), and `.github/workflows/lint.yml` re-runs ShellCheck and the
+test suite on every PR. Follow the patterns already in `scripts/`:
 
-- Start scripts with `#!/bin/bash` and `set -euo pipefail`, matching the
-  existing `scripts/*.sh` and `tests/*.sh` files.
-- Quote variable expansions (`"${VAR}"`) and use `${...}` braces consistently,
-  as the existing scripts do.
-- Put shared logic (git clone/checkout, logging, error handling, architecture
-  and toolchain detection) in `functions.sh` rather than duplicating it in
-  individual build scripts.
-- Keep build configuration (versions, architecture strings, cache toggles) in
-  `config.sh` and the `versions-*.env` files, not hard-coded in scripts.
-- Running [`shellcheck`](https://www.shellcheck.net/) over changed scripts
-  locally before submitting is strongly encouraged, even though CI does not
-  enforce it.
+- Start scripts with `#!/bin/bash` and `set -euo pipefail`.
+- **Toolpath bootstrap** before any work — source `config.sh` then
+  `functions.sh`, then install the error trap, so a script runs standalone or
+  sourced by `setup.sh`:
+
+  ```bash
+  relativepath="../"
+  if [[ ! -v toolpath ]]; then scriptpath=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ); toolpath=$(realpath --canonicalize-missing ${scriptpath}/${relativepath}); fi
+  source "${toolpath}/config.sh"
+  source "${toolpath}/functions.sh"
+  trap 'error_handler $? $LINENO "$BASH_SOURCE"' ERR
+  ```
+
+- Use `functions.sh` helpers (`git_clone_update`/`git_checkout`, `run_logged`,
+  `step_start`/`step_done`, `detect_architecture`) rather than inlining logic.
+- Keep versions, architecture strings, and cache toggles in `config.sh` /
+  `versions-*.env` with the `${VAR:-default}` pattern — never hard-coded.
+- Quote expansions (`"${VAR}"`); 4-space indent inside functions.
+- Install the gate locally with `pipx install pre-commit && pre-commit install`
+  to run ShellCheck/shfmt/gitleaks before you push.
+
+## Where to add code
+
+| Change | Where |
+|--------|-------|
+| New build component | `scripts/build_<c>.sh` (copy an existing header) + `packaging/nfpm/<c>.yaml` + a `*_TAG` in both `versions-*.env`, then wire it into `setup.sh`'s `run_script` at the right dependency position |
+| New toolchain installer | `scripts/install_<tool>.sh`, wired into `setup.sh` before its dependents |
+| New config variable | `config.sh` (`${VAR:-default}` + export), documented in [docs/CONFIGURATION.md](docs/CONFIGURATION.md) |
+| New packaging logic | `packaging/nfpm/<c>.yaml` (per-component) or `scripts/package_all.sh` (pipeline-wide) |
+| New APT suite / routing | `VALID_TRACKS` / `VALID_DISTROS` / `ALL_SUITES` + `resolve_publish_targets` in `config.sh`, plus `packaging/repo/conf/distributions` |
 
 ## PR Guidelines
 
-The CI workflow (`.github/workflows/build-packages.yml`) builds and publishes
-packages; it does not currently run a separate lint or test gate, so review
-relies on clear, self-checked pull requests. When opening a PR:
+Two workflows run on every PR — `.github/workflows/lint.yml` (ShellCheck at
+`severity=error`, shfmt, the `tests/` suite, and a gitleaks scan) and
+`.github/workflows/build-packages.yml` (native amd64 + arm64 package builds).
+The `.github/PULL_REQUEST_TEMPLATE.md` pre-fills the checklist below. When
+opening a PR:
 
 - Branch from `main` and use a short, descriptive branch name (for example
   `fix/crun-json-c-dependency` or `feat/arm64-runner`), matching the style of
@@ -69,7 +102,7 @@ relies on clear, self-checked pull requests. When opening a PR:
 - Update the affected documentation (`README.md`, `docs/`) when you change
   behavior, supported versions, or commands.
 - Describe what you changed, how you verified it, and the build track(s)
-  (`stable`, `edge`, `nightly`) and architecture(s) (amd64, arm64) you tested.
+  (`stable`, `v5`, `nightly`) and architecture(s) (amd64, arm64) you tested.
 
 ### Running Tests
 
@@ -87,18 +120,19 @@ pre-commit check or locally before opening a PR.
 
 Maintainers can run the pipeline manually from the Actions tab via the
 **Build and Publish Packages** workflow's `workflow_dispatch` trigger, choosing
-the `stable`, `edge`, or `nightly` build track. The same workflow runs
-automatically on a daily schedule (4:30 AM UTC) to produce nightly builds.
+the `stable`, `v5`, or `nightly` build track. The same workflow runs
+automatically on a daily schedule — one cron per track (nightly 04:30, stable
+05:30, v5 06:30 UTC).
 
 ## Issue Reporting
 
-This repository does not yet provide issue templates. Please open bugs and
-feature requests through GitHub Issues at
+Bug-report and feature-request templates live under `.github/ISSUE_TEMPLATE/`.
+Open bugs and feature requests through GitHub Issues at
 <https://github.com/slazarov/podman-ubuntu/issues>.
 
 When reporting a build or packaging problem, include:
 
-- The build track (`stable`, `edge`, or `nightly`) and the component involved.
+- The build track (`stable`, `v5`, or `nightly`) and the component involved.
 - Your host OS and architecture (Ubuntu 24.04 amd64 or arm64).
 - Whether you installed via the APT repository or built from source with
   `setup.sh`.

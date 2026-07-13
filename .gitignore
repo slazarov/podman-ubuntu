@@ -23,11 +23,14 @@ ltmain.sh
 *.swp
 *.swo
 
-# AI tooling (machine-local; .planning/ docs are committed)
+# AI tooling (machine-local — kept on disk, never committed)
 .claude/
 .opencode/
 .codex/
-.planning/tmp/
+_bmad/
+_bmad-output/
+harness-config.toml
+CLAUDE.local.md
 
 # Codanna / MCP caches
 .codanna/

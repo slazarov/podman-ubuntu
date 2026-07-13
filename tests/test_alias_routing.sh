@@ -75,10 +75,13 @@ if ! load_routing; then
     exit 1
 fi
 
-TRACKS=(stable edge nightly)
+# Legacy tracks carry a bare 2404 alias; v5 (new, formerly edge) is
+# distro-qualified only and NEVER emits a bare alias.
+LEGACY_TRACKS=(stable nightly)
+ALL_TRACKS=(stable v5 nightly)
 
-echo "Test 1: every 2404 track includes the bare alias + the versioned suite"
-for track in "${TRACKS[@]}"; do
+echo "Test 1: legacy 2404 tracks include the bare alias + the versioned suite"
+for track in "${LEGACY_TRACKS[@]}"; do
     targets="$(resolve_publish_targets "${track}" 2404)"
     assert_contains_alias "${track} 2404 includes versioned '${track}-2404'" \
         "${track}-2404" "${targets}"
@@ -87,8 +90,14 @@ for track in "${TRACKS[@]}"; do
 done
 
 echo ""
-echo "Test 2: every 2604 track excludes the bare alias (versioned only)"
-for track in "${TRACKS[@]}"; do
+echo "Test 2: v5 2404 is versioned-only (NO bare alias)"
+v5_2404="$(resolve_publish_targets v5 2404)"
+assert_contains_alias "v5 2404 includes versioned 'v5-2404'" "v5-2404" "${v5_2404}"
+assert_excludes_alias "v5 2404 excludes bare alias 'v5'" "v5" "${v5_2404}"
+
+echo ""
+echo "Test 3: every 2604 track excludes the bare alias (versioned only)"
+for track in "${ALL_TRACKS[@]}"; do
     targets="$(resolve_publish_targets "${track}" 2604)"
     assert_contains_alias "${track} 2604 includes versioned '${track}-2604'" \
         "${track}-2604" "${targets}"

@@ -1,4 +1,3 @@
-<!-- generated-by: gsd-doc-writer -->
 # Configuration
 
 This project builds the Podman container stack from source and packages it into `.deb`
@@ -10,7 +9,9 @@ layout.
 There is no single application config file. Instead:
 
 - **Build behaviour** is controlled by environment variables defined in [`config.sh`](../config.sh),
-  with per-track overrides in [`versions-stable.env`](../versions-stable.env) and
+  with per-track policy in [`versions-stable.env`](../versions-stable.env) and
+  [`versions-v5.env`](../versions-v5.env) (resolved into concrete tags by
+  `scripts/resolve_versions.sh`) and per-track overrides in
   [`versions-nightly.env`](../versions-nightly.env).
 - **Runtime defaults** shipped to end users live under [`config/`](../config/) (and the
   config files produced by `build_container-libs.sh`).
@@ -38,11 +39,18 @@ group them by purpose.
 
 These tags select which upstream version of each component is built. When a tag is empty,
 `config.sh` leaves it unset and the build either auto-detects a version or stays on the
-default branch HEAD (nightly). Set them all at once by sourcing a track file:
+default branch HEAD (nightly).
+
+For the **stable** and **v5** tracks, tags are not hand-pinned: the policy file
+(`versions-stable.env` / `versions-v5.env`) declares `*_SERIES` caps and a soak
+window, and `scripts/resolve_versions.sh` materializes concrete `*_TAG` values
+(see [Per-environment overrides](#per-environment-overrides)). Resolve a track
+and run the build in one step:
 
 ```bash
-source versions-stable.env && ./setup.sh   # pinned stable releases
-source versions-nightly.env && ./setup.sh  # latest upstream HEAD
+eval "$(./scripts/resolve_versions.sh versions-stable.env)" && ./setup.sh  # Podman 6.x, auto-updated
+eval "$(./scripts/resolve_versions.sh versions-v5.env)" && ./setup.sh      # Podman 5.x maintenance
+source versions-nightly.env && ./setup.sh                                  # latest upstream HEAD
 ```
 
 | Variable | Required | Default | Description |
@@ -64,6 +72,17 @@ source versions-nightly.env && ./setup.sh  # latest upstream HEAD
 | `PROTOC_TAG` | Optional | Derived as `v${PROTOC_VERSION}` | protoc release tag. |
 | `GOVERSION` | Optional | Auto-detected from Podman's `go.mod` via `get_required_go_version` | Go toolchain version. Sets `GOPATH` and `GOROOT` under `/opt/go/${GOVERSION}`. |
 | `RUST_VERSION` | Optional | Auto-detected from Netavark's `Cargo.toml` via `get_required_rust_version` | Rust toolchain version. |
+
+For the resolver-driven stable/v5 tracks, the policy files declare
+anchored-prefix caps and a soak window instead of exact tags. `resolve_versions.sh`
+honours these when materializing each `*_TAG`:
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `PODMAN_SERIES` | Optional | empty | Major-series cap for Podman (e.g. `6` in `versions-stable.env`, `5` in `versions-v5.env`). Resolver picks the highest tag whose version starts with this prefix. An exact `PODMAN_TAG` freeze overrides it. |
+| `NETAVARK_SERIES` | Optional | empty | Major-series cap for Netavark (`1` on v5, since netavark 2.0 requires Podman 6.0). |
+| `AARDVARK_DNS_SERIES` | Optional | empty | Major-series cap for aardvark-dns (`1` on v5, paired with netavark 1.x). |
+| `STABLE_SOAK_DAYS` | Optional | `7` | Soak window in days. A non-frozen upstream tag is only adopted once its commit is at least this old, so a same-day bad release is never picked up. |
 
 ### Nightly track
 
@@ -177,22 +196,36 @@ upgrade.
 
 ### APT repository layout: `packaging/repo/conf/`
 
-The [`distributions`](../packaging/repo/conf/distributions) file defines three reprepro
-suites. Each shares `Origin: podman-ubuntu`, `Architectures: amd64 arm64`,
-`Components: main`, and `SignWith: yes`:
+The [`distributions`](../packaging/repo/conf/distributions) file defines eight reprepro
+suites. Each shares `Origin: podman-ubuntu`, `Label: Podman Ubuntu`,
+`Architectures: amd64 arm64`, `Components: main`, and `SignWith: yes`:
 
 | Suite / Codename | Purpose |
 |------------------|---------|
-| `stable` | Pinned stable releases. |
-| `edge` | Latest tagged upstream. |
-| `nightly` | Nightly git snapshots. |
+| `stable` | DEPRECATED rolling alias for `stable-2404` (Ubuntu 24.04). |
+| `nightly` | DEPRECATED rolling alias for `nightly-2404` (Ubuntu 24.04). |
+| `stable-2404` | Ubuntu 24.04 — Podman 6.x, auto-updated within the major with a soak window. |
+| `v5-2404` | Ubuntu 24.04 — Podman 5.x maintenance track. |
+| `nightly-2404` | Ubuntu 24.04 — nightly git snapshots. |
+| `stable-2604` | Ubuntu 26.04 — Podman 6.x, auto-updated within the major with a soak window. |
+| `v5-2604` | Ubuntu 26.04 — Podman 5.x maintenance track. |
+| `nightly-2604` | Ubuntu 26.04 — nightly git snapshots. |
+
+Only the two pre-existing bare aliases (`stable`, `nightly`) remain; they are
+deprecated in favour of the distro-versioned suites, and each pins to its
+Ubuntu 24.04 equivalent for backward compatibility. The `v5` track is
+**distro-qualified only — there is no bare `v5` alias** (it is a new track with
+no legacy subscribers).
 
 The [`options`](../packaging/repo/conf/options) file sets reprepro's `verbose` and
-`basedir .`. `repo_manage.sh` and `ci_publish.sh` validate that the requested suite is one
-of `stable`, `edge`, or `nightly`.
+`basedir .`. `repo_manage.sh` and `ci_publish.sh` take a `track` (`stable`, `v5`, or
+`nightly`) and a `distro` (`2404` or `2604`) argument, validated against `VALID_TRACKS`
+and `VALID_DISTROS` in `config.sh`; `resolve_publish_targets` composes them into the
+versioned suite (e.g. `stable-2404`), and emits the bare legacy alias only for
+`stable`/`nightly` at distro `2404` — never for `v5`.
 
 `packaging/repo/pubkey.gpg` is the committed public signing key used to verify the
-repository. <!-- VERIFY: the live repository base URL and GitHub Pages hosting target -->
+repository.
 
 ## Required vs optional settings
 
@@ -239,20 +272,30 @@ Defaults are defined in `config.sh` using the `${VAR:-default}` pattern. Notable
 | `OUTPUT_DIR` | `${toolpath}/output` | `scripts/package_all.sh` |
 | `OUTPUT_DIR` | `${toolpath}/repo-output` | `scripts/repo_manage.sh` (3rd argument) |
 
-Component version tags default to empty in `config.sh`; the canonical pinned values live in
-`versions-stable.env`.
+Component version tags default to empty in `config.sh`; for the stable and v5 tracks the
+canonical version *policy* (series caps + soak window) lives in `versions-stable.env` and
+`versions-v5.env`, which `scripts/resolve_versions.sh` materializes into concrete `*_TAG`s.
 
 ## Per-environment overrides
 
 This project uses **build tracks** rather than `.env.development` / `.env.production` files.
-Select a track by sourcing the matching env file before `setup.sh`:
+Select a track by resolving (stable/v5) or sourcing (nightly) the matching env file before
+`setup.sh`:
 
-- **Stable** — `source versions-stable.env && ./setup.sh`. Sets every component tag to a
-  pinned release (see [`versions-stable.env`](../versions-stable.env)).
+- **Stable** (Podman 6.x) — `eval "$(./scripts/resolve_versions.sh versions-stable.env)" && ./setup.sh`.
+  The resolver reads the policy (`PODMAN_SERIES=6` plus a soak window) and materializes each
+  component's `*_TAG`: an exact `*_TAG` freeze wins, else the highest tag under the `*_SERIES`
+  cap, else the latest upstream tag — with any non-frozen tag held back until it clears
+  `STABLE_SOAK_DAYS`. Buildah is *derived* from Podman's `go.mod` at the resolved tag rather
+  than resolved on its own. See [`versions-stable.env`](../versions-stable.env).
+- **V5** (Podman 5.x maintenance) — `eval "$(./scripts/resolve_versions.sh versions-v5.env)" && ./setup.sh`.
+  Same resolver machinery, but the policy caps Podman at `5` and keeps
+  netavark/aardvark-dns on `1.x` (`NETAVARK_SERIES=1`, `AARDVARK_DNS_SERIES=1`) with
+  buildah 1.43.x, because netavark 2.0 / aardvark-dns 2.0 / buildah 1.44 are only supported
+  with Podman 6.0. crun, conmon, skopeo, container-configs and the Go/Rust toolchain are
+  loosely coupled and shared across both tracks. See [`versions-v5.env`](../versions-v5.env).
 - **Nightly** — `source versions-nightly.env && ./setup.sh`. Sets `NIGHTLY_BUILD=true` and
   `SHALLOW_CLONE=false`, leaving all component tags empty so builds track upstream HEAD.
-- **Edge** — published from the latest tagged upstream; selected per-suite when running
-  `repo_manage.sh` / `ci_publish.sh` with the `edge` argument.
 
 Nightly versions use a tilde (`~`) so dpkg sorts them below tagged releases, letting users
 auto-upgrade once a real release lands.
