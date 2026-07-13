@@ -116,6 +116,14 @@ assert_equals "float soak=7 -> v7.0.0 (highest soaked overall)" \
 echo "=== exact freeze bypasses soak ==="
 assert_equals "PODMAN_TAG=v6.0.2 -> verbatim despite being unsoaked" \
     "v6.0.2" "$(PODMAN_TAG=v6.0.2 PODMAN_SERIES=6 STABLE_SOAK_DAYS=7 resolve_component podman PODMAN_TAG PODMAN_SERIES "${P}")"
+# The freeze must also announce itself on stderr (ambient-env foot-gun guard).
+_freeze_err="$(PODMAN_TAG=v6.0.2 PODMAN_SERIES=6 STABLE_SOAK_DAYS=7 \
+    resolve_component podman PODMAN_TAG PODMAN_SERIES "${P}" 2>&1 >/dev/null)"
+assert_equals "exact freeze emits a stderr NOTE naming the var + value" \
+    "1" "$(printf '%s\n' "${_freeze_err}" | grep -c 'NOTE podman: using exact PODMAN_TAG=v6.0.2' || true)"
+assert_equals "exact freeze still yields the frozen tag on stdout" \
+    "v6.0.2" "$(PODMAN_TAG=v6.0.2 PODMAN_SERIES=6 STABLE_SOAK_DAYS=7 \
+        resolve_component podman PODMAN_TAG PODMAN_SERIES "${P}" 2>/dev/null)"
 
 echo "=== hold on empty/absent series ==="
 _hold_rc=0

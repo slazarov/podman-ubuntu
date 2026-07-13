@@ -45,6 +45,14 @@ source "${toolpath}/functions.sh"
 # tags are common/vX.Y.Z and its tag var is CONTAINER_LIBS_TAG -- the documented
 # triple naming mismatch). pasta (date-versioned HEAD) and sccache/protoc (build
 # tools, pinned exactly in the policy file) are intentionally ABSENT.
+# go-md2man is ALSO intentionally ABSENT: it is build-only man-page tooling with no
+# packaging/nfpm/*md2man* package and no entry in check_republish_needed.sh's compare
+# set, so resolving it here would let an unreachable cpuguy83/go-md2man remote HOLD
+# the whole track without ever gating a release. build_go-md2man.sh:36 does
+# git_checkout "${GOMD2MAN_TAG}" and, with GOMD2MAN_TAG unset (config.sh default),
+# falls through to get_latest_tag -- it floats at build time, exactly as before, and
+# now no longer blocks stable/v5 resolution. This also keeps the resolver's and the
+# guard's component sets reconciled (neither lists go-md2man).
 COMPONENT_ROWS=(
     "podman|PODMAN_TAG|PODMAN_SERIES|https://github.com/containers/podman.git"
     "buildah|BUILDAH_TAG|BUILDAH_SERIES|https://github.com/containers/buildah.git"
@@ -53,7 +61,6 @@ COMPONENT_ROWS=(
     "netavark|NETAVARK_TAG|NETAVARK_SERIES|https://github.com/containers/netavark.git"
     "aardvark-dns|AARDVARK_DNS_TAG|AARDVARK_DNS_SERIES|https://github.com/containers/aardvark-dns.git"
     "skopeo|SKOPEO_TAG|SKOPEO_SERIES|https://github.com/containers/skopeo.git"
-    "go-md2man|GOMD2MAN_TAG|GOMD2MAN_SERIES|https://github.com/cpuguy83/go-md2man.git"
     "toolbox|TOOLBOX_TAG|TOOLBOX_SERIES|https://github.com/containers/toolbox.git"
     "fuse-overlayfs|FUSE_OVERLAYFS_TAG|FUSE_OVERLAYFS_SERIES|https://github.com/containers/fuse-overlayfs.git"
     "catatonit|CATATONIT_TAG|CATATONIT_SERIES|https://github.com/openSUSE/catatonit.git"
@@ -145,6 +152,10 @@ resolve_component() {
     # so a stray " " never becomes a bogus frozen tag.
     lexact="${lexact#"${lexact%%[![:space:]]*}"}"; lexact="${lexact%"${lexact##*[![:space:]]}"}"
     if [[ -n "${lexact}" ]]; then
+        # Surface the freeze so it is never silent -- whether it is a deliberate
+        # policy pin or a leftover exported var in a local `eval "$(...)"` run,
+        # an ambient *_TAG here overrides all series/soak policy.
+        echo "  NOTE ${lcomp}: using exact ${ltagvar}=${lexact} (overrides series/soak policy)" >&2
         printf '%s\n' "${lexact}"
         return 0
     fi
