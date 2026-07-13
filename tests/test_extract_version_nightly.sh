@@ -66,6 +66,13 @@ assert_true() {
 setup() {
     TEST_TMPDIR="$(mktemp -d)"
 
+    # The fixture repos below use `git commit`; give them a deterministic identity
+    # so the test does not depend on ambient git config. A bare CI runner (e.g. the
+    # GitHub-hosted lint runner) has no user.name/user.email, and `git commit` there
+    # hard-fails with "empty ident name" / "unable to auto-detect email address".
+    export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com \
+           GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
+
     # --- podman mock repo ---
     local podman_dir="${TEST_TMPDIR}/podman"
     mkdir -p "${podman_dir}/version/rawversion"
