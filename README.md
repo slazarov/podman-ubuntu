@@ -2,6 +2,8 @@
 
 Compile and install the latest Podman container stack from source on Debian/Ubuntu, or install pre-built packages from the hosted APT repository.
 
+📦 **APT repository:** <https://slazarov.github.io/podman-ubuntu/> — browse tracks, suites, and per-package versions, or jump straight to [Install via APT](#install-via-apt-recommended).
+
 [![lint](https://github.com/slazarov/podman-ubuntu/actions/workflows/lint.yml/badge.svg)](https://github.com/slazarov/podman-ubuntu/actions/workflows/lint.yml)
 [![build](https://github.com/slazarov/podman-ubuntu/actions/workflows/build-packages.yml/badge.svg)](https://github.com/slazarov/podman-ubuntu/actions/workflows/build-packages.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
