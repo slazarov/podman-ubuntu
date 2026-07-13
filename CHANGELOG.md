@@ -15,14 +15,25 @@ Work landed since `v1.2`, slated for the next release, `v1.3`.
   with `Conflicts`/`Replaces`/`Provides` against the official Ubuntu packages and
   auto-detected inter-package dependencies.
 - **Hosted APT repository** — GPG-signed reprepro repo on GitHub Pages with
-  `stable` / `edge` / `nightly` tracks and Acquire-By-Hash indexes.
+  `stable` / `v5` / `nightly` tracks and Acquire-By-Hash indexes.
+- **Auto-updating release tracks** — a version resolver
+  (`scripts/resolve_versions.sh`) materializes concrete component tags from a
+  per-track policy file (`versions-stable.env` / `versions-v5.env`): exact-tag
+  freeze > `*_SERIES` anchored-major cap > float, with buildah derived from
+  podman's `go.mod` and a soak window (`STABLE_SOAK_DAYS`, default 7) that defers
+  brand-new upstream tags. **stable** tracks Podman **6.x**; the former `edge`
+  track is retired and replaced by **v5**, a Podman **5.x** maintenance line
+  (held on the netavark/aardvark 1.x + buildah 1.43.x set that Podman 5.x
+  requires). Both auto-updating tracks run on the daily cron, guarded by
+  `check_republish_needed.sh`.
 - **CI/CD** — GitHub Actions building natively on amd64 + arm64, scheduled
-  nightly builds, and gated atomic publish.
+  daily builds per track (nightly/stable/v5), and gated atomic publish.
 - **Ubuntu 26.04 support** — per-distro version suffixes
   (`~ubuntu24.04.podman1` / `~ubuntu26.04.podman1`) with dpkg-verified ordering,
-  per-distro dependency mapping (direct `DT_NEEDED` soname detection), a 9-suite
-  repo (`{stable,edge,nightly}-{2404,2604}` + legacy aliases), a 4-cell
-  distro×arch CI matrix, and a migration path for existing users.
+  per-distro dependency mapping (direct `DT_NEEDED` soname detection), an 8-suite
+  repo (`{stable,v5,nightly}-{2404,2604}` + the deprecated bare `stable`/`nightly`
+  aliases; `v5` is distro-qualified only), a 4-cell distro×arch CI matrix, and a
+  migration path for existing users.
 - **Repo hardening** — ShellCheck + shfmt + unit-test CI gate (`lint.yml`),
   `.pre-commit-config.yaml`, `.editorconfig`, `.shellcheckrc`, Dependabot,
   `SECURITY.md`, PR/issue templates, and this changelog.

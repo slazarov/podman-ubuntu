@@ -106,6 +106,11 @@ projects (fuse-overlayfs v1.x, catatonit), tag-based projects (crun,
 containers-common), the date-based pasta scheme, 2-part-to-3-part version
 normalization (toolbox), and Debian tilde-sort ordering.
 
+`tests/test_resolve_versions.sh` covers the stable/v5 version resolver offline
+(`scripts/resolve_versions.sh`): the `*_SERIES` anchored-prefix cap, the
+`STABLE_SOAK_DAYS` soak window, and deriving Buildah's version from Podman's
+`go.mod`.
+
 ## CI Integration
 
 Two GitHub Actions workflows cover this repository.
@@ -128,8 +133,9 @@ The **build-packages** workflow
 ([`.github/workflows/build-packages.yml`](../.github/workflows/build-packages.yml),
 "Build and Publish Packages") is the build-and-publish pipeline, triggered by:
 
-- a daily schedule (`cron: '30 4 * * *'`, 4:30 AM UTC) for nightly builds, and
-- manual `workflow_dispatch` runs (with a `stable` / `edge` / `nightly` choice).
+- three daily schedules — `30 4` (nightly), `30 5` (stable), `30 6` (v5) UTC —
+  with a `resolve-track` job mapping the firing cron to a track, and
+- manual `workflow_dispatch` runs (with a `stable` / `v5` / `nightly` choice).
 
 Its matrix `build` job compiles the component packages natively across four
 cells — 24.04 and 26.04, each on amd64 (`ubuntu-24.04`) and arm64

@@ -9,15 +9,6 @@ SignWith: yes
 
 Origin: podman-ubuntu
 Label: Podman Ubuntu
-Suite: edge
-Codename: edge
-Architectures: amd64 arm64
-Components: main
-Description: DEPRECATED alias for edge-2404 (Ubuntu 24.04) - see migration docs
-SignWith: yes
-
-Origin: podman-ubuntu
-Label: Podman Ubuntu
 Suite: nightly
 Codename: nightly
 Architectures: amd64 arm64
@@ -36,11 +27,11 @@ SignWith: yes
 
 Origin: podman-ubuntu
 Label: Podman Ubuntu
-Suite: edge-2404
-Codename: edge-2404
+Suite: v5-2404
+Codename: v5-2404
 Architectures: amd64 arm64
 Components: main
-Description: Podman compiled from source for Ubuntu 24.04 - latest upstream
+Description: Podman compiled from source for Ubuntu 24.04 - Podman 5.x maintenance
 SignWith: yes
 
 Origin: podman-ubuntu
@@ -63,11 +54,11 @@ SignWith: yes
 
 Origin: podman-ubuntu
 Label: Podman Ubuntu
-Suite: edge-2604
-Codename: edge-2604
+Suite: v5-2604
+Codename: v5-2604
 Architectures: amd64 arm64
 Components: main
-Description: Podman compiled from source for Ubuntu 26.04 - latest upstream
+Description: Podman compiled from source for Ubuntu 26.04 - Podman 5.x maintenance
 SignWith: yes
 
 Origin: podman-ubuntu

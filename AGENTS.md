@@ -8,8 +8,11 @@ A **shell-orchestrated build pipeline** (not an application) that compiles the
 Podman container stack (12 components) from upstream source on Ubuntu 24.04 and
 26.04 (amd64 + arm64), packages it into `.deb` files with nFPM, and publishes a
 reprepro APT repository via GitHub Pages across three release tracks — **stable**
-(pinned tags), **edge** (latest upstream tags), **nightly** (upstream HEAD, daily
-CI) — each published as a per-distro suite (`{track}-{2404,2604}`).
+(Podman 6.x, auto-updated within the major via a resolver), **v5** (Podman 5.x
+maintenance, same resolver), **nightly** (upstream HEAD, daily CI) — each
+published as a per-distro suite (`{track}-{2404,2604}`). stable/v5 read a policy
+file (`versions-{stable,v5}.env`: `*_SERIES` caps + `STABLE_SOAK_DAYS` soak
+window) that `scripts/resolve_versions.sh` materializes into concrete `*_TAG`s.
 
 There is no package.json, no compiler, no app server. Everything is Bash.
 
@@ -41,7 +44,8 @@ There is no package.json, no compiler, no app server. Everything is Bash.
 | `scripts/repo_manage.sh`, `scripts/ci_publish.sh` | APT repo assembly (reprepro) |
 | `scripts/verify_depends.sh`, `scripts/verify_versions.sh` | Post-build validation |
 | `packaging/nfpm/*.yaml` | nFPM package definitions (one per component) |
-| `versions-stable.env` / `versions-nightly.env` | Track version pins (sourced before `setup.sh`) |
+| `versions-stable.env` / `versions-v5.env` | Track version *policy* (series caps + soak); resolved by `scripts/resolve_versions.sh` |
+| `versions-nightly.env` | Nightly behaviour flags (sourced before `setup.sh`) |
 | `tests/` | Bash unit tests, run directly: `bash tests/<test>.sh` |
 | `.github/workflows/build-packages.yml` | CI: native amd64 + arm64 builds, repo publish |
 | `.github/workflows/lint.yml` | CI gate: ShellCheck + shfmt + `tests/` + gitleaks (every PR) |
@@ -61,8 +65,8 @@ bash tests/test_detect_distro_depends.sh
 bash tests/test_extract_version_nightly.sh
 
 # Full build (Linux only, as root)
-source versions-stable.env && sudo -E ./setup.sh   # stable
-sudo ./setup.sh                                     # edge (auto-detect latest tags)
+eval "$(./scripts/resolve_versions.sh versions-stable.env)" && sudo -E ./setup.sh  # stable (Podman 6.x)
+eval "$(./scripts/resolve_versions.sh versions-v5.env)" && sudo -E ./setup.sh      # v5 (Podman 5.x maintenance)
 sudo NIGHTLY_BUILD=true SHALLOW_CLONE=false ./setup.sh  # nightly (HEAD)
 
 # Single component (Linux only; sources config.sh/functions.sh itself)

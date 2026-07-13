@@ -60,6 +60,6 @@ compromised, and disclose via the channel above. Never commit a private key.
 
 ## Supported versions
 
-Only the **latest published build of each track** (stable / edge / nightly) for
+Only the **latest published build of each track** (stable / v5 / nightly) for
 each supported Ubuntu release (24.04, 26.04) receives fixes. Older snapshots are
 not maintained — update to the current build.

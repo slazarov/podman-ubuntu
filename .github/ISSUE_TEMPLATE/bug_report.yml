@@ -37,7 +37,7 @@ body:
     id: track
     attributes:
       label: Track / suite
-      options: [stable, edge, nightly, "n/a (building from source)"]
+      options: [stable, v5, nightly, "n/a (building from source)"]
     validations:
       required: true
   - type: input

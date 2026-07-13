@@ -2,16 +2,20 @@ name: Build and Publish Packages
 
 on:
   schedule:
-    - cron: '30 4 * * *'  # 4:30 AM UTC daily — nightly builds
+    # One cron per auto-updating track; the firing cron selects the track (see the
+    # resolve-track job). Staggered so the "pages" concurrency group serializes them.
+    - cron: '30 4 * * *'  # 04:30 UTC — nightly (upstream HEAD)
+    - cron: '30 5 * * *'  # 05:30 UTC — stable  (Podman 6.x, series-cap + soak)
+    - cron: '30 6 * * *'  # 06:30 UTC — v5      (Podman 5.x maintenance, series-cap + soak)
   workflow_dispatch:
     inputs:
       build_track:
-        description: 'Build track (stable = pinned versions, edge = latest upstream tags, nightly = latest upstream commits)'
+        description: 'Build track (stable = Podman 6.x, v5 = Podman 5.x maintenance, nightly = upstream HEAD)'
         required: true
         type: choice
         options:
           - stable
-          - edge
+          - v5
           - nightly
         default: stable
 
@@ -26,10 +30,43 @@ concurrency:
 
 jobs:
   # ============================================
-  # Check if upstream components changed (cron only)
+  # Resolve which track this run builds
   # ============================================
+  # Single source of truth for the track, consumed by every downstream job. A
+  # manual dispatch uses its input; a scheduled run maps the firing cron string
+  # (github.event.schedule) to a track. Replaces the former scattered
+  # `inputs.build_track || 'nightly'` defaults.
+  resolve-track:
+    runs-on: ubuntu-24.04
+    outputs:
+      track: ${{ steps.pick.outputs.track }}
+    steps:
+      - name: Pick track
+        id: pick
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TRACK="${{ inputs.build_track }}"
+          else
+            case "${{ github.event.schedule }}" in
+              '30 4 * * *') TRACK="nightly" ;;
+              '30 5 * * *') TRACK="stable" ;;
+              '30 6 * * *') TRACK="v5" ;;
+              # Fail loud rather than silently building+publishing the wrong track
+              # if a cron is ever added/edited without updating this map.
+              *) echo "::error::unmapped schedule '${{ github.event.schedule }}' — add it to resolve-track"; exit 1 ;;
+            esac
+          fi
+          echo "track=${TRACK}" >> "$GITHUB_OUTPUT"
+          echo "Resolved track: ${TRACK}"
+
+  # ============================================
+  # Check if upstream components changed (nightly cron only)
+  # ============================================
+  # HEAD-SHA guard for the NIGHTLY cron only (nightly builds from upstream HEAD).
+  # Gated to the 04:30 cron specifically so the stable/v5 crons — which are guarded
+  # by check-republish instead — never trip this nightly-semantics short-circuit.
   check-changes:
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule' && github.event.schedule == '30 4 * * *'
     runs-on: ubuntu-24.04
     outputs:
       skip: ${{ steps.detect.outputs.skip }}
@@ -91,18 +128,18 @@ jobs:
           fi
 
   # ============================================
-  # Republish guard (manual stable/edge dispatch)
+  # Republish guard (stable/v5 — dispatch or cron)
   # ============================================
-  # A manual stable/edge dispatch otherwise rebuilds + republishes all four
-  # cells unconditionally, even when nothing changed. This job short-circuits
-  # the run when every tagged component is already published at the version this
-  # dispatch would build (pasta is excluded — it floats by date on every track;
-  # see scripts/check_republish_needed.sh). It is strictly conservative: any
-  # fetch/resolution uncertainty yields skip=false, so it can only ever avoid a
-  # redundant rebuild, never skip a needed one. Nightly is untouched —
-  # check-changes already guards the scheduled run.
+  # Both auto-updating tracks (stable, v5) rebuild + republish all four cells even
+  # when nothing changed. This job short-circuits the run when every component is
+  # already published at the version resolve_versions.sh would build (pasta is
+  # excluded — it floats by date; see scripts/check_republish_needed.sh). It is
+  # strictly conservative for the deb comparison (any fetch uncertainty yields
+  # skip=false), but a resolver HOLD yields skip=true (nothing valid to build).
+  # Nightly is untouched — check-changes guards its scheduled run.
   check-republish:
-    if: github.event_name == 'workflow_dispatch' && (inputs.build_track == 'stable' || inputs.build_track == 'edge')
+    needs: [resolve-track]
+    if: needs.resolve-track.outputs.track == 'stable' || needs.resolve-track.outputs.track == 'v5'
     runs-on: ubuntu-24.04
     outputs:
       skip: ${{ steps.guard.outputs.skip }}
@@ -112,7 +149,7 @@ jobs:
         id: guard
         run: |
           REPO_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
-          ./scripts/check_republish_needed.sh "${{ inputs.build_track }}" "${REPO_URL}"
+          ./scripts/check_republish_needed.sh "${{ needs.resolve-track.outputs.track }}" "${REPO_URL}"
 
   # ============================================
   # Build all distro x arch cells in one matrix
@@ -126,10 +163,12 @@ jobs:
   # CICD-07: Go cache keys and artifact names carry a distro dimension so a
   #   26.04 build can never reuse a 24.04 cache or land in a 24.04 artifact.
   build:
-    needs: [check-changes, check-republish]
-    # Gate order: check-changes guards scheduled nightly; check-republish guards
-    # manual stable/edge no-ops. A SKIPPED guard job yields an empty output, and
-    # '' != 'true', so neither guard blocks a run it doesn't apply to.
+    needs: [resolve-track, check-changes, check-republish]
+    # Gate order: check-changes guards the nightly cron; check-republish guards the
+    # stable/v5 tracks (dispatch or cron). A SKIPPED guard job yields an empty
+    # output, and '' != 'true', so neither guard blocks a run it doesn't apply to.
+    # (Stable/v5 crons skip check-changes -> its '' passes the first clause, and
+    # check-republish gates them; the nightly cron skips check-republish likewise.)
     if: >-
       always()
       && (github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.skip != 'true')
@@ -199,7 +238,7 @@ jobs:
       - name: Resolve build track
         id: track
         run: |
-          TRACK="${{ inputs.build_track || 'nightly' }}"
+          TRACK="${{ needs.resolve-track.outputs.track }}"
           echo "track=${TRACK}" >> "$GITHUB_OUTPUT"
           echo "Build track: ${TRACK}"
 
@@ -248,21 +287,31 @@ jobs:
           if [[ -n "${{ matrix.container }}" ]]; then
             ENV_ARGS="$ENV_ARGS SKIP_FUSE_CHECK=true"
           fi
-          if [[ "${{ steps.track.outputs.track }}" == "stable" ]]; then
-            while IFS= read -r line; do
-              [[ "$line" =~ ^[[:space:]]*# || -z "$line" ]] && continue
-              line="${line#export }"
-              key="${line%%=*}"
-              val="${line#*=}"
-              val="${val%\"}"
-              val="${val#\"}"
-              ENV_ARGS="$ENV_ARGS ${key}=${val}"
-            done < versions-stable.env
-          elif [[ "${{ steps.track.outputs.track }}" == "edge" ]]; then
-            # Edge builds components from latest tags but needs pinned build tools
-            eval "$(grep -E '^export (PROTOC_VERSION|PROTOC_TAG)=' versions-stable.env)"
-            ENV_ARGS="$ENV_ARGS PROTOC_VERSION=$PROTOC_VERSION PROTOC_TAG=$PROTOC_TAG"
-          elif [[ "${{ steps.track.outputs.track }}" == "nightly" ]]; then
+          TRACK="${{ steps.track.outputs.track }}"
+          if [[ "$TRACK" == "stable" || "$TRACK" == "v5" ]]; then
+            # Materialize concrete *_TAG values from the track policy (series-cap +
+            # soak + buildah-derive). Resolver exit codes: 0 ok; 3 = deterministic
+            # hold (nothing soaked yet, upstream reachable) -> nothing to build,
+            # exit the step cleanly; other non-zero = uncertain/error -> fail loud.
+            if RESOLVED="$(./scripts/resolve_versions.sh "versions-${TRACK}.env")"; then
+              while IFS= read -r line; do
+                [[ "$line" =~ ^[[:space:]]*# || -z "$line" ]] && continue
+                line="${line#export }"
+                key="${line%%=*}"
+                val="${line#*=}"
+                val="${val%\"}"
+                val="${val#\"}"
+                ENV_ARGS="$ENV_ARGS ${key}=${val}"
+              done <<< "$RESOLVED"
+            else
+              rc=$?
+              if [[ "$rc" -eq 3 ]]; then
+                echo "Resolver: no soaked target yet for ${TRACK}; nothing to build."
+                exit 0
+              fi
+              echo "::error::resolver failed for ${TRACK} (rc=$rc)"; exit "$rc"
+            fi
+          elif [[ "$TRACK" == "nightly" ]]; then
             ENV_ARGS="$ENV_ARGS NIGHTLY_BUILD=true SHALLOW_CLONE=false"
           fi
           sudo env $ENV_ARGS ./setup.sh
@@ -335,7 +384,7 @@ jobs:
   #   and this publish job is skipped entirely — the live GitHub Pages repo is
   #   left untouched. There is no partial publish. (T-21-06)
   publish:
-    needs: [build]
+    needs: [resolve-track, build]
     # Publish runs when at least the 2404 cells succeeded. A 2604 build failure
     # leaves the publish running with only 2404 artifacts (publish_distro already
     # skips distros whose deb dir is empty). 'failure' covers partial cell failure
@@ -356,7 +405,7 @@ jobs:
       - name: Resolve build track
         id: track
         run: |
-          TRACK="${{ inputs.build_track || 'nightly' }}"
+          TRACK="${{ needs.resolve-track.outputs.track }}"
           echo "track=${TRACK}" >> "$GITHUB_OUTPUT"
           echo "Build track: ${TRACK}"
           # NOTE: distro is no longer a single step output here. Both distros
@@ -445,7 +494,7 @@ jobs:
       # repo inside a real ubuntu container and runs `podman info` (D-15). The
       # helper exits 1 on failure; `set -euo pipefail` aborts the step (and thus
       # skips configure-pages/upload-pages-artifact/deploy-pages) on a fail. No
-      # `if:` guard — the gate runs on EVERY publish (stable/edge/nightly) so
+      # `if:` guard — the gate runs on EVERY publish (stable/v5/nightly) so
       # regressions are caught on every push (D-18). amd64-only (D-17).
       - name: Smoke test — install podman-suite from assembled repo per distro
         run: |

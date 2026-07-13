@@ -188,14 +188,14 @@ EOF_CTL
 # The version carries the per-distro suffix the project uses (~ubuntu24.04.podman1)
 # so the legacy-client D-15 proof (apt-cache policy) has a 24.04 candidate.
 STABLE_DEB_DIR="${TMP_ROOT}/debs-stable"
-EDGE_DEB_DIR="${TMP_ROOT}/debs-edge"
+V5_DEB_DIR="${TMP_ROOT}/debs-v5"
 echo ">>> Building fixture .deb packages..."
 build_fixture_deb "podman-suite" "5.0.0~ubuntu24.04.podman1" "amd64" "${STABLE_DEB_DIR}"
 build_fixture_deb "podman-suite" "5.0.0~ubuntu24.04.podman1" "arm64" "${STABLE_DEB_DIR}"
-build_fixture_deb "conmon-suite" "2.1.0~ubuntu24.04.podman1" "amd64" "${EDGE_DEB_DIR}"
-build_fixture_deb "conmon-suite" "2.1.0~ubuntu24.04.podman1" "arm64" "${EDGE_DEB_DIR}"
+build_fixture_deb "conmon-suite" "2.1.0~ubuntu24.04.podman1" "amd64" "${V5_DEB_DIR}"
+build_fixture_deb "conmon-suite" "2.1.0~ubuntu24.04.podman1" "arm64" "${V5_DEB_DIR}"
 echo "  stable debs: $(find "${STABLE_DEB_DIR}" -name '*.deb' | wc -l | tr -d ' ')"
-echo "  edge debs:   $(find "${EDGE_DEB_DIR}" -name '*.deb' | wc -l | tr -d ' ')"
+echo "  v5 debs:     $(find "${V5_DEB_DIR}" -name '*.deb' | wc -l | tr -d ' ')"
 echo ""
 
 # ============================================
@@ -216,8 +216,8 @@ mkdir -p "${OUT}"
 echo ">>> Assembling stable (2404): versioned stable-2404 + bare 'stable' alias..."
 "${PROJECT_ROOT}/scripts/repo_manage.sh" stable 2404 "${STABLE_DEB_DIR}" "${OUT}" >/dev/null
 
-echo ">>> Assembling edge (2404): versioned edge-2404 + bare 'edge' alias..."
-"${PROJECT_ROOT}/scripts/repo_manage.sh" edge 2404 "${EDGE_DEB_DIR}" "${OUT}" >/dev/null
+echo ">>> Assembling v5 (2404): versioned v5-2404 (distro-qualified only, no bare alias)..."
+"${PROJECT_ROOT}/scripts/repo_manage.sh" v5 2404 "${V5_DEB_DIR}" "${OUT}" >/dev/null
 
 # Empty-but-signed -2604 suite (REPO-06 / D-14): reprepro export with no packages.
 # repo_manage.sh requires .deb files, so export the empty suite directly. The
@@ -233,7 +233,7 @@ rm -rf "${OUT}/db" "${OUT}/conf"
 echo ">>> Applying add_byhash_and_resign per suite (Plan-02 helper)..."
 # shellcheck source=/dev/null
 source "${PROJECT_ROOT}/scripts/repo_byhash.sh"
-ASSEMBLED_SUITES=(stable-2404 stable edge-2404 edge stable-2604)
+ASSEMBLED_SUITES=(stable-2404 stable v5-2404 stable-2604)
 for suite in "${ASSEMBLED_SUITES[@]}"; do
     if [[ -f "${OUT}/dists/${suite}/Release" ]]; then
         add_byhash_and_resign "${suite}" "${OUT}"
@@ -246,7 +246,7 @@ echo ""
 # ============================================
 
 # Populated suites we expect to carry real Packages content.
-POPULATED_SUITES=(stable-2404 stable edge-2404 edge)
+POPULATED_SUITES=(stable-2404 stable v5-2404)
 ARCHES=(amd64 arm64)
 
 echo "Test group A: REPO-08 — Acquire-By-Hash on every populated suite"
@@ -307,35 +307,35 @@ done
 echo ""
 echo "Test group D: Criterion 4 — no-clobber across suites on a single-suite publish"
 echo ""
-# Capture edge-2404's Packages hashes, then re-publish ONLY stable-2404 with the
-# edge tree mirrored-unchanged in place. edge-2404 must remain byte-identical.
-declare -A EDGE_BEFORE
+# Capture v5-2404's Packages hashes, then re-publish ONLY stable-2404 with the
+# v5 tree mirrored-unchanged in place. v5-2404 must remain byte-identical.
+declare -A V5_BEFORE
 NOCLOBBER_OK=true
 for arch in "${ARCHES[@]}"; do
-    edge_idx="${OUT}/dists/edge-2404/main/binary-${arch}/Packages"
-    if [[ -f "${edge_idx}" ]]; then
-        EDGE_BEFORE["${arch}"]="$(${STRONG_CMD} "${edge_idx}" | awk '{print $1}')"
+    v5_idx="${OUT}/dists/v5-2404/main/binary-${arch}/Packages"
+    if [[ -f "${v5_idx}" ]]; then
+        V5_BEFORE["${arch}"]="$(${STRONG_CMD} "${v5_idx}" | awk '{print $1}')"
     fi
 done
 
 # Re-publish stable-2404 only (fresh debs). reprepro's per-suite export and the
-# preserved pool mean edge-2404's dists/ index is not touched.
+# preserved pool mean v5-2404's dists/ index is not touched.
 "${PROJECT_ROOT}/scripts/repo_manage.sh" stable 2404 "${STABLE_DEB_DIR}" "${OUT}" >/dev/null
 add_byhash_and_resign "stable-2404" "${OUT}"
 add_byhash_and_resign "stable" "${OUT}"
 
 for arch in "${ARCHES[@]}"; do
-    edge_idx="${OUT}/dists/edge-2404/main/binary-${arch}/Packages"
-    if [[ -f "${edge_idx}" ]]; then
-        after="$(${STRONG_CMD} "${edge_idx}" | awk '{print $1}')"
-        assert_equals "edge-2404 ${arch} Packages byte-identical after stable-2404-only publish" \
-            "${EDGE_BEFORE["${arch}"]}" "${after}"
-        [[ "${EDGE_BEFORE["${arch}"]}" == "${after}" ]] || NOCLOBBER_OK=false
+    v5_idx="${OUT}/dists/v5-2404/main/binary-${arch}/Packages"
+    if [[ -f "${v5_idx}" ]]; then
+        after="$(${STRONG_CMD} "${v5_idx}" | awk '{print $1}')"
+        assert_equals "v5-2404 ${arch} Packages byte-identical after stable-2404-only publish" \
+            "${V5_BEFORE["${arch}"]}" "${after}"
+        [[ "${V5_BEFORE["${arch}"]}" == "${after}" ]] || NOCLOBBER_OK=false
     fi
 done
-# edge-2404 signature must still verify (untouched, still valid).
-assert_succeeds "edge-2404 InRelease still verifies after stable-only publish" \
-    gpg --verify "${OUT}/dists/edge-2404/InRelease"
+# v5-2404 signature must still verify (untouched, still valid).
+assert_succeeds "v5-2404 InRelease still verifies after stable-only publish" \
+    gpg --verify "${OUT}/dists/v5-2404/InRelease"
 
 echo ""
 echo "Test group E: REPO-06 — empty-but-signed stable-2604 (D-14)"
@@ -398,7 +398,7 @@ fi
 # F-3: the caller's shell options must be identical before and after the call —
 # the RETURN trap must restore them and must not leak `set +e +o pipefail`.
 OPTS_BEFORE="$(set +o)"
-add_byhash_and_resign "edge-2404" "${OUT}"
+add_byhash_and_resign "v5-2404" "${OUT}"
 OPTS_AFTER="$(set +o)"
 assert_equals "caller shell options unchanged across add_byhash_and_resign (F-3)" \
     "${OPTS_BEFORE}" "${OPTS_AFTER}"

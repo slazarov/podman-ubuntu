@@ -38,8 +38,8 @@ The same scripts serve three release tracks, selected entirely by environment:
 
 | Track | Invoke | Behavior |
 |-------|--------|----------|
-| **stable** | `source versions-stable.env && sudo -E ./setup.sh` | Builds the pinned tags in `versions-stable.env`. |
-| **edge** | `sudo ./setup.sh` | Tags left empty → latest upstream tag auto-detected. |
+| **stable** | `eval "$(./scripts/resolve_versions.sh versions-stable.env)" && sudo -E env … ./setup.sh` | Podman 6.x; the resolver materializes tags from the `versions-stable.env` policy (series cap + soak). |
+| **v5** | `eval "$(./scripts/resolve_versions.sh versions-v5.env)" && sudo -E env … ./setup.sh` | Podman 5.x maintenance line; same resolver, `versions-v5.env` policy. |
 | **nightly** | `sudo NIGHTLY_BUILD=true SHALLOW_CLONE=false ./setup.sh` | Builds from upstream HEAD with full clones. |
 
 The full set of build-influencing environment variables is documented in
@@ -102,7 +102,7 @@ opening a PR:
 - Update the affected documentation (`README.md`, `docs/`) when you change
   behavior, supported versions, or commands.
 - Describe what you changed, how you verified it, and the build track(s)
-  (`stable`, `edge`, `nightly`) and architecture(s) (amd64, arm64) you tested.
+  (`stable`, `v5`, `nightly`) and architecture(s) (amd64, arm64) you tested.
 
 ### Running Tests
 
@@ -120,8 +120,9 @@ pre-commit check or locally before opening a PR.
 
 Maintainers can run the pipeline manually from the Actions tab via the
 **Build and Publish Packages** workflow's `workflow_dispatch` trigger, choosing
-the `stable`, `edge`, or `nightly` build track. The same workflow runs
-automatically on a daily schedule (4:30 AM UTC) to produce nightly builds.
+the `stable`, `v5`, or `nightly` build track. The same workflow runs
+automatically on a daily schedule — one cron per track (nightly 04:30, stable
+05:30, v5 06:30 UTC).
 
 ## Issue Reporting
 
@@ -131,7 +132,7 @@ Open bugs and feature requests through GitHub Issues at
 
 When reporting a build or packaging problem, include:
 
-- The build track (`stable`, `edge`, or `nightly`) and the component involved.
+- The build track (`stable`, `v5`, or `nightly`) and the component involved.
 - Your host OS and architecture (Ubuntu 24.04 amd64 or arm64).
 - Whether you installed via the APT repository or built from source with
   `setup.sh`.

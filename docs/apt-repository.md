@@ -4,13 +4,13 @@ This project provides a custom APT repository for Podman and its ecosystem tools
 
 The repository is hosted on GitHub Pages and serves three release tracks per Ubuntu version, selected by a distro-qualified suite name:
 
-- **stable** -- tested, pinned release versions (`stable-2404` / `stable-2604`)
-- **edge** -- latest upstream tags, rebuilt automatically (`edge-2404` / `edge-2604`)
+- **stable** -- Podman **6.x**, auto-updated within the major with a soak window (`stable-2404` / `stable-2604`)
+- **v5** -- Podman **5.x** maintenance line, auto-updated within the major with a soak window (`v5-2404` / `v5-2604`)
 - **nightly** -- upstream HEAD, built daily (`nightly-2404` / `nightly-2604`)
 
-Pick the section below that matches your Ubuntu version.
+Pick the section below that matches your Ubuntu version. Choose **v5** if your host is not ready for the [Podman 6.0 breaking changes](https://github.com/containers/podman/releases) (notably the netavark 2.0 networking overhaul).
 
-> **Note:** Deprecated as of v1.3. Bare suite names will be removed in a future release. Monitor the changelog or watch the GitHub repository for the removal notice. The bare suite names `stable`, `edge`, and `nightly` are superseded by the distro-qualified names shown below. If you are an existing user with `Suites: stable` (or `edge`/`nightly`) in your `.sources` file, see [Migrating from Bare Suite Names](#migrating-from-bare-suite-names).
+> **Note:** The bare suite names `stable` and `nightly` are deprecated. Bare suite names will be removed in a future release. The `v5` track is distro-qualified only -- always use `v5-2404` / `v5-2604`. If you are an existing user with `Suites: stable` (or `nightly`) in your `.sources` file, see [Migrating from Bare Suite Names](#migrating-from-bare-suite-names).
 
 ## Ubuntu 24.04 (Noble Numbat)
 
@@ -31,7 +31,7 @@ sudo apt update
 sudo apt install -y podman-suite
 ```
 
-To track a different release line on 24.04, change the `Suites:` line to `edge-2404` (latest upstream tags) or `nightly-2404` (daily HEAD builds).
+To track a different release line on 24.04, change the `Suites:` line to `v5-2404` (Podman 5.x maintenance) or `nightly-2404` (daily HEAD builds).
 
 ## Ubuntu 26.04 (Resolute Raccoon)
 
@@ -52,7 +52,7 @@ sudo apt update
 sudo apt install -y podman-suite
 ```
 
-To track a different release line on 26.04, change the `Suites:` line to `edge-2604` (latest upstream tags) or `nightly-2604` (daily HEAD builds).
+To track a different release line on 26.04, change the `Suites:` line to `v5-2604` (Podman 5.x maintenance) or `nightly-2604` (daily HEAD builds).
 
 The `podman-suite` meta-package installs all components. See [Individual Packages](#installing-individual-packages) below for installing components separately.
 
@@ -73,11 +73,11 @@ Each track is published per Ubuntu version with a distro-qualified suite name. S
 
 | Track | Ubuntu 24.04 suite | Ubuntu 26.04 suite | Description |
 |-------|--------------------|--------------------|-------------|
-| stable | `stable-2404` | `stable-2604` | Tested, pinned release versions -- recommended for production |
-| edge | `edge-2404` | `edge-2604` | Latest upstream release tags, rebuilt automatically |
+| stable | `stable-2404` | `stable-2604` | Podman 6.x, auto-updated within the major (soak window) -- recommended for production |
+| v5 | `v5-2404` | `v5-2604` | Podman 5.x maintenance line, auto-updated within the major (soak window) |
 | nightly | `nightly-2404` | `nightly-2604` | Upstream HEAD, built daily -- newest features, least tested |
 
-Use stable for production systems; use edge or nightly if you want the newest features.
+Use **stable** for production on Podman 6.x; use **v5** to stay on the Podman 5.x line; use **nightly** for the bleeding edge. The stable and v5 tracks pick up new upstream releases automatically once a release has been public for a short soak period.
 
 ## Installing Individual Packages
 
@@ -115,7 +115,7 @@ Both architectures are built natively (not cross-compiled) for both Ubuntu 24.04
 
 ## Migrating from Bare Suite Names
 
-If you set up this repository before v1.3, your `.sources` file likely uses a bare suite name (`Suites: stable`, `edge`, or `nightly`). These bare names are **deprecated** and will be removed in a future release. Switch to the distro-qualified name for your Ubuntu version.
+If you set up this repository before v1.3, your `.sources` file likely uses a bare suite name (`Suites: stable` or `nightly`). These bare names are **deprecated** and will be removed in a future release. Switch to the distro-qualified name for your Ubuntu version. (The former `edge` track has been retired and replaced by the distro-qualified `v5` track — Podman 5.x maintenance; if you were on `Suites: edge`, switch to `stable-*` for Podman 6.x or `v5-*` to stay on Podman 5.x.)
 
 The bare suite names continue to serve **Ubuntu 24.04** packages during the deprecation window, so 24.04 users are not broken immediately -- but you should still migrate. Ubuntu 26.04 users must switch to a `-2604` suite to receive 26.04 packages.
 
@@ -129,7 +129,7 @@ sudo sed -i 's/Suites: stable$/Suites: stable-2404/' /etc/apt/sources.list.d/pod
 sudo sed -i 's/Suites: stable$/Suites: stable-2604/' /etc/apt/sources.list.d/podman-ubuntu.sources
 ```
 
-For the edge or nightly tracks, substitute `edge` or `nightly` for `stable` on both sides of the replacement (e.g. `s/Suites: edge$/Suites: edge-2404/`).
+For the nightly track, substitute `nightly` for `stable` on both sides of the replacement (e.g. `s/Suites: nightly$/Suites: nightly-2404/`). The `v5` track has no bare alias, so set it directly to `v5-2404` / `v5-2604`.
 
 **Option 2 -- paste the full replacement block.** Overwrite the `.sources` file with the distro-qualified block. Ubuntu 24.04:
 
@@ -198,7 +198,7 @@ The repository URL is `https://slazarov.github.io/podman-ubuntu`. Ensure:
 
 - The `URIs` line in your sources file has no trailing slash
 - GitHub Pages is live (check the URL in a browser)
-- The `Suites` value matches an available distro-qualified suite for your Ubuntu version (`stable-2404` / `edge-2404` / `nightly-2404` for 24.04; `stable-2604` / `edge-2604` / `nightly-2604` for 26.04)
+- The `Suites` value matches an available distro-qualified suite for your Ubuntu version (`stable-2404` / `v5-2404` / `nightly-2404` for 24.04; `stable-2604` / `v5-2604` / `nightly-2604` for 26.04)
 
 ### Packages conflict with official Ubuntu packages
 

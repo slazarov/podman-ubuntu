@@ -229,9 +229,9 @@ echo "Test 3: unpublished suite (404 / first deploy)"
 
 OUT3="${TMP}/out3"
 rc=0
-mirror_suite_verbatim "edge" "${REPO_URL_TEST}" "${OUT3}" || rc=$?
+mirror_suite_verbatim "v5" "${REPO_URL_TEST}" "${OUT3}" || rc=$?
 assert_equals "returns 1 when the live Release does not exist" "1" "${rc}"
-assert_absent "no partial tree placed in output" "${OUT3}/dists/edge"
+assert_absent "no partial tree placed in output" "${OUT3}/dists/v5"
 
 # ============================================
 # Test 4: listed-but-missing index returns 1, output untouched

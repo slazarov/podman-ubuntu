@@ -143,12 +143,14 @@ extract_version_nightly() {
 }
 
 # ============================================
-# Edge Build: Auto-Detect Tags from Build Repos
+# Unpinned Build: Auto-Detect Tags from Build Repos
 # ============================================
-# For edge builds (no pinned versions), TAG variables are empty in config.sh.
-# The build phase (setup.sh) already cloned repos and checked out latest tags.
-# Resolve empty tags by reading the checked-out tag from each component's
-# git repository in BUILD_ROOT.
+# Fallback for any component whose TAG variable is empty in config.sh (e.g. a
+# component left unpinned, or a track that does not materialize every tag).
+# The build phase (setup.sh) already cloned repos and checked out a tag, so we
+# resolve the empty tag by reading the checked-out tag from each component's
+# git repository in BUILD_ROOT. The stable/v5 tracks pre-resolve every tag via
+# scripts/resolve_versions.sh, so this path is normally exercised only by nightly.
 
 # Map component names to their build directory names
 # (most match 1:1 except these)
@@ -310,7 +312,7 @@ for component in "${COMPONENTS[@]}"; do
         local_tag="$(date +"%Y%m%d")"
     fi
 
-    # Edge builds: auto-detect tag from build repo when not pinned
+    # Unpinned builds: auto-detect tag from build repo when not pre-resolved
     if [[ -z "${local_tag}" ]]; then
         local_tag="$(resolve_tag_from_repo "${component}")"
         if [[ -n "${local_tag}" ]]; then

@@ -170,7 +170,7 @@ print('1' if 'debs-\${{ matrix.distro }}-\${{ matrix.arch }}' in open(sys.argv[1
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))
 p = d['jobs']['publish']
-ok = p['needs'] == ['build'] and \"needs.build.result == 'success'\" in p['if']
+ok = 'build' in p['needs'] and \"needs.build.result == 'success'\" in p['if']
 print('1' if ok else '0')
 ")
     assert_true "py: publish gated on needs.build.result == 'success'" "${r}"
@@ -184,6 +184,55 @@ pats = {s['with']['pattern'] for s in steps
 print('1' if pats == {'debs-2404-*','debs-2604-*'} else '0')
 ")
     assert_true "py: publish downloads are per-distro, no bare debs-* merge" "${r}"
+
+    # --- Auto-updating track wiring (stable/v5 crons + resolve-track) ---
+    r=$(py "
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+jobs = d['jobs']
+ok = 'resolve-track' in jobs and 'track' in jobs['resolve-track'].get('outputs', {})
+print('1' if ok else '0')
+")
+    assert_true "py: resolve-track job present with a 'track' output" "${r}"
+
+    r=$(py "
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+# 'on' may parse as the boolean True key in YAML.
+on = d.get('on', d.get(True))
+crons = {c['cron'] for c in on['schedule']}
+print('1' if {'30 4 * * *','30 5 * * *','30 6 * * *'} <= crons else '0')
+")
+    assert_true "py: three schedule crons (nightly 04:30, stable 05:30, v5 06:30)" "${r}"
+
+    r=$(py "
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+on = d.get('on', d.get(True))
+opts = on['workflow_dispatch']['inputs']['build_track']['options']
+print('1' if opts == ['stable','v5','nightly'] else '0')
+")
+    assert_true "py: dispatch build_track options are [stable, v5, nightly]" "${r}"
+
+    r=$(py "
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+# check-changes fires only on the nightly cron; check-republish keys on resolve-track.
+cc = str(d['jobs']['check-changes']['if'])
+cr = str(d['jobs']['check-republish']['if'])
+ok = (\"github.event.schedule == '30 4 * * *'\" in cc
+      and 'resolve-track' in str(d['jobs']['check-republish'].get('needs', []))
+      and \"outputs.track == 'stable'\" in cr and \"outputs.track == 'v5'\" in cr)
+print('1' if ok else '0')
+")
+    assert_true "py: check-changes is nightly-cron-only; check-republish gates stable/v5" "${r}"
+
+    r=$(py "
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+print('1' if 'resolve-track' in d['jobs']['build']['needs'] else '0')
+")
+    assert_true "py: build job depends on resolve-track" "${r}"
 }
 
 # ============================================
@@ -266,6 +315,22 @@ run_grep_assertions() {
     assert_true "grep: compact label \"2604\" present in publish" \
         "$([[ "${l2604}" -ge 1 ]] && echo 1 || echo 0)"
     assert_contains "grep: ci_publish.sh invoked" "${NOCOMMENT}" "ci_publish.sh"
+
+    # 11. three schedule crons (nightly/stable/v5) + resolve-track job
+    local ncron
+    ncron=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec "cron:[[:space:]]*'30 [456] \* \* \*'")
+    assert_equals "grep: three schedule crons (30 4/5/6)" "3" "${ncron}"
+    assert_contains "grep: resolve-track job present" "${NOCOMMENT}" "resolve-track:"
+
+    # 12. dispatch offers v5, never the retired edge track
+    assert_contains "grep: dispatch build_track offers v5" "${NOCOMMENT}" "- v5"
+    local has_edge
+    if printf '%s\n' "${NOCOMMENT}" | grep -Eq '^[[:space:]]*-[[:space:]]*edge[[:space:]]*$'; then
+        has_edge=0
+    else
+        has_edge=1
+    fi
+    assert_true "grep: no retired 'edge' dispatch option" "${has_edge}"
 }
 
 if [[ "${HAVE_PYYAML}" -eq 1 ]]; then

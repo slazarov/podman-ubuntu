@@ -23,7 +23,7 @@ trap 'error_handler $? $LINENO "$BASH_SOURCE"' ERR
 usage() {
     echo "Usage: $(basename "$0") <track> <distro> <deb-directory> [output-directory]"
     echo ""
-    echo "  track            Release track: 'stable', 'edge', or 'nightly'"
+    echo "  track            Release track: 'stable', 'v5', or 'nightly'"
     echo "  distro           Target distro: '2404' or '2604'"
     echo "  deb-directory    Path containing .deb files to add"
     echo "  output-directory Where to create the repository (default: \${toolpath}/repo-output)"

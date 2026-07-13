@@ -56,19 +56,21 @@ echo "Distro: ubuntu ${DISTRO_VERSION_ID} (version suffix: ${VERSION_SUFFIX})"
 # Repository Suite Routing
 # ============================================
 
-# The six-suite restructure (v3.0). reprepro materializes 9 distributions:
-# the 3 bare legacy aliases (stable/edge/nightly — the REPO-07 mechanism that
-# preserves apt's cached Suite value) plus 6 versioned <track>-<distro> suites.
+# reprepro materializes 8 distributions: the 2 bare legacy aliases (stable/nightly —
+# the REPO-07 mechanism that preserves apt's cached Suite value for pre-v1.3
+# subscribers) plus 6 versioned <track>-<distro> suites. The `v5` track (Podman 5.x
+# maintenance, formerly `edge`) is NEW and has no legacy subscribers, so it is
+# distro-qualified ONLY (v5-2404 / v5-2604) with NO bare `v5` alias.
 # Arrays are NOT exported (bash cannot export arrays cleanly); child scripts
 # source config.sh, so plain declaration suffices — matches the source-not-export
 # pattern documented in functions.sh.
-VALID_TRACKS=(stable edge nightly)
+VALID_TRACKS=(stable v5 nightly)
 VALID_DISTROS=(2404 2604)
-ALL_SUITES=(stable edge nightly \
-            stable-2404 edge-2404 nightly-2404 \
-            stable-2604 edge-2604 nightly-2604)
+ALL_SUITES=(stable nightly \
+            stable-2404 nightly-2404 v5-2404 \
+            stable-2604 nightly-2604 v5-2604)
 
-# is_valid_suite <suite> — returns 0 if <suite> is one of the 9 known
+# is_valid_suite <suite> — returns 0 if <suite> is one of the 8 known
 # distributions, else prints a clear error to stderr and returns 1.
 is_valid_suite() {
     local lsuite="$1"
@@ -84,9 +86,10 @@ is_valid_suite() {
 # reprepro publish targets, one per line (suitable for mapfile/while read).
 # Validates track against VALID_TRACKS and distro against VALID_DISTROS; on a
 # bad value prints a clear error to stderr and returns 1.
-# On success: prints "<track>-<distro>"; if distro == 2404 also prints the bare
-# "<track>" alias on a second line (D-12: the legacy alias is fed from the same
-# fresh debs as the versioned 24.04 suite).
+# On success: prints "<track>-<distro>"; if distro == 2404 AND the track is a legacy
+# track (stable/nightly) it also prints the bare "<track>" alias on a second line
+# (D-12: the legacy alias is fed from the same fresh debs as the versioned 24.04
+# suite). The new `v5` track has no bare alias, so it prints only "v5-<distro>".
 resolve_publish_targets() {
     local ltrack="$1"
     local ldistro="$2"
@@ -112,7 +115,9 @@ resolve_publish_targets() {
     fi
 
     printf '%s\n' "${ltrack}-${ldistro}"
-    if [[ "${ldistro}" == "2404" ]]; then
+    # Bare alias (2404 only) exists solely for the legacy tracks stable/nightly; the
+    # new v5 track is distro-qualified only and never emits a bare alias.
+    if [[ "${ldistro}" == "2404" && ( "${ltrack}" == "stable" || "${ltrack}" == "nightly" ) ]]; then
         printf '%s\n' "${ltrack}"
     fi
 }
