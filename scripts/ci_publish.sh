@@ -472,8 +472,53 @@ canonicalize_debs_against_pool() {
     done
 }
 
+# NON-DESTRUCTIVE PER-ARCH PUBLISH. A target suite is rebuilt from THIS run's
+# fresh .debs, so if an arch's build failed (its .debs are absent from DEB_DIR),
+# repo_manage would emit an EMPTY binary-<arch>/Packages and WIPE that suite's
+# already-published packages for that arch (exactly what a flaky arm64 build did
+# to stable-2604). Guard it: for any arch with zero fresh .debs, pull the
+# last-good .debs for that arch from the live target suite into the staging dir,
+# so the suite keeps working on that arch (at its last-good version) until a
+# successful build refreshes it. Arch-level sibling of the no-drop gate.
+preserve_missing_arches() {
+    local lstage="$1"
+    shift
+    local ltargets=("$@")
+    local larch ldeb lpresent ltarget lurl lcontent lfn lbn
+    lpresent=" "
+    for ldeb in "${lstage}"/*.deb; do
+        [[ -f "${ldeb}" ]] || continue
+        larch="$(basename "${ldeb}" | sed -n 's/.*_\(amd64\|arm64\)\.deb$/\1/p')"
+        [[ -n "${larch}" ]] && lpresent="${lpresent}${larch} "
+    done
+    for larch in amd64 arm64; do
+        [[ "${lpresent}" == *" ${larch} "* ]] && continue
+        echo ">>> No fresh ${larch} .debs this run — preserving last-good ${larch} for target suite(s) [${ltargets[*]}]"
+        for ltarget in "${ltargets[@]}"; do
+            lurl="${REPO_URL}/dists/${ltarget}/main/binary-${larch}/Packages"
+            lcontent="$(curl -sfL "${lurl}" 2>/dev/null || true)"
+            if [[ -z "${lcontent}" ]]; then
+                echo "  (${ltarget}: no live ${larch} packages to preserve)"
+                continue
+            fi
+            while IFS= read -r lfn; do
+                [[ -n "${lfn}" ]] || continue
+                lbn="$(basename "${lfn}")"
+                [[ -f "${lstage}/${lbn}" ]] && continue
+                if curl -sfL -o "${lstage}/${lbn}" "${REPO_URL}/${lfn}"; then
+                    echo "  preserved ${larch}: ${lbn} (from ${ltarget})"
+                else
+                    echo "  WARNING: failed to fetch ${lfn} for ${larch} preservation" >&2
+                    rm -f "${lstage}/${lbn}"
+                fi
+            done <<< "$(printf '%s\n' "${lcontent}" | grep '^Filename:' | sed 's/^Filename: *//')"
+        done
+    done
+}
+
 STAGED_DEB_DIR="$(mktemp -d)"
 cp "${DEB_DIR}"/*.deb "${STAGED_DEB_DIR}/"
+preserve_missing_arches "${STAGED_DEB_DIR}" "${PUBLISH_TARGETS[@]}"
 canonicalize_debs_against_pool "${STAGED_DEB_DIR}" "${OUTPUT_DIR}"
 
 # repo_manage.sh now resolves the same (track, distro) into PUBLISH_TARGETS and

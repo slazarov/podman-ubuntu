@@ -361,6 +361,62 @@ for s in stable-2404 stable v5-2404; do
         "$(pkg_version "${OUT_B}/dists/${s}/main/binary-arm64/Packages" podman-skopeo)"
 done
 
+# ============================================
+# Scenario D: NON-DESTRUCTIVE per-arch — a missing arch build must NOT wipe the
+# suite's already-published packages for that arch.
+# ============================================
+# Reproduces the stable-2604 arm64 wipe: a flaky arm64 build produces no arm64
+# .debs, and a target-suite rebuild from amd64-only debs would emit an empty
+# arm64 index. The fix preserves the live last-good arm64 packages.
+
+echo "========================================"
+echo "Scenario D: missing-arch build preserves last-good arch (26.04)"
+echo "========================================"
+
+LIVE_D="${TMP_ROOT}/live-d"
+build_live "${LIVE_D}" "skopeo-canonical-payload-AAAA" 2604
+for s in $(live_suites 2604); do
+    [[ -f "${LIVE_D}/dists/${s}/Release" ]] && add_byhash_and_resign "${s}" "${LIVE_D}" >/dev/null
+done
+serve "${LIVE_D}" "stable-2604" || true
+
+# Precondition: live stable-2604 carries arm64 packages worth preserving.
+assert_equals "live stable-2604 arm64 has podman-podman (precondition)" \
+    "6.0.0~ubuntu26.04.podman1" \
+    "$(pkg_version "${LIVE_D}/dists/stable-2604/main/binary-arm64/Packages" podman-podman)"
+
+# Fresh stable-2604 build with ONLY amd64 debs (arm64 build "failed"), podman
+# bumped to 6.1.0.
+STABLE_NEW_AMD64="${TMP_ROOT}/stable-new-amd64"
+build_deb "podman-podman" "6.1.0~ubuntu26.04.podman1" "amd64" "${STABLE_NEW_AMD64}" "podman-6-1-0"
+build_deb "podman-skopeo" "$(skopeo_ver 2604)"        "amd64" "${STABLE_NEW_AMD64}" "skopeo-canonical-payload-AAAA"
+
+OUT_D="${TMP_ROOT}/out-d"
+mkdir -p "${OUT_D}"
+rc=0
+bash "${PROJECT_ROOT}/scripts/ci_publish.sh" stable 2604 "${STABLE_NEW_AMD64}" "${REPO_URL}" "${OUT_D}" \
+    > "${TMP_ROOT}/d.log" 2>&1 || rc=$?
+if [[ "${rc}" -ne 0 ]]; then
+    echo "  (ci_publish.sh exited ${rc}; tail:)"
+    tail -25 "${TMP_ROOT}/d.log" | sed 's/^/      /'
+fi
+assert_equals "ci_publish stable 2604 (amd64-only build) exits 0" "0" "${rc}"
+
+# amd64 refreshed to the new build.
+assert_equals "stable-2604 amd64 podman refreshed to new build" \
+    "6.1.0~ubuntu26.04.podman1" \
+    "$(pkg_version "${OUT_D}/dists/stable-2604/main/binary-amd64/Packages" podman-podman)"
+# arm64 PRESERVED at last-good — the whole point (pre-fix it would be MISSING/empty).
+assert_equals "stable-2604 arm64 podman preserved at last-good (not wiped)" \
+    "6.0.0~ubuntu26.04.podman1" \
+    "$(pkg_version "${OUT_D}/dists/stable-2604/main/binary-arm64/Packages" podman-podman)"
+assert_equals "stable-2604 arm64 skopeo preserved (not wiped)" \
+    "$(skopeo_ver 2604)" \
+    "$(pkg_version "${OUT_D}/dists/stable-2604/main/binary-arm64/Packages" podman-skopeo)"
+rc=0
+bash "${PROJECT_ROOT}/scripts/verify_repo_integrity.sh" "${OUT_D}" >/dev/null 2>&1 || rc=$?
+assert_equals "preserved-arch repo passes the integrity guard" "0" "${rc}"
+
 echo ""
 echo "========================================"
 echo "Results: ${PASS_COUNT} passed, ${FAIL_COUNT} failed"

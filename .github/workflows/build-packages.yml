@@ -221,12 +221,25 @@ jobs:
         # installs it, so the job-level bash default would fail here.
         shell: sh
         run: |
-          # Harden apt before the very first fetch (arm64 pulls from ports.ubuntu.com;
-          # see the "Update apt cache" step for the full rationale). Written here too
-          # because this bootstrap runs before the shared hardening step.
-          printf '%s\n' 'Acquire::ForceIPv4 "true";' 'Acquire::Retries "5";' \
-            > /etc/apt/apt.conf.d/99-ci-resilient
-          apt-get update
+          # Harden apt before the very first fetch. arm64 pulls from ports.ubuntu.com,
+          # which is poorly mirrored and — from GitHub's arm runners — unreachable
+          # over IPv6 and flaky over IPv4 (it has failed whole build cells at this
+          # bootstrap). Force IPv4, add retries + timeout, and PREFER Azure's ports
+          # mirror (fast + reliable from the Azure-hosted runners), falling back to
+          # ports.ubuntu.com if it is unreachable. Only arm64 is affected — amd64
+          # containers use archive.ubuntu.com, which the sed below does not match.
+          printf '%s\n' 'Acquire::ForceIPv4 "true";' 'Acquire::Retries "8";' \
+            'Acquire::http::Timeout "30";' > /etc/apt/apt.conf.d/99-ci-resilient
+          SRC=/etc/apt/sources.list.d/ubuntu.sources
+          [ -f "$SRC" ] || SRC=/etc/apt/sources.list
+          cp "$SRC" "${SRC}.orig" 2>/dev/null || true
+          sed -i 's|//ports.ubuntu.com|//azure.ports.ubuntu.com|g' "$SRC" 2>/dev/null || true
+          if ! apt-get update; then
+            echo ">>> azure.ports.ubuntu.com unreachable — reverting to ports.ubuntu.com"
+            cp "${SRC}.orig" "$SRC" 2>/dev/null \
+              || sed -i 's|//azure.ports.ubuntu.com|//ports.ubuntu.com|g' "$SRC"
+            apt-get update
+          fi
           apt-get install -y --no-install-recommends sudo git curl ca-certificates bash
 
       # NOTE on /dev/fuse in the 2604 container (debugged 2026-06-07): the GHA
@@ -270,8 +283,8 @@ jobs:
           # retries so transient ports.ubuntu.com hiccups don't break it. Harmless
           # on amd64 (archive.ubuntu.com). The drop-in persists for the whole job,
           # so setup.sh's apt-get install (where arm64 actually failed) inherits it.
-          printf '%s\n' 'Acquire::ForceIPv4 "true";' 'Acquire::Retries "5";' \
-            | sudo tee /etc/apt/apt.conf.d/99-ci-resilient > /dev/null
+          printf '%s\n' 'Acquire::ForceIPv4 "true";' 'Acquire::Retries "8";' \
+            'Acquire::http::Timeout "30";' | sudo tee /etc/apt/apt.conf.d/99-ci-resilient > /dev/null
           sudo apt-get update
 
       - name: Build all components
