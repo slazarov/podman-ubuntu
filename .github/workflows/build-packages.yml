@@ -448,6 +448,8 @@ jobs:
         run: |
           bash tests/test_repo_assemble_byhash.sh
           bash tests/test_ci_publish_multipass.sh
+          bash tests/test_ci_publish_shared_pool.sh
+          bash tests/test_verify_repo_integrity.sh
 
       # Per-distro sequential publish into ONE accumulating repo-output: 2404
       # first, then 2604. ci_publish.sh's mirror-then-include model
@@ -486,6 +488,16 @@ jobs:
           # 2404 first, then 2604 — explicit ordering into one repo-output.
           publish_distro "2404" "all-debs-2404"
           publish_distro "2604" "all-debs-2604"
+
+      # Integrity gate (explicit, on the fully-assembled repo). ci_publish.sh
+      # already runs verify_repo_integrity.sh at the end of each pass; re-run it
+      # here over the final combined repo-output as the last checkpoint before the
+      # Pages upload. Asserts every suite's signed index matches Release AND the
+      # pool .debs it advertises — the guardrail against the "File has unexpected
+      # size" shared-pool overwrite bug. A mismatch fails the job and no partial /
+      # inconsistent repository is ever deployed.
+      - name: Verify repository integrity before publish
+        run: ./scripts/verify_repo_integrity.sh "$PWD/repo-output"
 
       # MIGR-04 installability smoke gate. Runs AFTER both ci_publish.sh runs
       # (repo-output is fully assembled + signed) and BEFORE the Pages upload, so

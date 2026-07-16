@@ -306,6 +306,18 @@ for other_suite in "${OTHER_SUITES[@]}"; do
     OTHER_SUITE_DEBS_DIRS["${other_suite}"]="${other_dir}"
     suite_count=0
 
+    # Per-suite integrity state for the verbatim path (INTEGRITY / heal). A suite
+    # may be served with its ORIGINAL signed index ONLY if every pool .deb that
+    # index references still matches the index's Size + SHA256. If the shared pool
+    # was mutated out from under a previously-signed index — the "File has
+    # unexpected size" bug, where a non-reproducible rebuild in another track's
+    # publish overwrote a .deb of an already-published version — the stale index
+    # MUST NOT be served. verbatim_mismatch flips true and the suite is demoted to
+    # the re-export path so reprepro regenerates its index from the ACTUAL pool
+    # bytes and re-signs it (Step 4 / 4b).
+    verbatim_mismatch=false
+    verbatim_pool_paths=()
+
     for arch in amd64 arm64; do
         packages_url="${REPO_URL}/dists/${other_suite}/main/binary-${arch}/Packages"
         echo "  Fetching: ${packages_url}"
@@ -317,52 +329,93 @@ for other_suite in "${OTHER_SUITES[@]}"; do
             continue
         fi
 
-        # Parse Filename: lines from the Packages index. We download the referenced
-        # .deb files for two reasons: (a) for a verbatim-mirrored suite, the pool
-        # entries its served Packages index references must exist under
-        # ${OUTPUT_DIR}/pool/ so apt can fetch the packages; (b) for a non-verbatim
-        # suite (no live tree to copy) the debs feed the legacy re-includedeb path.
-        while IFS= read -r filename; do
-            if [[ -n "${filename}" ]]; then
-                deb_url="${REPO_URL}/${filename}"
-                deb_basename=$(basename "${filename}")
+        # Parse one (Filename, Size, SHA256) triple per stanza. We download the
+        # referenced .deb files for two reasons: (a) for a verbatim-mirrored suite,
+        # the pool entries its served index references must exist under
+        # ${OUTPUT_DIR}/pool/ so apt can fetch them — AND must match the index's
+        # checksums, verified below; (b) for a non-verbatim suite (no live tree to
+        # copy, or a demoted one) the debs feed the re-includedeb path (Step 4).
+        while read -r filename size sha256; do
+            [[ -n "${filename}" ]] || continue
+            deb_url="${REPO_URL}/${filename}"
+            deb_basename=$(basename "${filename}")
 
-                # For a verbatim-mirrored suite, place the pool entry at the exact
-                # path its Packages index references (Filename:) so apt resolves it.
-                if [[ "${IS_VERBATIM["${other_suite}"]}" == "true" ]]; then
-                    pool_dest="${OUTPUT_DIR}/${filename}"
-                    if [[ ! -f "${pool_dest}" ]]; then
-                        mkdir -p "$(dirname "${pool_dest}")"
-                        if curl -sfL -o "${pool_dest}" "${deb_url}"; then
-                            suite_count=$((suite_count + 1))
-                        else
-                            echo "  WARNING: Failed to download pool entry ${deb_basename}" >&2
-                            rm -f "${pool_dest}"
-                        fi
+            # For a verbatim-mirrored suite, place the pool entry at the exact
+            # path its Packages index references (Filename:) so apt resolves it.
+            if [[ "${IS_VERBATIM["${other_suite}"]}" == "true" ]]; then
+                pool_dest="${OUTPUT_DIR}/${filename}"
+                if [[ ! -f "${pool_dest}" ]]; then
+                    mkdir -p "$(dirname "${pool_dest}")"
+                    if curl -sfL -o "${pool_dest}" "${deb_url}"; then
+                        suite_count=$((suite_count + 1))
+                    else
+                        echo "  WARNING: Failed to download pool entry ${deb_basename}" >&2
+                        rm -f "${pool_dest}"
+                        # A referenced-but-unfetchable pool entry means the live
+                        # suite is already inconsistent — heal it via re-export.
+                        verbatim_mismatch=true
+                        continue
                     fi
-                    continue
                 fi
-
-                # Skip if already downloaded (same package may appear in both arch indices)
-                if [[ -f "${other_dir}/${deb_basename}" ]]; then
-                    continue
+                # INTEGRITY: the served index must not lie about the pool bytes.
+                actual_size=$(wc -c < "${pool_dest}" | tr -d '[:space:]')
+                if [[ -n "${size}" && "${size}" != "${actual_size}" ]]; then
+                    echo "  MISMATCH: ${other_suite}/${deb_basename} size ${actual_size} != index ${size}" >&2
+                    verbatim_mismatch=true
+                elif [[ -n "${sha256}" ]] && command -v sha256sum >/dev/null 2>&1; then
+                    actual_sha=$(sha256sum "${pool_dest}" | awk '{print $1}')
+                    if [[ "${sha256}" != "${actual_sha}" ]]; then
+                        echo "  MISMATCH: ${other_suite}/${deb_basename} sha256 differs from index" >&2
+                        verbatim_mismatch=true
+                    fi
                 fi
-
-                echo "  Downloading: ${deb_basename}"
-                if curl -sfL -o "${other_dir}/${deb_basename}" "${deb_url}"; then
-                    suite_count=$((suite_count + 1))
-                else
-                    echo "  WARNING: Failed to download ${deb_basename}, skipping" >&2
-                    rm -f "${other_dir}/${deb_basename}"
-                fi
+                verbatim_pool_paths+=("${pool_dest}")
+                continue
             fi
-        done <<< "$(echo "${packages_content}" | grep "^Filename:" | sed 's/^Filename: *//')"
+
+            # Skip if already downloaded (same package may appear in both arch indices)
+            if [[ -f "${other_dir}/${deb_basename}" ]]; then
+                continue
+            fi
+
+            echo "  Downloading: ${deb_basename}"
+            if curl -sfL -o "${other_dir}/${deb_basename}" "${deb_url}"; then
+                suite_count=$((suite_count + 1))
+            else
+                echo "  WARNING: Failed to download ${deb_basename}, skipping" >&2
+                rm -f "${other_dir}/${deb_basename}"
+            fi
+        done <<< "$(printf '%s\n' "${packages_content}" | awk '
+            /^Filename:/ { fn=$2 }
+            /^Size:/     { sz=$2 }
+            /^SHA256:/   { sha=$2 }
+            /^[[:space:]]*$/ { if (fn!="") print fn, sz, sha; fn=""; sz=""; sha="" }
+            END { if (fn!="") print fn, sz, sha }')"
     done
+
+    # HEAL: a verbatim suite whose published pool no longer matches its published
+    # index cannot be served verbatim (that is exactly what ships the "unexpected
+    # size" failure to clients). Demote it to the re-export path — regenerate its
+    # index from the real pool bytes (reprepro includedeb + export in Step 4) and
+    # re-sign it (Step 4b), reconciling the divergence in the same publish.
+    if [[ "${IS_VERBATIM["${other_suite}"]}" == "true" && "${verbatim_mismatch}" == "true" ]]; then
+        echo ">>> HEAL: '${other_suite}' signed index disagrees with the live pool — regenerating from pool (re-export, not verbatim)"
+        IS_VERBATIM["${other_suite}"]=false
+        # Drop the stale verbatim dists/ tree so reprepro can regenerate it.
+        rm -rf "${OUTPUT_DIR}/dists/${other_suite}"
+        # Feed the already-downloaded pool .debs into the re-export input dir.
+        for pp in "${verbatim_pool_paths[@]}"; do
+            [[ -f "${pp}" ]] || continue
+            bn=$(basename "${pp}")
+            [[ -f "${other_dir}/${bn}" ]] || cp "${pp}" "${other_dir}/${bn}"
+        done
+    fi
 
     OTHER_SUITE_COUNTS["${other_suite}"]=${suite_count}
     # Verbatim-mirrored suites are NOT counted toward total_other_count: that
     # counter gates the re-includedeb/re-export loop (Step 4), which must never
-    # run for a suite we are serving verbatim.
+    # run for a suite we are serving verbatim. A demoted (healed) suite is now
+    # non-verbatim, so it counts and Step 4 re-exports it from the pool.
     if [[ "${IS_VERBATIM["${other_suite}"]}" != "true" ]]; then
         total_other_count=$((total_other_count + suite_count))
     fi
@@ -377,9 +430,42 @@ done
 echo ">>> Building target suite(s) [${PUBLISH_TARGETS[*]}] with repo_manage.sh..."
 echo ""
 
+# POOL IMMUTABILITY (root-cause fix for the "unexpected size" bug). reprepro
+# shares ONE pool across all suites, keyed by (source, version, arch) — the same
+# .deb filename maps to the same pool path regardless of track. When two tracks
+# ship the SAME version of a slow-moving component (e.g. skopeo/crun/pasta shared
+# by the stable 6.x and v5 5.x lines), a freshly-compiled — and non-reproducible —
+# rebuild of that version would OVERWRITE the shared pool .deb that another suite's
+# already-signed index still checksums, desyncing that suite's metadata from the
+# pool. An identical filename means an identical (source, version, arch), which in
+# apt's model MUST be identical bytes; so if the pool already carries this exact
+# package (placed by a verbatim mirror of an already-published suite in Step 2),
+# adopt those published bytes instead of overwriting them. Done on a staged copy
+# so the input artifact dir is never mutated.
+canonicalize_debs_against_pool() {
+    local lstage="$1" lout="$2"
+    local ldeb lbase lpub
+    [[ -d "${lout}/pool" ]] || return 0
+    for ldeb in "${lstage}"/*.deb; do
+        [[ -f "${ldeb}" ]] || continue
+        lbase="$(basename "${ldeb}")"
+        lpub="$(find "${lout}/pool" -type f -name "${lbase}" 2>/dev/null | head -1)"
+        if [[ -n "${lpub}" ]] && ! cmp -s "${lpub}" "${ldeb}"; then
+            echo "  pool-immutable: adopting already-published ${lbase} (keeps every suite's index in sync)"
+            cp -f "${lpub}" "${ldeb}"
+        fi
+    done
+}
+
+STAGED_DEB_DIR="$(mktemp -d)"
+cp "${DEB_DIR}"/*.deb "${STAGED_DEB_DIR}/"
+canonicalize_debs_against_pool "${STAGED_DEB_DIR}" "${OUTPUT_DIR}"
+
 # repo_manage.sh now resolves the same (track, distro) into PUBLISH_TARGETS and
-# feeds the fresh .debs into each target (versioned suite + 24.04 alias) itself.
-"${toolpath}/scripts/repo_manage.sh" "${TRACK}" "${DISTRO}" "${DEB_DIR}" "${OUTPUT_DIR}"
+# feeds the (canonicalized) fresh .debs into each target (versioned suite + 24.04
+# alias) itself.
+"${toolpath}/scripts/repo_manage.sh" "${TRACK}" "${DISTRO}" "${STAGED_DEB_DIR}" "${OUTPUT_DIR}"
+rm -rf "${STAGED_DEB_DIR}"
 
 echo ""
 
@@ -463,6 +549,19 @@ for suite in "${ALL_SUITES[@]}"; do
     fi
 done
 echo ">>> Acquire-By-Hash post-processing complete"
+echo ""
+
+# ============================================
+# Step 4c: Integrity gate — index must match the pool it advertises
+# ============================================
+# The publish is only valid if every suite's signed metadata is internally
+# consistent with the pool it was assembled over. This is the guardrail against
+# the shared-pool overwrite class of bug (a suite's index advertising a Size/
+# SHA256 that no longer matches the .deb in pool/). It runs over the FULL
+# accumulating repo-output after this pass's exports + re-signs, so a mismatch
+# aborts ci_publish (set -e) before anything is uploaded to Pages.
+echo ">>> Verifying repository integrity (index <-> pool, Release <-> index)..."
+"${toolpath}/scripts/verify_repo_integrity.sh" "${OUTPUT_DIR}"
 echo ""
 
 # Clean up all temp dirs

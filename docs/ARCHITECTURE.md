@@ -176,6 +176,29 @@ a single track for the rest of the run. **Permissions:** `pages: write`,
 builds the target suites, and applies Acquire-By-Hash + re-sign to every
 non-verbatim suite.
 
+**Pool immutability (index ⇄ pool must never diverge).** reprepro shares one
+`pool/` across all suites keyed by `(source, version, arch)` — *track-independent*
+— so a component version shipped by more than one track (e.g. `skopeo`/`crun`/
+`pasta`, shared by the stable 6.x and v5 5.x lines) lives at a single pool path.
+An identical filename therefore means identical bytes: it is a hard invariant
+that a given `Filename:` maps to one `.deb`, and every suite's signed index
+checksums *that* file. Two mechanisms enforce it and one verifies it:
+
+- **Prevent** — before a target build, `ci_publish.sh` adopts any already-published
+  pool `.deb` of the same filename instead of overwriting it with a freshly-compiled
+  (non-reproducible) rebuild of the same version. Without this, a v5 rebuild of a
+  shared component silently replaced the pool `.deb` that `stable-2404`'s
+  verbatim-served index still checksummed → apt `File has unexpected size`.
+- **Heal** — a suite is served verbatim only if every pool `.deb` it references
+  still matches its signed `Size`/`SHA256`; otherwise it is demoted to the
+  re-export path so its index is regenerated from the real pool bytes and re-signed.
+- **Verify** — `scripts/verify_repo_integrity.sh` runs at the end of every
+  `ci_publish.sh` pass *and* as an explicit CI step before the Pages upload. It
+  fails the publish if any suite's `Release`⇄index or index⇄pool checksums
+  disagree, so an internally-inconsistent repository can never reach clients.
+  Regression-pinned by `test_ci_publish_shared_pool.sh` (prevent + heal, end to
+  end against the real scripts) and `test_verify_repo_integrity.sh` (the guard).
+
 **Signing.** `GPG_PRIVATE_KEY` is imported with ultimate ownertrust; reprepro
 signs each suite; `repo_byhash.sh` re-signs after injecting `Acquire-By-Hash`
 (editing `Release` invalidates reprepro's signature). `packaging/repo/pubkey.gpg`
