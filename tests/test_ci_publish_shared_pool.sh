@@ -137,6 +137,11 @@ pkg_size() {  # <packages-file> <package> -> Size field of first matching stanza
     awk -v p="$2" '/^Package:/{cur=$2} /^Size:/{if(cur==p){print $2;exit}}' "$1"
 }
 
+pkg_version() {  # <packages-file> <package> -> Version field, or MISSING
+    [[ -f "$1" ]] || { echo "MISSING"; return; }
+    awk -v p="$2" '/^Package:/{cur=$2} /^Version:/{if(cur==p){print $2;found=1;exit}} END{if(!found)print "MISSING"}' "$1"
+}
+
 # Distro-aware helpers: the shared skopeo version and its pool path carry the
 # per-distro suffix (~ubuntu24.04 / ~ubuntu26.04). The collision this harness
 # reproduces is SAME-distro cross-track (stable-<D> vs v5-<D> sharing skopeo),
@@ -165,12 +170,20 @@ build_live() {
     local sk; sk="$(skopeo_ver "${distro}")"
     local stable_debs="${TMP_ROOT}/live-stable-${distro}-$$-${RANDOM}"
     local v5_debs="${TMP_ROOT}/live-v5-${distro}-$$-${RANDOM}"
-    rm -rf "${stable_debs}" "${v5_debs}"
+    local shared_debs="${TMP_ROOT}/live-shared-${distro}-$$-${RANDOM}"
+    rm -rf "${stable_debs}" "${v5_debs}" "${shared_debs}"
     for arch in amd64 arm64; do
+        # podman is track-specific (6.x vs 5.x) — distinct pool paths.
         build_deb "podman-podman" "6.0.0~ubuntu${d}.podman1" "${arch}" "${stable_debs}" "podman-6"
-        build_deb "podman-skopeo" "${sk}"                    "${arch}" "${stable_debs}" "${skopeo_payload}"
         build_deb "podman-podman" "5.0.0~ubuntu${d}.podman1" "${arch}" "${v5_debs}" "podman-5"
-        build_deb "podman-skopeo" "${sk}"                    "${arch}" "${v5_debs}" "${skopeo_payload}"
+        # skopeo is SHARED across both tracks at ONE version. Build it exactly once
+        # and feed the SAME file to both tracks, so the live repo has a single
+        # canonical binary per version (what a real published repo looks like).
+        # Building it twice would embed different dpkg-deb mtimes => byte-different
+        # .debs for the same version => an already-inconsistent live fixture.
+        build_deb "podman-skopeo" "${sk}" "${arch}" "${shared_debs}" "${skopeo_payload}"
+        cp "${shared_debs}/podman-skopeo_${sk}_${arch}.deb" "${stable_debs}/"
+        cp "${shared_debs}/podman-skopeo_${sk}_${arch}.deb" "${v5_debs}/"
     done
     "${PROJECT_ROOT}/scripts/repo_manage.sh" stable "${distro}" "${stable_debs}" "${live}" >/dev/null
     "${PROJECT_ROOT}/scripts/repo_manage.sh" v5     "${distro}" "${v5_debs}"     "${live}" >/dev/null
@@ -331,6 +344,22 @@ assert_equals "heal was triggered for a corrupted verbatim suite" \
 rc=0
 bash "${PROJECT_ROOT}/scripts/verify_repo_integrity.sh" "${OUT_B}" >/dev/null 2>&1 || rc=$?
 assert_equals "healed repo passes the integrity guard (stable/v5 reconciled)" "0" "${rc}"
+
+# NO-DROP regression: heal must not drop any suite. A demoted suite whose pool
+# .debs were already present (placed by an earlier demoted suite sharing the same
+# pool paths — the bare `stable` alias is byte-identical to stable-2404) carried
+# suite_count=0 and was skipped by the Step 4 gate, 404-ing the suite on the live
+# repo. Every corrupted suite must still be present with its skopeo package.
+SK_2404="$(skopeo_ver 2404)"
+for s in stable-2404 stable v5-2404; do
+    assert_equals "healed suite '${s}' still present with podman-skopeo (no-drop)" \
+        "${SK_2404}" \
+        "$(pkg_version "${OUT_B}/dists/${s}/main/binary-amd64/Packages" podman-skopeo)"
+    # arm64 too — the drop hit both arches.
+    assert_equals "healed suite '${s}' still present on arm64 (no-drop)" \
+        "${SK_2404}" \
+        "$(pkg_version "${OUT_B}/dists/${s}/main/binary-arm64/Packages" podman-skopeo)"
+done
 
 echo ""
 echo "========================================"
