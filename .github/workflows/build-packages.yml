@@ -221,6 +221,11 @@ jobs:
         # installs it, so the job-level bash default would fail here.
         shell: sh
         run: |
+          # Harden apt before the very first fetch (arm64 pulls from ports.ubuntu.com;
+          # see the "Update apt cache" step for the full rationale). Written here too
+          # because this bootstrap runs before the shared hardening step.
+          printf '%s\n' 'Acquire::ForceIPv4 "true";' 'Acquire::Retries "5";' \
+            > /etc/apt/apt.conf.d/99-ci-resilient
           apt-get update
           apt-get install -y --no-install-recommends sudo git curl ca-certificates bash
 
@@ -257,7 +262,17 @@ jobs:
             go-${{ matrix.distro }}-${{ matrix.arch }}-
 
       - name: Update apt cache
-        run: sudo apt-get update
+        run: |
+          # arm64 cells fetch build deps from ports.ubuntu.com, which is poorly
+          # mirrored and whose IPv6 endpoints are unreachable from GitHub's arm
+          # runners (no IPv6 route) — apt burns attempts on dead IPv6, then times
+          # out on the overloaded IPv4 hosts, failing the build. Force IPv4 and add
+          # retries so transient ports.ubuntu.com hiccups don't break it. Harmless
+          # on amd64 (archive.ubuntu.com). The drop-in persists for the whole job,
+          # so setup.sh's apt-get install (where arm64 actually failed) inherits it.
+          printf '%s\n' 'Acquire::ForceIPv4 "true";' 'Acquire::Retries "5";' \
+            | sudo tee /etc/apt/apt.conf.d/99-ci-resilient > /dev/null
+          sudo apt-get update
 
       - name: Build all components
         run: |
