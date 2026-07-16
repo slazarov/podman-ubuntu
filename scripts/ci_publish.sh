@@ -159,6 +159,11 @@ declare -A OTHER_SUITE_DEBS_DIRS
 declare -A OTHER_SUITE_COUNTS
 declare -A IS_VERBATIM
 VERBATIM_SUITES=()
+# Every non-target suite that HAD a live tree this run (preserved in place, served
+# verbatim, or demoted+re-exported). Each MUST still have a Release after assembly;
+# a vanished one means the re-export path silently dropped a published suite (a
+# regression that would 404 the suite for clients). Checked before the integrity gate.
+MIRRORED_SUITES=()
 total_other_count=0
 
 # mirror_suite_verbatim <suite> [repo-url] [output-dir] — reconstruct the live
@@ -283,6 +288,7 @@ for other_suite in "${OTHER_SUITES[@]}"; do
         echo ">>> '${other_suite}' already published by an earlier distro pass — preserving in place (no live mirror)"
         IS_VERBATIM["${other_suite}"]=true
         VERBATIM_SUITES+=("${other_suite}")
+        MIRRORED_SUITES+=("${other_suite}")
         # Empty placeholder dir so the Step 4 / cleanup loops over OTHER_SUITES
         # stay safe under `set -u`; count 0 keeps it out of the re-include gate.
         OTHER_SUITE_DEBS_DIRS["${other_suite}"]=$(mktemp -d)
@@ -296,6 +302,7 @@ for other_suite in "${OTHER_SUITES[@]}"; do
     if mirror_suite_verbatim "${other_suite}"; then
         IS_VERBATIM["${other_suite}"]=true
         VERBATIM_SUITES+=("${other_suite}")
+        MIRRORED_SUITES+=("${other_suite}")
         echo ">>> Mirrored '${other_suite}' dists/ tree verbatim (original signature preserved)"
     else
         IS_VERBATIM["${other_suite}"]=false
@@ -409,6 +416,14 @@ for other_suite in "${OTHER_SUITES[@]}"; do
             bn=$(basename "${pp}")
             [[ -f "${other_dir}/${bn}" ]] || cp "${pp}" "${other_dir}/${bn}"
         done
+        # Re-derive suite_count from what is ACTUALLY staged for re-export. In the
+        # verbatim path suite_count only counts fresh downloads, so a demoted suite
+        # whose pool .debs were already present (placed by an earlier suite that
+        # shares the same pool paths — e.g. the bare `stable` alias vs stable-2404,
+        # which are byte-identical) would carry suite_count=0 and be SKIPPED by the
+        # Step 4 `-eq 0` gate, dropping the suite from the repo entirely. Count the
+        # debs now in other_dir so the re-include actually runs.
+        suite_count=$(find "${other_dir}" -maxdepth 1 -name '*.deb' -type f 2>/dev/null | wc -l | tr -d '[:space:]')
     fi
 
     OTHER_SUITE_COUNTS["${other_suite}"]=${suite_count}
@@ -550,6 +565,21 @@ for suite in "${ALL_SUITES[@]}"; do
 done
 echo ">>> Acquire-By-Hash post-processing complete"
 echo ""
+
+# ============================================
+# Step 4b2: No-drop gate — every mirrored suite must survive assembly
+# ============================================
+# A suite that HAD a live tree this run (preserved, verbatim, or demoted+healed)
+# must still exist after assembly. If one vanished, the re-export path dropped a
+# published suite — it would 404 for clients (worse than the stale index it was
+# healing). Fail loudly rather than deploy a repo missing a suite. (The integrity
+# gate below only inspects suites that EXIST, so it cannot catch a missing one.)
+for s in "${MIRRORED_SUITES[@]}"; do
+    if [[ ! -f "${OUTPUT_DIR}/dists/${s}/Release" ]]; then
+        echo "ERROR: mirrored suite '${s}' vanished from the output — heal/re-export dropped it. Refusing to publish." >&2
+        exit 1
+    fi
+done
 
 # ============================================
 # Step 4c: Integrity gate — index must match the pool it advertises
