@@ -385,6 +385,30 @@ for component in "${COMPONENTS[@]}"; do
     nfpm_config="$(mktemp)"
     envsubst '${VERSION} ${ARCH} ${DESTDIR} ${DETECTED_DEPENDS}' < "${NFPM_DIR}/${component}.yaml" > "${nfpm_config}"
 
+    # pasta ships the x86_64-only AVX2 fast-path variants when the build staged
+    # them. They can't live in the arch-shared manifest — nFPM aborts on a src
+    # glob that matches zero files, and passt.avx2/pasta.avx2 never exist on
+    # arm64. Append them to the rendered config only when present so packaging
+    # stays arch-agnostic. (Kept in sync with the allowlist in
+    # scripts/verify_shipped_binaries.sh, which treats these as expected.)
+    #
+    # INVARIANT: this appends contents list items to the END of the rendered
+    # file, which only lands them under `contents:` because `contents:` is the
+    # last top-level key in pasta.yaml. Keep `contents:` last there, or move
+    # these items under it explicitly.
+    if [[ "${component}" == "pasta" ]]; then
+        for avx2_bin in passt.avx2 pasta.avx2; do
+            if [[ -f "${DESTDIR}/usr/bin/${avx2_bin}" ]]; then
+                {
+                    echo "  - src: \"${DESTDIR}/usr/bin/${avx2_bin}\""
+                    echo "    dst: /usr/bin/${avx2_bin}"
+                    echo "    file_info:"
+                    echo "      mode: 0755"
+                } >> "${nfpm_config}"
+            fi
+        done
+    fi
+
     nfpm pkg \
         --config "${nfpm_config}" \
         --target "${OUTPUT_DIR}" \
@@ -432,6 +456,16 @@ echo ">>> Done: podman-suite"
 echo ""
 
 package_count=$((package_count + 1))
+
+# ============================================
+# Packaging-completeness guardrail (non-fatal)
+# ============================================
+# Warn if the build staged any binary that no manifest packages — the class of
+# silent drop that hid passt's `pesto` for so long. Never abort packaging: a new
+# upstream binary is a heads-up, not a build failure.
+if [[ -x "${toolpath}/scripts/verify_shipped_binaries.sh" ]]; then
+    "${toolpath}/scripts/verify_shipped_binaries.sh" || true
+fi
 
 # ============================================
 # Summary
