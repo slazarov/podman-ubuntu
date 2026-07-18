@@ -34,3 +34,18 @@ contents:
     dst: /usr/bin/pasta
     file_info:
       mode: 0755
+  # pesto: client to view/update port-forwarding on a running passt/pasta.
+  - src: "${DESTDIR}/usr/bin/pesto"
+    dst: /usr/bin/pesto
+    file_info:
+      mode: 0755
+  # passt-repair: privileged helper for TCP-connection migration.
+  - src: "${DESTDIR}/usr/bin/passt-repair"
+    dst: /usr/bin/passt-repair
+    file_info:
+      mode: 0755
+  # NOTE: the x86_64-only passt.avx2 / pasta.avx2 fast-path variants are NOT
+  # listed here — nFPM errors on a src glob matching zero files and this manifest
+  # is arch-shared. package_all.sh appends them to the rendered config only when
+  # they exist (see the pasta AVX2 block there). passt re-execs into .avx2 at
+  # runtime when the CPU supports AVX2, falling back cleanly if absent.

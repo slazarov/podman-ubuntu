@@ -56,6 +56,13 @@ if [[ -n "${DESTDIR:-}" ]]; then
     [[ -f passt.avx2 ]] && install -D -m 0755 passt.avx2 "${DESTDIR}/usr/bin/passt.avx2"
     install -D -m 0755 pasta "${DESTDIR}/usr/bin/pasta"
     [[ -f pasta.avx2 ]] && install -D -m 0755 pasta.avx2 "${DESTDIR}/usr/bin/pasta.avx2"
+    # pesto (live port-forward reconfig) and passt-repair (TCP-migration helper)
+    # are core BASEBIN members built on every arch — install unconditionally,
+    # exactly like passt/pasta, so staging, the manifest, and COMPONENT_BINARIES
+    # stay consistent. If upstream ever drops one, this fails loud here (at the
+    # source) rather than as a confusing downstream nFPM abort.
+    install -D -m 0755 pesto "${DESTDIR}/usr/bin/pesto"
+    install -D -m 0755 passt-repair "${DESTDIR}/usr/bin/passt-repair"
 else
     # Kill current running processes (ignore errors)
     shopt -qo errexit
@@ -68,6 +75,8 @@ else
     [[ -f passt.avx2 ]] && sudo install -D -m 0755 passt.avx2 /usr/bin/passt.avx2
     sudo install -D -m 0755 pasta /usr/bin/pasta
     [[ -f pasta.avx2 ]] && sudo install -D -m 0755 pasta.avx2 /usr/bin/pasta.avx2
+    sudo install -D -m 0755 pesto /usr/bin/pesto
+    sudo install -D -m 0755 passt-repair /usr/bin/passt-repair
 
     # Remove files that shouldn't have been previously installed
     rm -f /usr/local/bin/passt.1 /usr/local/bin/passt.c /usr/local/bin/passt.h

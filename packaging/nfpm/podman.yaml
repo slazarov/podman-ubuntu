@@ -42,6 +42,13 @@ contents:
     dst: /usr/bin/podman-remote
     file_info:
       mode: 0755
+  # podmansh: login-shell entrypoint. Upstream `make install` creates it as a
+  # relative symlink (`ln -sf podman .../podmansh`); package it as a symlink so
+  # it isn't a duplicated copy of the podman binary. No file_info: mode is
+  # meaningless on a symlink (deb symlinks are always lrwxrwxrwx).
+  - src: podman
+    dst: /usr/bin/podmansh
+    type: symlink
   - src: "${DESTDIR}/usr/libexec/podman/quadlet"
     dst: /usr/libexec/podman/quadlet
     file_info:

@@ -76,20 +76,24 @@ sudo apt upgrade
 
 All packages use the `podman-*` prefix and declare `Conflicts`, `Replaces`, and `Provides` against the official Ubuntu packages, so the newer compiled-from-source versions take priority.
 
-| Package | Description |
-|---------|-------------|
-| `podman-podman` | Container engine (core) |
-| `podman-crun` | OCI runtime |
-| `podman-conmon` | Container monitor |
-| `podman-netavark` | Container networking |
-| `podman-aardvark-dns` | DNS for container networks |
-| `podman-pasta` | User-mode networking (passt) |
-| `podman-fuse-overlayfs` | Rootless overlay filesystem |
-| `podman-catatonit` | Minimal init for containers |
-| `podman-buildah` | OCI image builder |
-| `podman-skopeo` | Container image utility |
-| `podman-toolbox` | Containerized development environments |
-| `podman-container-configs` | Configuration files for `/etc/containers/` |
+| Package | Description | Binaries shipped |
+|---------|-------------|------------------|
+| `podman-podman` | Container engine (core) | `podman`, `podman-remote`, `podmansh`; `quadlet` + `rootlessport` under `/usr/libexec/podman` |
+| `podman-crun` | OCI runtime | `crun` |
+| `podman-conmon` | Container monitor | `conmon` |
+| `podman-netavark` | Container networking | `netavark`, `netavark-dhcp-proxy-client` |
+| `podman-aardvark-dns` | DNS for container networks | `aardvark-dns` |
+| `podman-pasta` | User-mode networking (passt) | `passt`, `pasta`, `pesto`, `passt-repair`; `passt.avx2` + `pasta.avx2` on x86_64 |
+| `podman-fuse-overlayfs` | Rootless overlay filesystem | `fuse-overlayfs` |
+| `podman-catatonit` | Minimal init for containers | `catatonit` |
+| `podman-buildah` | OCI image builder | `buildah` |
+| `podman-skopeo` | Container image utility | `skopeo` |
+| `podman-toolbox` | Containerized development environments | `toolbox` |
+| `podman-container-configs` | Configuration files for `/etc/containers/` | _(config files only)_ |
+
+Binary coverage is guarded at package time: `scripts/verify_shipped_binaries.sh`
+warns if a build stages a binary that no package ships, so newly-added upstream
+binaries can't slip through unnoticed.
 
 Install only the core runtime (it pulls required dependencies automatically):
 
