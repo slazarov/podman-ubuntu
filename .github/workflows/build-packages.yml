@@ -18,6 +18,11 @@ on:
           - v5
           - nightly
         default: stable
+      force_rebuild:
+        description: 'Force a stable/v5 rebuild even when no pinned version changed (bypasses the republish guard). Use to republish after a packaging-only change. Ignored on nightly (already unguarded on dispatch).'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -169,10 +174,13 @@ jobs:
     # output, and '' != 'true', so neither guard blocks a run it doesn't apply to.
     # (Stable/v5 crons skip check-changes -> its '' passes the first clause, and
     # check-republish gates them; the nightly cron skips check-republish likewise.)
+    # The `force_rebuild` dispatch input overrides the republish guard so a
+    # packaging-only change (no pinned-version bump) can still be republished; it
+    # is null on cron/push, so it only ever loosens a manual dispatch.
     if: >-
       always()
       && (github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.skip != 'true')
-      && needs.check-republish.outputs.skip != 'true'
+      && (needs.check-republish.outputs.skip != 'true' || inputs.force_rebuild)
     runs-on: ${{ matrix.runner }}
     # Empty matrix.container => GitHub Actions runs directly on the runner host
     # (the 2404 cells). The 2604 cells run inside an ubuntu:26.04 container on
