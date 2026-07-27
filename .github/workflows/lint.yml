@@ -16,7 +16,7 @@ jobs:
     name: shellcheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # Blocking, but scoped to real breakage (severity=error) so it is green
       # today; tighten to `warning` then default as existing warnings are fixed.
       # Reads .shellcheckrc from the repo root (external-sources, SC1091 off).
@@ -29,7 +29,7 @@ jobs:
     name: shfmt (informational)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # Not blocking yet — surfaces formatting drift against the house style
       # (.editorconfig / .pre-commit-config.yaml). Promote to blocking after a
       # one-time `shfmt -w` normalization pass.
@@ -41,7 +41,7 @@ jobs:
     name: bash unit tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run tests/*.sh
         run: |
           fail=0
@@ -56,7 +56,7 @@ jobs:
     name: gitleaks (secret scan, informational)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0   # full history so the scan covers past commits
       # Informational until the first run confirms history is clean — the repo's

@@ -149,7 +149,7 @@ jobs:
     outputs:
       skip: ${{ steps.guard.outputs.skip }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Compare resolved versions against the live repository
         id: guard
         run: |
@@ -259,7 +259,7 @@ jobs:
       # this container. Compilation never opens /dev/fuse (it is a runtime-only
       # requirement of fuse-overlayfs), so the build step sets
       # SKIP_FUSE_CHECK=true for container cells instead of creating the node.
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Resolve build track
         id: track
@@ -431,7 +431,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run doc and HTML unit tests
         run: |
