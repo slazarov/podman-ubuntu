@@ -55,5 +55,10 @@ assert_lt "5.9.0~git20260306.abc1234~ubuntu26.04.podman1" "5.9.0~ubuntu26.04.pod
 #    base: 24.04 sorts below 26.04 for the date-versioned form.
 assert_lt "20250302~ubuntu24.04.podman1" "20250302~ubuntu26.04.podman1"
 
+# 7. A packaging-revision bump (scripts/package_revision.sh) upgrades installs
+#    of the same upstream version, and still sorts below the official package.
+assert_lt "6.1.3~ubuntu24.04.podman1" "6.1.3~ubuntu24.04.podman2"
+assert_lt "6.1.3~ubuntu24.04.podman2" "6.1.3"
+
 echo "All version ordering assertions passed"
 exit 0

@@ -38,6 +38,10 @@ set -euo pipefail
 
 REPO_URL_DEFAULT="https://slazarov.github.io/podman-ubuntu"
 
+# PACKAGE_REVISION (the N in ~ubuntuXX.XX.podmanN) — shared with config.sh.
+# shellcheck source=scripts/package_revision.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/package_revision.sh"
+
 # component | deb package name | resolved *_TAG var | upstream repo (provenance)
 # pasta is intentionally absent (see header). container-configs uses the
 # namespaced container-libs repo whose tags look like `common/vX.Y.Z`.
@@ -55,7 +59,7 @@ COMPONENT_ROWS=(
     "container-configs|podman-container-configs|CONTAINER_LIBS_TAG|https://github.com/containers/container-libs.git"
 )
 
-# distro label -> dotted VERSION_ID used in the ~ubuntuXX.XX.podman1 suffix
+# distro label -> dotted VERSION_ID used in the ~ubuntuXX.XX.podmanN suffix
 DISTROS=("2404:24.04" "2604:26.04")
 ARCHES=("amd64" "arm64")
 
@@ -184,7 +188,7 @@ main() {
         for distro_entry in "${DISTROS[@]}"; do
             distro="${distro_entry%%:*}"
             dotted="${distro_entry##*:}"
-            target="${base}~ubuntu${dotted}.podman1"
+            target="${base}~ubuntu${dotted}.podman${PACKAGE_REVISION}"
             for arch in "${ARCHES[@]}"; do
                 pkgfile="${tmpdir}/${distro}_${arch}.Packages"
                 published=$(get_pkg_version "${pkgfile}" "${pkg}")

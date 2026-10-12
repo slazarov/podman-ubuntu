@@ -251,7 +251,9 @@ cat > "${SCENARIO_DIR}/fresh.sh" << 'EOF'
 source /smoke/lib.sh
 add_local_repo
 apt-get update -qq
-apt-get install -y -q podman-suite
+# ca-certificates: present on every real Ubuntu install, absent from the
+# minimal image; the rootless check pulls from quay.io over TLS.
+apt-get install -y -q ca-certificates podman-suite
 assert_dpkg_clean
 podman info --log-level=error > /dev/null
 echo ">>> rootful podman info OK"

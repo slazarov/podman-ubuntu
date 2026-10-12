@@ -24,7 +24,7 @@ NFPM_DIR="${toolpath}/packaging/nfpm"
 OUTPUT_DIR="${toolpath}/output"
 
 # VERSION_SUFFIX is the single source of truth in config.sh (sourced above):
-# ~ubuntu${DISTRO_VERSION_ID}.podman1, composed per-distro from detect_distro_version_id.
+# ~ubuntu${DISTRO_VERSION_ID}.podman${PACKAGE_REVISION}, composed per-distro from detect_distro_version_id.
 
 # ============================================
 # Version Extraction

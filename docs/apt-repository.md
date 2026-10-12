@@ -259,4 +259,4 @@ Rootless Podman needs a few host features. The source build's preflight
 
 - This repository uses the modern DEB822 `.sources` format with `Signed-By` for per-repository key binding. Legacy one-line source format and global key trust are not supported.
 - The GPG signing key is Ed25519, which is supported by Ubuntu 24.04 and later.
-- Packages use a per-distro version suffix so the correct build is selected for your Ubuntu version: `~ubuntu24.04.podman1` on 24.04 and `~ubuntu26.04.podman1` on 26.04. This ensures official Ubuntu packages (when available at the same upstream version) take priority during upgrades, and keeps the two distros' builds distinct in the same repository.
+- Packages use a per-distro version suffix so the correct build is selected for your Ubuntu version: `~ubuntu24.04.podmanN` on 24.04 and `~ubuntu26.04.podmanN` on 26.04, where `N` is a packaging revision bumped when the packaging changes without a new upstream release. This ensures official Ubuntu packages (when available at the same upstream version) take priority during upgrades, and keeps the two distros' builds distinct in the same repository.

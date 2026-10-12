@@ -232,7 +232,7 @@ config conventions. The most significant are:
   sourcing config/functions that reports the failing script, line, and exit code.
 - **`extract_version()` / `extract_version_nightly()`** —
   `scripts/package_all.sh`. Convert git tags (or source-file versions, for
-  nightly) into Debian package versions, applying the `~podman1` suffix.
+  nightly) into Debian package versions, applying the `~ubuntu{VERSION_ID}.podman{N}` suffix (`N` = `PACKAGE_REVISION`).
 - **`resolve_tag_from_repo()`** — `scripts/package_all.sh`. Fallback for
   unpinned components (e.g. nightly): reads the actually checked-out tag back
   out of each `build/<component>/` repo.
