@@ -88,7 +88,7 @@ All packages use the `podman-*` prefix and declare `Conflicts`, `Replaces`, and 
 | `podman-catatonit` | Minimal init for containers | `catatonit` |
 | `podman-buildah` | OCI image builder | `buildah` |
 | `podman-skopeo` | Container image utility | `skopeo` |
-| `podman-toolbox` | Containerized development environments | `toolbox` |
+| `podman-toolbx` | Containerized development environments | `toolbox` |
 | `podman-container-configs` | Configuration files for `/etc/containers/` | _(config files only)_ |
 
 Binary coverage is guarded at package time: `scripts/verify_shipped_binaries.sh`

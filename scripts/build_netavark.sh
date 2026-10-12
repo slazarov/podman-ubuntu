@@ -66,12 +66,16 @@ step_start "Building"
 run_logged make
 step_done
 
+# netavark goes to /usr/libexec/podman, not /usr/bin: Podman looks it up via
+# helper_binaries_dir without a $PATH fallback, and a user containers.conf
+# replaces /etc/containers/containers.conf wholesale, so only the built-in
+# default dirs can be relied on. The dhcp-proxy client is user-facing.
 step_start "Installing"
 if [[ -n "${DESTDIR:-}" ]]; then
-    install -D -m 0755 bin/netavark "${DESTDIR}/usr/bin/netavark"
+    install -D -m 0755 bin/netavark "${DESTDIR}/usr/libexec/podman/netavark"
     install -D -m 0755 bin/netavark-dhcp-proxy-client "${DESTDIR}/usr/bin/netavark-dhcp-proxy-client"
 else
-    sudo install -D -m 0755 bin/netavark /usr/bin/netavark
+    sudo install -D -m 0755 bin/netavark /usr/libexec/podman/netavark
     sudo install -D -m 0755 bin/netavark-dhcp-proxy-client /usr/bin/netavark-dhcp-proxy-client
 fi
 step_done

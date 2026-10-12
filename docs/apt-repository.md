@@ -95,7 +95,7 @@ The `podman-suite` meta-package pulls in all components. You can also install th
 | `podman-catatonit` | Minimal init for containers |
 | `podman-buildah` | OCI image builder |
 | `podman-skopeo` | Container image utility |
-| `podman-toolbox` | Containerized development environments |
+| `podman-toolbx` | Containerized development environments |
 | `podman-container-configs` | Configuration files for /etc/containers/ |
 
 Example installing only the core runtime:
@@ -211,6 +211,33 @@ sudo apt remove podman-suite
 sudo apt install podman
 ```
 
+### `podman-suite` is "kept back" (toolbox renamed to `podman-toolbx`)
+
+Toolbx used to ship as `podman-toolbox`, the same name as Ubuntu's own package.
+It is now `podman-toolbx`, which conflicts with and replaces `podman-toolbox`.
+`apt upgrade` never removes packages, so it holds `podman-suite` back instead of
+swapping them. Run the upgrade once with removals allowed:
+
+```bash
+sudo apt full-upgrade
+```
+
+If you installed `podman-toolbox` on its own (without the suite), switch with
+`sudo apt install podman-toolbx`.
+
+### Customizing `containers.conf` per user
+
+Podman reads only the **first** main `containers.conf` it finds:
+`~/.config/containers/containers.conf`, then `/etc/containers/containers.conf`,
+then `/usr/share/containers/containers.conf`. Creating a user file therefore
+discards every setting in the system one. For per-user tweaks, use a drop-in
+instead, which is layered on top of the system file:
+
+```bash
+mkdir -p ~/.config/containers/containers.conf.d
+$EDITOR ~/.config/containers/containers.conf.d/10-local.conf
+```
+
 ### Rootless runtime prerequisites
 
 Rootless Podman needs a few host features. The source build's preflight
@@ -221,6 +248,8 @@ Rootless Podman needs a few host features. The source build's preflight
 - **subuid/subgid ranges** — without a subordinate UID/GID range rootless mode
   will not work:
   `sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 "$USER"`.
+- **`newuidmap`/`newgidmap`** — from the `uidmap` package, which
+  `podman-podman` depends on, so APT installs it automatically.
 - **FUSE** — `/dev/fuse` and the `fuse3` package are needed by `fuse-overlayfs`
   for rootless storage.
 - **No `noexec` on `/tmp` or `$HOME`** — it blocks build/runtime processes;

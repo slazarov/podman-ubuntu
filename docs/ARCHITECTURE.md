@@ -108,7 +108,7 @@ moves through the system as follows:
    sequence. Each build script clones/updates its upstream repository into
    `build/<component>/` (via `git_clone_update`), checks out the requested tag
    (via `git_checkout`), compiles, and installs the resulting binaries into the
-   shared `DESTDIR` staging tree (e.g. `${DESTDIR}/usr/bin/netavark`).
+   shared `DESTDIR` staging tree (e.g. `${DESTDIR}/usr/bin/podman`).
 
 5. **Packaging.** `scripts/package_all.sh` iterates the component list, derives
    each package version (from the git tag, or from source files for nightly via

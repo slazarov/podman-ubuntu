@@ -21,6 +21,9 @@ depends:
   - podman-fuse-overlayfs
   - podman-catatonit
   - podman-container-configs
+  # newuidmap/newgidmap -- rootless Podman refuses to start without them
+  # ("command required for rootless mode with multiple IDs").
+  - uidmap
   # System libraries detected from the binary and injected at build time.
 ${DETECTED_DEPENDS}
 
@@ -67,6 +70,13 @@ contents:
   - src: "${DESTDIR}/usr/lib/systemd/"
     dst: /usr/lib/systemd/
     type: tree
+  # tmpfiles: exempts rootless runtime dirs in /tmp (podman-run-*, etc.) from
+  # systemd's 10-day age cleanup -- without it long-running rootless
+  # containers lose their state -- and clears them on reboot.
+  - src: "${DESTDIR}/usr/lib/tmpfiles.d/podman.conf"
+    dst: /usr/lib/tmpfiles.d/podman.conf
+    file_info:
+      mode: 0644
   # Shell completions (podman-specific; glob avoids pulling in other components')
   - src: "${DESTDIR}/usr/share/bash-completion/completions/podman*"
     dst: /usr/share/bash-completion/completions/

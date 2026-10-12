@@ -51,7 +51,7 @@ COMPONENT_ROWS=(
     "catatonit|podman-catatonit|CATATONIT_TAG|https://github.com/openSUSE/catatonit.git"
     "buildah|podman-buildah|BUILDAH_TAG|https://github.com/containers/buildah.git"
     "skopeo|podman-skopeo|SKOPEO_TAG|https://github.com/containers/skopeo.git"
-    "toolbox|podman-toolbox|TOOLBOX_TAG|https://github.com/containers/toolbox.git"
+    "toolbox|podman-toolbx|TOOLBOX_TAG|https://github.com/containers/toolbox.git"
     "container-configs|podman-container-configs|CONTAINER_LIBS_TAG|https://github.com/containers/container-libs.git"
 )
 

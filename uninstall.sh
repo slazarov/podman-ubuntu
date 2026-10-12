@@ -143,6 +143,8 @@ safe_rm_file "/usr/local/bin/toolbox" "binary"
 rmdir --ignore-fail-on-non-empty /usr/local/bin 2>/dev/null || true
 
 # Remove podman libexec files
+safe_rm_file "/usr/libexec/podman/netavark" "binary"
+safe_rm_file "/usr/libexec/podman/aardvark-dns" "binary"
 safe_rm_file "/usr/libexec/podman/quadlet" "binary"
 safe_rm_file "/usr/libexec/podman/rootlessport" "binary"
 safe_rm_dir "/usr/libexec/podman" "podman libexec"

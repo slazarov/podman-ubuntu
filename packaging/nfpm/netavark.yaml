@@ -25,8 +25,8 @@ provides:
   - netavark
 
 contents:
-  - src: "${DESTDIR}/usr/bin/netavark"
-    dst: /usr/bin/netavark
+  - src: "${DESTDIR}/usr/libexec/podman/netavark"
+    dst: /usr/libexec/podman/netavark
     file_info:
       mode: 0755
   - src: "${DESTDIR}/usr/bin/netavark-dhcp-proxy-client"

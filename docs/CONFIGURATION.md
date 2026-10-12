@@ -146,11 +146,6 @@ seccomp_profile = "/usr/share/containers/seccomp.json"
 
 [engine]
 runtime = "crun"
-helper_binaries_dir = [
-    "/usr/bin",
-    "/usr/libexec/podman",
-    "/usr/lib/podman"
-]
 
 [network]
 network_backend = "netavark"
@@ -160,7 +155,7 @@ network_backend = "netavark"
 |-----|---------|-------------|
 | `seccomp_profile` | `[containers]` | Default seccomp profile path. Requires `/usr/share/containers/seccomp.json` from the `podman-container-configs` package. Comment out if unavailable. |
 | `runtime` | `[engine]` | Default OCI runtime. Set to `crun` (faster and lower-memory than runc). |
-| `helper_binaries_dir` | `[engine]` | Search paths for helper binaries (netavark, aardvark-dns, etc.). |
+| `helper_binaries_dir` | `[engine]` | **Not set** — left at Podman's built-in default, which includes `/usr/libexec/podman` where netavark and aardvark-dns are installed. Podman reads only the *first* main `containers.conf` it finds (user file, then `/etc`, then `/usr/share`), so anything set here vanishes once a user creates `~/.config/containers/containers.conf`. Put per-user tweaks in `~/.config/containers/containers.conf.d/*.conf` drop-ins instead, which layer on top. |
 | `network_backend` | `[network]` | Network backend. Set to `netavark` (CNI was removed in Podman 5.0). |
 
 Additional runtime config files (`policy.json`, `registries.conf`, `storage.conf`,
