@@ -31,6 +31,7 @@ group them by purpose.
 | `ARCH` | Optional | Auto-detected via `detect_architecture` | Target architecture. Either `amd64` or `arm64`. Drives `GOARCH`, `PROTOC_ARCH`, `RUSTUP_ARCH`, and `SCCACHE_ARCH`. |
 | `NPROC` | Optional | `$(nproc)` | Parallel job count for `make`/`cargo` builds. |
 | `SHALLOW_CLONE` | Optional | `true` | Shallow-clone git repositories to reduce network transfer. Set to `false` for development/debugging (required for nightly `git describe` support). |
+| `PACKAGE_REVISION` | Optional | see `scripts/package_revision.sh` | The `N` in the `~ubuntu{VERSION_ID}.podman{N}` version suffix. Bump the default in `scripts/package_revision.sh` whenever packaging changes without an upstream version change — otherwise apt sees an identical version and the publish step reuses the already-published `.deb`. |
 | `DESTDIR` | **Required** for packaging | none | Staging tree that build scripts install into and `package_all.sh` reads from. `package_all.sh` exits with an error if it is unset or does not point to an existing directory (example: `/tmp/podman-staging`). |
 | `BUILD_ROOT` | Optional | `${toolpath}/build` | Root directory for build artifacts. Created automatically. |
 | `SKIP_FUSE_CHECK` | Optional | `false` | When `true`, a failed VAL-03 preflight check (`/dev/fuse` missing) is downgraded from a hard error to a warning. Intended for container build environments (CI) where the device is not exposed but compilation never opens it — fuse-overlayfs only needs `/dev/fuse` at runtime on the target system. |
@@ -146,11 +147,6 @@ seccomp_profile = "/usr/share/containers/seccomp.json"
 
 [engine]
 runtime = "crun"
-helper_binaries_dir = [
-    "/usr/bin",
-    "/usr/libexec/podman",
-    "/usr/lib/podman"
-]
 
 [network]
 network_backend = "netavark"
@@ -160,7 +156,7 @@ network_backend = "netavark"
 |-----|---------|-------------|
 | `seccomp_profile` | `[containers]` | Default seccomp profile path. Requires `/usr/share/containers/seccomp.json` from the `podman-container-configs` package. Comment out if unavailable. |
 | `runtime` | `[engine]` | Default OCI runtime. Set to `crun` (faster and lower-memory than runc). |
-| `helper_binaries_dir` | `[engine]` | Search paths for helper binaries (netavark, aardvark-dns, etc.). |
+| `helper_binaries_dir` | `[engine]` | **Not set** — left at Podman's built-in default, which includes `/usr/libexec/podman` where netavark and aardvark-dns are installed. Podman reads only the *first* main `containers.conf` it finds (user file, then `/etc`, then `/usr/share`), so anything set here vanishes once a user creates `~/.config/containers/containers.conf`. Put per-user tweaks in `~/.config/containers/containers.conf.d/*.conf` drop-ins instead, which layer on top. |
 | `network_backend` | `[network]` | Network backend. Set to `netavark` (CNI was removed in Podman 5.0). |
 
 Additional runtime config files (`policy.json`, `registries.conf`, `storage.conf`,

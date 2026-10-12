@@ -108,7 +108,7 @@ moves through the system as follows:
    sequence. Each build script clones/updates its upstream repository into
    `build/<component>/` (via `git_clone_update`), checks out the requested tag
    (via `git_checkout`), compiles, and installs the resulting binaries into the
-   shared `DESTDIR` staging tree (e.g. `${DESTDIR}/usr/bin/netavark`).
+   shared `DESTDIR` staging tree (e.g. `${DESTDIR}/usr/bin/podman`).
 
 5. **Packaging.** `scripts/package_all.sh` iterates the component list, derives
    each package version (from the git tag, or from source files for nightly via
@@ -232,7 +232,7 @@ config conventions. The most significant are:
   sourcing config/functions that reports the failing script, line, and exit code.
 - **`extract_version()` / `extract_version_nightly()`** —
   `scripts/package_all.sh`. Convert git tags (or source-file versions, for
-  nightly) into Debian package versions, applying the `~podman1` suffix.
+  nightly) into Debian package versions, applying the `~ubuntu{VERSION_ID}.podman{N}` suffix (`N` = `PACKAGE_REVISION`).
 - **`resolve_tag_from_repo()`** — `scripts/package_all.sh`. Fallback for
   unpinned components (e.g. nightly): reads the actually checked-out tag back
   out of each `build/<component>/` repo.
@@ -278,7 +278,7 @@ The repository is organized around the pipeline stages described above:
 │   ├── check_republish_needed.sh  # Skips publish when nothing changed
 │   ├── verify_depends.sh   # Post-build runtime-dependency verification
 │   ├── verify_versions.sh  # Verifies per-distro version-suffix ordering
-│   ├── smoke_repo_install.sh      # apt-installs podman-suite from the built repo
+│   ├── smoke_repo_install.sh      # install/migrate/upgrade scenarios against the built repo
 │   └── smoke_install_2604.sh      # apt-install proof of a 26.04-built .deb
 ├── packaging/
 │   ├── nfpm/               # nFPM .deb definitions (one YAML per component + suite)

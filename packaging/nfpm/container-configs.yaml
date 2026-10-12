@@ -11,14 +11,20 @@ license: "Apache-2.0"
 section: admin
 priority: optional
 
+# Ubuntu splits these files across two packages: golang-github-containers-image
+# owns /etc/containers/registries.conf, -common owns the rest. Missing either
+# here makes dpkg abort with "trying to overwrite" when migrating from distro podman.
 conflicts:
   - golang-github-containers-common
+  - golang-github-containers-image
 
 replaces:
   - golang-github-containers-common
+  - golang-github-containers-image
 
 provides:
   - golang-github-containers-common
+  - golang-github-containers-image
 
 contents:
   # conffiles -- user modifications preserved on upgrade

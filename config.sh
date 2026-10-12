@@ -46,9 +46,11 @@ echo "Architecture: ${ARCH} (Go: ${GOARCH}, Protoc: ${PROTOC_ARCH}, Rust: ${RUST
 # fails config load loudly — intended D-03 behavior, identical to a bad ARCH.
 export DISTRO_VERSION_ID="$(detect_distro_version_id)"
 
-# Per-distro suffix form ~ubuntu{VERSION_ID}.podman1 (D-08): sorts below the
+# Per-distro suffix form ~ubuntu{VERSION_ID}.podman{N} (D-08): sorts below the
 # official Ubuntu package and orders 24.04 < 26.04 via dpkg version semantics.
-export VERSION_SUFFIX="~ubuntu${DISTRO_VERSION_ID}.podman1"
+# N is the packaging revision — see scripts/package_revision.sh for when to bump.
+source "${toolpath}/scripts/package_revision.sh"
+export VERSION_SUFFIX="~ubuntu${DISTRO_VERSION_ID}.podman${PACKAGE_REVISION}"
 
 echo "Distro: ubuntu ${DISTRO_VERSION_ID} (version suffix: ${VERSION_SUFFIX})"
 

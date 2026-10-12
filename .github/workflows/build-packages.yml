@@ -538,8 +538,8 @@ jobs:
       # MIGR-04 installability smoke gate. Runs AFTER both ci_publish.sh runs
       # (repo-output is fully assembled + signed) and BEFORE the Pages upload, so
       # an uninstallable package never reaches the live repo (D-13/D-16). Each
-      # leg installs the podman-suite meta-package from the assembled file://
-      # repo inside a real ubuntu container and runs `podman info` (D-15). The
+      # leg runs the fresh / migrate-from-distro / upgrade-from-live scenarios
+      # against the assembled file:// repo in real ubuntu containers (D-15). The
       # helper exits 1 on failure; `set -euo pipefail` aborts the step (and thus
       # skips configure-pages/upload-pages-artifact/deploy-pages) on a fail. No
       # `if:` guard — the gate runs on EVERY publish (stable/v5/nightly) so
@@ -548,7 +548,8 @@ jobs:
         run: |
           set -euo pipefail
           TRACK="${{ steps.track.outputs.track }}"
-          export TRACK
+          LIVE_REPO_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          export TRACK LIVE_REPO_URL
           echo ">>> Running smoke gate for track ${TRACK}"
           ./scripts/smoke_repo_install.sh 2404 "$PWD/repo-output"
           # Only run 2604 smoke if a 2604 suite was actually published (2604 build

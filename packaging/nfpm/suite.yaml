@@ -22,7 +22,7 @@ depends:
   - podman-catatonit
   - podman-buildah
   - podman-skopeo
-  - podman-toolbox
+  - podman-toolbx
   - podman-container-configs
 
 # No contents section -- meta-package has no files

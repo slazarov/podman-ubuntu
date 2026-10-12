@@ -74,10 +74,12 @@ step_start "Building"
 run_logged make
 step_done
 
+# aardvark-dns goes to /usr/libexec/podman, not /usr/bin -- see
+# build_netavark.sh for why.
 step_start "Installing"
 if [[ -n "${DESTDIR:-}" ]]; then
-    install -D -m 0755 bin/aardvark-dns "${DESTDIR}/usr/bin/aardvark-dns"
+    install -D -m 0755 bin/aardvark-dns "${DESTDIR}/usr/libexec/podman/aardvark-dns"
 else
-    sudo install -D -m 0755 bin/aardvark-dns /usr/bin/aardvark-dns
+    sudo install -D -m 0755 bin/aardvark-dns /usr/libexec/podman/aardvark-dns
 fi
 step_done

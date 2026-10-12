@@ -143,3 +143,18 @@ cells — 24.04 and 26.04, each on amd64 (`ubuntu-24.04`) and arm64
 reprepro APT repository to GitHub Pages. That publish job also runs a subset of
 `tests/` inline as deploy gates (doc/HTML tests and the repo-assembly
 regression tests) before uploading, so a regression there blocks the deploy.
+
+The last gate before upload is `scripts/smoke_repo_install.sh`, run per distro
+against the assembled repo. Each scenario runs in a fresh privileged
+`ubuntu:<distro>` container, and any failure blocks the deploy:
+
+- **fresh** — install `podman-suite`, `podman info` as root, then as a rootless
+  user *with their own* `~/.config/containers/containers.conf` run a container
+  on a bridge network and resolve its name through aardvark-dns.
+- **migrate** — install Ubuntu's own `podman`, then `podman-suite` over it;
+  `dpkg --audit` must be clean.
+- **upgrade** — install from the live published repo, then `apt full-upgrade`
+  to the new build. Skipped if that suite isn't published yet.
+
+Run it locally against any assembled repo with
+`TRACK=stable LIVE_REPO_URL=https://... ./scripts/smoke_repo_install.sh 2404 repo-output`.

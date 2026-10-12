@@ -1,4 +1,8 @@
-name: podman-toolbox
+# Named podman-toolbx (upstream's "Toolbx" branding), NOT podman-toolbox:
+# Ubuntu universe ships a package literally named podman-toolbox, and since
+# official packages are meant to win version ties (see docs/apt-repository.md),
+# sharing that name would let a future Ubuntu bump silently swap it in.
+name: podman-toolbx
 arch: "${ARCH}"
 platform: linux
 version: "${VERSION}"
@@ -14,11 +18,15 @@ priority: optional
 depends:
   - podman-podman
 
+# podman-toolbox: both Ubuntu's package and our own pre-rename package (same
+# files) -- unversioned, so apt removes either when podman-toolbx comes in.
 conflicts:
   - toolbox
+  - podman-toolbox
 
 replaces:
   - toolbox
+  - podman-toolbox
 
 provides:
   - toolbox
