@@ -5,8 +5,10 @@ set -euo pipefail
 
 # smoke_repo_install.sh - MIGR-04 proof: apt-install the `podman-suite`
 # meta-package BY NAME from the assembled on-disk APT repo (a file:// source)
-# inside a real ubuntu:<distro> userland, then run `podman info` to prove the
-# package is both installable AND runnable before the GitHub Pages publish.
+# inside a real ubuntu:<distro> userland and exercise it the way users do —
+# fresh install + rootless bridge networking, migration from Ubuntu's own
+# podman, and upgrade from the live repo (see section 6) — before the GitHub
+# Pages publish.
 #
 # Mechanism: the assembled repo-output (the 9-suite signed tree produced by
 # ci_publish.sh) is bind-mounted read-only into a throwaway container. A DEB822
@@ -28,6 +30,8 @@ set -euo pipefail
 #   SMOKE_RUNTIME=docker|podman   force the container runtime (validated)
 #   TRACK=<track>                 suite track (default: nightly, mirrors the
 #                                 workflow default); SUITE = "${TRACK}-<label>"
+#   LIVE_REPO_URL=https://...     published repo to upgrade FROM; unset skips
+#                                 the upgrade scenario
 #
 # SECURITY (T-22-SMOKE-01): the distro label, TRACK, and SMOKE_RUNTIME are
 # interpolated into a container-run command / suite name. All three are
@@ -168,65 +172,171 @@ fi
 REPO_DIR=$(realpath "${REPO_DIR}")
 echo "Assembled repo: ${REPO_DIR}"
 
-# ---------------------------------------------------------------------------
-# 5. Run the install + `podman info` inside a throwaway (--rm) container.
-#    --privileged + --device /dev/fuse give podman info enough to initialize its
-#    storage graph driver (RESEARCH Pitfall 1). The container script is fed via
-#    STDIN heredoc (`bash -s << INNEREOF`) to avoid the nested single-quote
-#    hazard of `bash -c '...'`. The OUTER heredoc is UNQUOTED so the host shell
-#    expands ${SUITE} into the body; container-side `$`-expansions are escaped
-#    where needed. A DEB822 file:// source with `Trusted: yes` (CI-internal) is
-#    written, then apt installs podman-suite BY NAME and podman info is the gate.
-# ---------------------------------------------------------------------------
-echo ""
-echo ">>> Installing podman-suite from ${REPO_DIR} (suite ${SUITE}) inside ${IMAGE} via ${RUNTIME}"
-echo "----------------------------------------"
 
-if ! "${RUNTIME}" run --rm \
-        --privileged \
-        --device /dev/fuse \
-        -v "${REPO_DIR}:/opt/podman-repo:ro" \
-        -e DEBIAN_FRONTEND=noninteractive \
-        "${IMAGE}" \
-        bash -s << INNEREOF
-set -e
+# ---------------------------------------------------------------------------
+# 5. Validate the optional live-repo URL (T-22-SMOKE-01). It is interpolated into
+#    an apt source inside the container, so only a plain https URL is accepted.
+#    Unset = the upgrade scenario is skipped.
+# ---------------------------------------------------------------------------
+LIVE_REPO_URL="${LIVE_REPO_URL:-}"
+if [[ -n "${LIVE_REPO_URL}" && ! "${LIVE_REPO_URL}" =~ ^https://[A-Za-z0-9.-]+(/[A-Za-z0-9._-]+)*/?$ ]]; then
+    echo "ERROR: LIVE_REPO_URL must be a plain https:// URL (got '${LIVE_REPO_URL}')." >&2
+    exit 1
+fi
+LIVE_REPO_URL="${LIVE_REPO_URL%/}"
 
-# CI-internal file:// DEB822 source. Trusted: yes is the [trusted=yes]
-# equivalent — confined to this smoke test (D-14); NOT a user-facing pattern.
-cat > /etc/apt/sources.list.d/podman-smoke.sources << 'APTEOF'
+# ---------------------------------------------------------------------------
+# 6. Scenario scripts. Each runs in its own throwaway ubuntu container and covers
+#    a path a real user takes (each one caught a shipped bug when added):
+#      fresh    install podman-suite, podman info, then a ROOTLESS user with their
+#               own ~/.config/containers/containers.conf runs a container on a
+#               bridge network and resolves its own name via aardvark-dns
+#               (missing uidmap; helpers outside helper_binaries_dir).
+#      migrate  install Ubuntu's own podman first, then podman-suite over it
+#               (dpkg "trying to overwrite" from an incomplete Conflicts list).
+#      upgrade  install from the LIVE published repo, then full-upgrade to the
+#               assembled one (package renames, new Depends). Skipped when
+#               LIVE_REPO_URL is unset or the suite is not published there yet.
+#    Scripts are written to a temp dir and bind-mounted, avoiding nested-quoting
+#    hazards. Trusted: yes is confined to the CI-internal file:// source (D-14).
+# ---------------------------------------------------------------------------
+SCENARIO_DIR=$(mktemp -d)
+trap 'rm -rf "${SCENARIO_DIR}"' EXIT
+
+cat > "${SCENARIO_DIR}/lib.sh" << 'EOF'
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+
+add_local_repo() {
+    cat > /etc/apt/sources.list.d/podman-smoke.sources << APTEOF
 Types: deb
 URIs: file:///opt/podman-repo
 Suites: ${SUITE}
 Components: main
 Trusted: yes
 APTEOF
+}
 
-# VFS storage fallback (RESEARCH Pitfall 1): if 'podman info' below errors on
-# the storage graph driver in real CI (stderr mentions overlay / fuse-overlayfs
-# / "kernel does not support"), uncomment the two lines to force the VFS driver,
-# which needs no special filesystem support. Do NOT enable pre-emptively — only
-# if CI proves the storage probe fails.
-# mkdir -p /etc/containers
-# printf '[storage]\ndriver = "vfs"\n' > /etc/containers/storage.conf
+# dpkg --audit prints any half-installed/unconfigured package; must be empty.
+assert_dpkg_clean() {
+    local laudit
+    laudit=$(dpkg --audit)
+    if [[ -n "${laudit}" ]]; then
+        echo "${laudit}" >&2
+        echo "FAIL: dpkg reports broken packages" >&2
+        return 1
+    fi
+}
 
+rootless_network_check() {
+    useradd -m smoke
+    grep -q '^smoke:' /etc/subuid || usermod --add-subuids 100000-165535 --add-subgids 100000-165535 smoke
+    su - smoke -s /bin/bash << 'USEREOF'
+set -euo pipefail
+export XDG_RUNTIME_DIR="/tmp/xdg-$(id -u)"
+mkdir -p -m 0700 "${XDG_RUNTIME_DIR}"
+# A user containers.conf replaces /etc/containers/containers.conf entirely;
+# nothing podman needs may depend on settings in the system file.
+mkdir -p ~/.config/containers
+printf '[engine]\ncgroup_manager = "cgroupfs"\nevents_logger = "file"\n' > ~/.config/containers/containers.conf
+podman network create smokenet > /dev/null
+podman run --rm --name smokectr --network smokenet quay.io/libpod/alpine:latest \
+    nslookup smokectr
+echo ">>> rootless bridge network + aardvark-dns OK"
+USEREOF
+}
+EOF
+
+cat > "${SCENARIO_DIR}/fresh.sh" << 'EOF'
+source /smoke/lib.sh
+add_local_repo
 apt-get update -qq
 apt-get install -y -q podman-suite
+assert_dpkg_clean
+podman info --log-level=error > /dev/null
+echo ">>> rootful podman info OK"
+rootless_network_check
+EOF
 
-# The real gate (D-15): podman must be runnable enough to introspect itself.
-podman info --log-level=error
+cat > "${SCENARIO_DIR}/migrate.sh" << 'EOF'
+source /smoke/lib.sh
+apt-get update -qq
+apt-get install -y -q podman
+echo ">>> distro podman installed: $(dpkg-query -W -f='${Version}' podman)"
+add_local_repo
+apt-get update -qq
+apt-get install -y -q podman-suite
+assert_dpkg_clean
+podman info --log-level=error > /dev/null
+echo ">>> migrated from distro podman OK"
+EOF
 
-echo ">>> container: podman-suite installed and 'podman info' succeeded"
-INNEREOF
-then
-    echo "SMOKE FAIL: ${IMAGE} — install or podman info failed for suite ${SUITE}" >&2
+cat > "${SCENARIO_DIR}/upgrade.sh" << 'EOF'
+source /smoke/lib.sh
+apt-get update -qq
+apt-get install -y -q curl ca-certificates
+mkdir -p /etc/apt/keyrings
+curl -fsSL "${LIVE_REPO_URL}/podman-ubuntu.gpg" -o /etc/apt/keyrings/podman-ubuntu.gpg
+if ! curl -fsSI "${LIVE_REPO_URL}/dists/${SUITE}/InRelease" > /dev/null; then
+    echo ">>> SKIP upgrade: ${SUITE} is not published at ${LIVE_REPO_URL} yet"
+    exit 0
+fi
+cat > /etc/apt/sources.list.d/podman-live.sources << APTEOF
+Types: deb
+URIs: ${LIVE_REPO_URL}
+Suites: ${SUITE}
+Components: main
+Signed-By: /etc/apt/keyrings/podman-ubuntu.gpg
+APTEOF
+apt-get update -qq
+apt-get install -y -q podman-suite
+echo ">>> live podman-suite installed: $(dpkg-query -W -f='${Version}' podman-suite)"
+add_local_repo
+apt-get update -qq
+apt-get full-upgrade -y -q
+assert_dpkg_clean
+echo ">>> upgraded podman-suite: $(dpkg-query -W -f='${Version}' podman-suite)"
+podman info --log-level=error > /dev/null
+echo ">>> upgrade from live repo OK"
+EOF
+
+# ---------------------------------------------------------------------------
+# 7. Run each scenario. --privileged + --device /dev/fuse let podman initialize
+#    storage and user namespaces (RESEARCH Pitfall 1). -v /home puts the rootless
+#    user's storage on a real volume: overlay-on-overlay is refused, and the
+#    container root is itself an overlay.
+# ---------------------------------------------------------------------------
+FAILED=()
+for scenario in fresh migrate upgrade; do
+    if [[ "${scenario}" == "upgrade" && -z "${LIVE_REPO_URL}" ]]; then
+        echo ">>> SKIP scenario upgrade: LIVE_REPO_URL not set"
+        continue
+    fi
+    echo ""
+    echo ">>> Scenario ${scenario}: ${IMAGE} suite=${SUITE} via ${RUNTIME}"
+    echo "----------------------------------------"
+    if ! "${RUNTIME}" run --rm \
+            --privileged \
+            --device /dev/fuse \
+            -v /home \
+            -v "${REPO_DIR}:/opt/podman-repo:ro" \
+            -v "${SCENARIO_DIR}:/smoke:ro" \
+            -e SUITE="${SUITE}" \
+            -e LIVE_REPO_URL="${LIVE_REPO_URL}" \
+            "${IMAGE}" \
+            bash "/smoke/${scenario}.sh"; then
+        echo "SMOKE FAIL: scenario ${scenario} (${IMAGE}, suite ${SUITE})" >&2
+        FAILED+=("${scenario}")
+    fi
+done
+
+echo ""
+echo "========================================"
+if [[ ${#FAILED[@]} -gt 0 ]]; then
+    echo ">>> SMOKE FAIL: ${IMAGE} suite=${SUITE} — failed: ${FAILED[*]}"
+    echo "========================================"
     exit 1
 fi
-
-echo ""
-echo "========================================"
 echo ">>> SMOKE PASS: ${IMAGE} suite=${SUITE}"
 echo "========================================"
-echo "  podman-suite installed from the assembled file:// repo and"
-echo "  'podman info' exited 0 — installability + runnability proven (MIGR-04)."
-echo ""
 exit 0

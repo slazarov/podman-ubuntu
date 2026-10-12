@@ -278,7 +278,7 @@ The repository is organized around the pipeline stages described above:
 │   ├── check_republish_needed.sh  # Skips publish when nothing changed
 │   ├── verify_depends.sh   # Post-build runtime-dependency verification
 │   ├── verify_versions.sh  # Verifies per-distro version-suffix ordering
-│   ├── smoke_repo_install.sh      # apt-installs podman-suite from the built repo
+│   ├── smoke_repo_install.sh      # install/migrate/upgrade scenarios against the built repo
 │   └── smoke_install_2604.sh      # apt-install proof of a 26.04-built .deb
 ├── packaging/
 │   ├── nfpm/               # nFPM .deb definitions (one YAML per component + suite)
