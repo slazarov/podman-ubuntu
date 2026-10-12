@@ -12,5 +12,6 @@
 # The bump changes every package's filename once, so the whole set republishes.
 #
 # History: 1 = initial; 2 = uidmap dep, helpers in /usr/libexec/podman,
-# containers-image conflict, tmpfiles, podman-toolbox -> podman-toolbx.
+# containers-image conflict, tmpfiles, netavark iptables dep,
+# podman-toolbox -> podman-toolbx.
 export PACKAGE_REVISION="${PACKAGE_REVISION:-2}"
