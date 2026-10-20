@@ -238,6 +238,12 @@ result=$(extract_version_nightly "pasta" "${TEST_TMPDIR}/pasta")
 assert_matches "pasta returns date~git<sha>" "^[0-9]{8}~git[0-9a-f]{7}$" "${result}"
 
 echo ""
+echo "Test 2b: pasta maps to the passt clone dir (else nightly yields ~gitunknown)"
+eval "$(sed -n '/^declare -A COMPONENT_BUILD_DIRS=(/,/^)/p' "${PROJECT_ROOT}/scripts/package_all.sh")"
+clone_dir=$(grep -oE 'git_clone_update [^ ]+ [^ ]+' "${PROJECT_ROOT}/scripts/build_pasta.sh" | awk '{print $3}')
+assert_equals "COMPONENT_BUILD_DIRS[pasta] matches build_pasta.sh clone dir" "${clone_dir}" "${COMPONENT_BUILD_DIRS[pasta]:-pasta}"
+
+echo ""
 echo "Test 3: container-configs nightly version (uses common/ tag prefix)"
 result=$(extract_version_nightly "container-configs" "${TEST_TMPDIR}/container-libs")
 # Should match: 0.68.0~gitYYYYMMDD.XXXXXXX

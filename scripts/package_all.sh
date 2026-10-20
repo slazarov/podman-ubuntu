@@ -156,6 +156,9 @@ extract_version_nightly() {
 # (most match 1:1 except these)
 declare -A COMPONENT_BUILD_DIRS=(
     ["container-configs"]="container-libs"
+    # build_pasta.sh clones passt.top/passt into BUILD_ROOT/passt; without this
+    # the nightly ~git<sha> lookup ran in a nonexistent dir -> "~gitunknown".
+    ["pasta"]="passt"
 )
 
 # Tag prefix filters for repos with namespaced tags (e.g., common/v0.67.0)
