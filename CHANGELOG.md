@@ -39,6 +39,10 @@ Work landed since `v1.2`, slated for the next release, `v1.3`.
   `SECURITY.md`, PR/issue templates, and this changelog.
 
 ### Changed
+- `podman-fuse-overlayfs` is now optional: `podman-podman` and `podman-suite`
+  *Recommend* it instead of depending on it (native rootless overlay on kernel
+  ≥ 5.13), packaging revision bumped to `podman3`, and the `/dev/fuse` preflight
+  check (VAL-03) is a warning rather than a build error.
 - GitHub Actions pinned to commit SHAs (kept fresh by Dependabot).
 - Generated APT landing page renamed "Podman for Debian" → "Podman for Ubuntu".
 

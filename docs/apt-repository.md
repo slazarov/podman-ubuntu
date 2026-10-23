@@ -91,7 +91,7 @@ The `podman-suite` meta-package pulls in all components. You can also install th
 | `podman-netavark` | Container networking |
 | `podman-aardvark-dns` | DNS for container networks |
 | `podman-pasta` | User-mode networking (passt) |
-| `podman-fuse-overlayfs` | Rootless overlay filesystem |
+| `podman-fuse-overlayfs` | Rootless overlay filesystem (optional — Recommends only) |
 | `podman-catatonit` | Minimal init for containers |
 | `podman-buildah` | OCI image builder |
 | `podman-skopeo` | Container image utility |
@@ -104,7 +104,7 @@ Example installing only the core runtime:
 sudo apt install podman-podman
 ```
 
-This automatically pulls in required dependencies (crun, conmon, netavark, aardvark-dns, pasta, fuse-overlayfs, and container-configs).
+This automatically pulls in required dependencies (crun, conmon, netavark, aardvark-dns, pasta, catatonit, and container-configs). `podman-fuse-overlayfs` is only a *Recommends*: APT installs it by default, but you can remove it (or install with `--no-install-recommends`) — see [fuse-overlayfs is optional](#fuse-overlayfs-is-optional).
 
 ## Supported Architectures
 
@@ -250,10 +250,33 @@ Rootless Podman needs a few host features. The source build's preflight
   `sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 "$USER"`.
 - **`newuidmap`/`newgidmap`** — from the `uidmap` package, which
   `podman-podman` depends on, so APT installs it automatically.
-- **FUSE** — `/dev/fuse` and the `fuse3` package are needed by `fuse-overlayfs`
-  for rootless storage.
+- **FUSE** — only needed if you use the optional `fuse-overlayfs` (`/dev/fuse`
+  and the `fuse3` package). Rootless storage uses native kernel overlay by
+  default on Ubuntu 24.04/26.04.
 - **No `noexec` on `/tmp` or `$HOME`** — it blocks build/runtime processes;
   remove it from the mount options or point `TMPDIR` at an executable filesystem.
+
+### fuse-overlayfs is optional
+
+On Ubuntu 24.04/26.04 kernels rootless Podman uses native kernel overlay, so
+`podman-fuse-overlayfs` is only a *Recommends*. You still need it if your
+storage was created with fuse-overlayfs (older setups, `mount_program` in
+`storage.conf`, or a backing filesystem native overlay can't use). Podman pins
+such storage to fuse-overlayfs, and **removing the binary does not error** —
+Podman silently switches to kernel overlay over fuse-format layers, which can
+cause subtle breakage. Check before removing it (repeat with `sudo` for rootful
+storage under `/var/lib/containers/storage`):
+
+```bash
+cat ~/.local/share/containers/storage/overlay/.has-mount-program 2>/dev/null  # "true" = fuse-format
+grep -rs mount_program ~/.config/containers/storage.conf /etc/containers/storage.conf | grep -v '^[^:]*:\s*#'
+```
+
+If the flag reads `true` or an uncommented `mount_program` is set, keep
+`podman-fuse-overlayfs` installed — `sudo apt-mark manual podman-fuse-overlayfs`
+protects it from `apt autoremove` — or move to native overlay with
+`podman system reset` (deletes all images, containers, and volumes —
+`podman save` anything you need first).
 
 ## Important Notes
 

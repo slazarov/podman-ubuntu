@@ -84,7 +84,7 @@ All packages use the `podman-*` prefix and declare `Conflicts`, `Replaces`, and 
 | `podman-netavark` | Container networking | `netavark`, `netavark-dhcp-proxy-client` |
 | `podman-aardvark-dns` | DNS for container networks | `aardvark-dns` |
 | `podman-pasta` | User-mode networking (passt) | `passt`, `pasta`, `pesto`, `passt-repair`; `passt.avx2` + `pasta.avx2` on x86_64 |
-| `podman-fuse-overlayfs` | Rootless overlay filesystem | `fuse-overlayfs` |
+| `podman-fuse-overlayfs` | Rootless overlay filesystem (optional — Recommends only) | `fuse-overlayfs` |
 | `podman-catatonit` | Minimal init for containers | `catatonit` |
 | `podman-buildah` | OCI image builder | `buildah` |
 | `podman-skopeo` | Container image utility | `skopeo` |

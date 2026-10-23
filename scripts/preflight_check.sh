@@ -46,7 +46,7 @@ preflight_error() {
     echo -e "  Fix:       ${fix}" >&2
     echo "" >&2
 
-    ((ERRORS++))
+    ERRORS=$((ERRORS + 1))
 }
 
 preflight_warn() {
@@ -61,7 +61,7 @@ preflight_warn() {
     echo -e "  Fix:       ${fix}"
     echo ""
 
-    ((WARNINGS++))
+    WARNINGS=$((WARNINGS + 1))
 }
 
 preflight_ok() {
@@ -225,23 +225,23 @@ run_preflight_checks() {
             "sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 ${current_user}"
     fi
 
-    # VAL-03: FUSE support (ERROR - required for fuse-overlayfs)
-    # SKIP_FUSE_CHECK=true downgrades a failed check to a warning. Intended for
-    # container build environments (CI) where /dev/fuse is not exposed but
-    # compilation never opens the device — fuse is only needed at runtime.
+    # VAL-03: FUSE support (WARNING - runtime-only, optional fuse-overlayfs)
+    # Compilation never opens /dev/fuse, and podman-fuse-overlayfs is only a
+    # Recommends (native rootless overlay on kernel >= 5.13), so a missing
+    # device never fails the build. SKIP_FUSE_CHECK=true marks a build-only
+    # environment (CI container) and only changes the message.
     if check_fuse_support; then
         preflight_ok "VAL-03" "FUSE kernel support available"
     elif [[ "${SKIP_FUSE_CHECK:-false}" == "true" ]]; then
         preflight_warn "VAL-03" \
             "FUSE check failed but SKIP_FUSE_CHECK=true (container build environment)" \
-            "fuse-overlayfs will require /dev/fuse at runtime on the target system" \
+            "Build is unaffected; the optional fuse-overlayfs needs /dev/fuse only at runtime" \
             "Only set SKIP_FUSE_CHECK=true for build-only environments"
     else
-        preflight_error "VAL-03" \
-            "FUSE kernel support not available" \
-            "/dev/fuse not found or not accessible" \
-            "FUSE for fuse-overlayfs (rootless storage)" \
-            "Install fuse3 package or enable FUSE in kernel config"
+        preflight_warn "VAL-03" \
+            "FUSE kernel support not available (/dev/fuse not found or not accessible)" \
+            "Optional fuse-overlayfs cannot run here; native rootless overlay is unaffected" \
+            "Install fuse3 or enable FUSE only if you need fuse-overlayfs on this host"
     fi
 
     # VAL-04: Minimum kernel version (WARNING - works with fuse-overlayfs on older)

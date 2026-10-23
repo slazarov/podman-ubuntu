@@ -18,7 +18,6 @@ depends:
   - podman-netavark
   - podman-aardvark-dns
   - podman-pasta
-  - podman-fuse-overlayfs
   - podman-catatonit
   - podman-container-configs
   # newuidmap/newgidmap -- rootless Podman refuses to start without them
@@ -26,6 +25,12 @@ depends:
   - uidmap
   # System libraries detected from the binary and injected at build time.
 ${DETECTED_DEPENDS}
+
+recommends:
+  # Kernel >= 5.13 runs rootless storage on native overlay; fuse-overlayfs is
+  # only needed for storage already created with it (.has-mount-program) or on
+  # filesystems native overlay can't back. Recommends keeps it for upgraders.
+  - podman-fuse-overlayfs
 
 conflicts:
   - podman
