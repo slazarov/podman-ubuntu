@@ -18,11 +18,14 @@ depends:
   - podman-netavark
   - podman-aardvark-dns
   - podman-pasta
-  - podman-fuse-overlayfs
   - podman-catatonit
   - podman-buildah
   - podman-skopeo
   - podman-toolbx
   - podman-container-configs
+
+recommends:
+  # Optional: only needed for fuse-format storage (see podman.yaml).
+  - podman-fuse-overlayfs
 
 # No contents section -- meta-package has no files

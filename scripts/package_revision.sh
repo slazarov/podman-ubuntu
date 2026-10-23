@@ -13,5 +13,6 @@
 #
 # History: 1 = initial; 2 = uidmap dep, helpers in /usr/libexec/podman,
 # containers-image conflict, tmpfiles, netavark iptables dep,
-# podman-toolbox -> podman-toolbx.
-export PACKAGE_REVISION="${PACKAGE_REVISION:-2}"
+# podman-toolbox -> podman-toolbx; 3 = podman-fuse-overlayfs Depends ->
+# Recommends (podman-podman, podman-suite).
+export PACKAGE_REVISION="${PACKAGE_REVISION:-3}"

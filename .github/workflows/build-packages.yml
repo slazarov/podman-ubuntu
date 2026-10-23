@@ -319,7 +319,8 @@ jobs:
           # Container cells: /dev/fuse is unusable inside the job container (the
           # device cgroup denies r/w on 10:229 even for root — see the NOTE above
           # the checkout step). The fuse gate is advisory at build time (nothing
-          # opens /dev/fuse during compilation), so downgrade VAL-03 to a warning.
+          # opens /dev/fuse during compilation). VAL-03 is a warning anyway;
+          # SKIP_FUSE_CHECK=true just labels this as a build-only environment.
           if [[ -n "${{ matrix.container }}" ]]; then
             ENV_ARGS="$ENV_ARGS SKIP_FUSE_CHECK=true"
           fi
