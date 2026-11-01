@@ -3,6 +3,14 @@
 # Tests for scripts/check_republish_needed.sh pure helpers
 # (extract_base, get_pkg_version). Network-dependent resolution and the
 # main() decision flow are exercised in CI, not here.
+#
+# The end-to-end section runs main() offline against file:// repositories,
+# with and without a resolved-env file (the workflow's resolve-track output):
+#   - every package (podman-suite included) current on every distro/arch -> skip
+#   - one distro stale, or podman-suite alone differs -> build
+#   - a distro not published at all -> build
+#   - an invalid resolved-env file -> exit 1, not a decision
+#   - with a resolved-env file the resolver is never run
 
 set -euo pipefail
 
@@ -94,7 +102,8 @@ echo "=== main(): end-to-end skip=true with pasta compared ==="
 # fixture, and the Packages indices (file://) carry every package at its target.
 E2E="${TEST_TMPDIR}/e2e"
 mkdir -p "${E2E}/scripts" "${E2E}/repo"
-cp "${PROJECT_ROOT}/scripts/check_republish_needed.sh" "${PROJECT_ROOT}/scripts/package_revision.sh" "${E2E}/scripts/"
+cp "${PROJECT_ROOT}/scripts/check_republish_needed.sh" "${PROJECT_ROOT}/scripts/package_revision.sh" \
+    "${PROJECT_ROOT}/scripts/ci_helpers.sh" "${E2E}/scripts/"
 : > "${E2E}/versions-stable.env"
 declare -A E2E_TAGS=()
 for _row in "${COMPONENT_ROWS[@]}"; do
@@ -112,22 +121,34 @@ done
     done
 } > "${E2E}/scripts/resolve_versions.sh"
 chmod +x "${E2E}/scripts/resolve_versions.sh"
-for _d in 2404:24.04 2604:26.04; do
-    for _a in amd64 arm64; do
-        _dir="${E2E}/repo/dists/stable-${_d%%:*}/main/binary-${_a}"
-        mkdir -p "${_dir}"
-        for _row in "${COMPONENT_ROWS[@]}"; do
-            IFS='|' read -r _comp _pkg _tagvar _ <<< "${_row}"
-            case "${_comp}" in
-                pasta) _base="20261002.1" ;;
-                container-configs) _base="0.67.1" ;;
-                *) _base="1.2.3" ;;
-            esac
-            printf 'Package: %s\nVersion: %s~ubuntu%s.podman%s\nArchitecture: %s\n\n' \
-                "${_pkg}" "${_base}" "${_d##*:}" "${PACKAGE_REVISION}" "${_a}"
-        done > "${_dir}/Packages"
+# write_e2e_repo <repo> [skip-distro] [override-distro override-arch override-pkg override-version]
+# -> stable-<distro> Packages for every distro/arch with every package at its
+# target version, except the overrides. [skip-distro] is left unpublished.
+write_e2e_repo() {
+    local repo="$1" skip="${2:-}" od="${3:-}" oa="${4:-}" opkg="${5:-}" over="${6:-}"
+    local _d _a _dir _row _comp _pkg _tagvar _base _ver
+    for _d in 2404:24.04 2604:26.04; do
+        [[ "${_d%%:*}" == "${skip}" ]] && continue
+        for _a in amd64 arm64; do
+            _dir="${repo}/dists/stable-${_d%%:*}/main/binary-${_a}"
+            mkdir -p "${_dir}"
+            for _row in "${COMPONENT_ROWS[@]}"; do
+                IFS='|' read -r _comp _pkg _tagvar _ <<< "${_row}"
+                case "${_comp}" in
+                    pasta) _base="20261002.1" ;;
+                    container-configs) _base="0.67.1" ;;
+                    *) _base="1.2.3" ;;
+                esac
+                _ver="${_base}~ubuntu${_d##*:}.podman${PACKAGE_REVISION}"
+                if [[ "${_d%%:*}" == "${od}" && "${_a}" == "${oa}" && "${_pkg}" == "${opkg}" ]]; then
+                    _ver="${over}"
+                fi
+                printf 'Package: %s\nVersion: %s\nArchitecture: %s\n\n' "${_pkg}" "${_ver}" "${_a}"
+            done > "${_dir}/Packages"
+        done
     done
-done
+}
+write_e2e_repo "${E2E}/repo"
 _e2e_out="$(
     unset GITHUB_OUTPUT
     # shellcheck disable=SC1091
@@ -138,6 +159,53 @@ _e2e_out="$(
     main stable "file://${E2E}/repo" 2>/dev/null
 )" || true
 assert_equals "main(): all packages (pasta at 20261002.1) published -> skip=true" "skip=true" "${_e2e_out}"
+
+echo "=== main(): decision flow with a resolved-env file ==="
+# The same tags as the shimmed resolver, in resolve_versions.sh's output form.
+ENVF="${TEST_TMPDIR}/resolved.env"
+for _tv in "${!E2E_TAGS[@]}"; do
+    echo "export ${_tv}=\"${E2E_TAGS[${_tv}]}\""
+done | sort > "${ENVF}"
+
+# decide <repo> [env-file] -> main()'s skip=... line, or "exit N" when it
+# exits non-zero. The resolver is replaced by a failure, so a decision that
+# needed it would show up as an exit code.
+decide() {
+    local out rc=0
+    out="$(
+        unset GITHUB_OUTPUT
+        # shellcheck disable=SC1091
+        source "${E2E}/scripts/check_republish_needed.sh"
+        for _i in "${!COMPONENT_ROWS[@]}"; do
+            [[ "${COMPONENT_ROWS[_i]}" == pasta\|* ]] && COMPONENT_ROWS[_i]="pasta|podman-pasta|PASTA_TAG|${PS}"
+        done
+        resolve_targets() { echo "resolver called" >&2; exit 9; }
+        main stable "file://$1" "${2:-${ENVF}}" 2>/dev/null
+    )" || rc=$?
+    if [[ "${rc}" -ne 0 ]]; then
+        echo "exit ${rc}"
+    else
+        echo "${out}"
+    fi
+}
+
+assert_equals "env file: all current on every distro/arch -> skip" "skip=true" "$(decide "${E2E}/repo")"
+
+R2="${TEST_TMPDIR}/repo-2604-stale"
+write_e2e_repo "${R2}" "" 2604 arm64 podman-podman "1.2.2~ubuntu26.04.podman${PACKAGE_REVISION}"
+assert_equals "env file: 2604 arm64 podman stale -> build" "skip=false" "$(decide "${R2}")"
+
+R3="${TEST_TMPDIR}/repo-suite-differs"
+write_e2e_repo "${R3}" "" 2404 amd64 podman-suite "1.2.2~ubuntu24.04.podman${PACKAGE_REVISION}"
+assert_equals "env file: only podman-suite differs -> build" "skip=false" "$(decide "${R3}")"
+
+R4="${TEST_TMPDIR}/repo-2604-absent"
+write_e2e_repo "${R4}" 2604
+assert_equals "env file: 2604 not published -> build" "skip=false" "$(decide "${R4}")"
+
+BAD="${TEST_TMPDIR}/bad.env"
+{ cat "${ENVF}"; echo 'export PODMAN_TAG="v9.9.9"'; } > "${BAD}"
+assert_equals "invalid resolved env -> exit 1, not a decision" "exit 1" "$(decide "${E2E}/repo" "${BAD}")"
 
 echo "=== pasta dpkg ordering (same-day releases, nightly) ==="
 if command -v dpkg >/dev/null 2>&1; then

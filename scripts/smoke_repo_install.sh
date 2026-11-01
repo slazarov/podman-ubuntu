@@ -12,10 +12,12 @@ set -euo pipefail
 #
 # Mechanism: the assembled repo-output (the 9-suite signed tree produced by
 # ci_publish.sh) is bind-mounted read-only into a throwaway container. A DEB822
-# source pointing at file:///opt/podman-repo with `Trusted: yes` lets apt
-# resolve and install `podman-suite` (the meta-package) by name. `podman info`
-# exit 0 is the gate (D-15): a package that installs but whose runtime cannot
-# introspect itself would still be a regression.
+# source pointing at file:///opt/podman-repo, with `Signed-By:` set to the
+# repo's own podman-ubuntu.gpg, lets apt resolve and install `podman-suite`
+# (the meta-package) by name. apt checks the signatures exactly as it does for
+# users, so a signing mistake fails here. `podman info` exit 0 is the gate
+# (D-15): a package that installs but whose runtime cannot introspect itself
+# would still be a regression.
 #
 # Runner-OS-agnostic: it shells out to a container runtime (docker or podman),
 # so it runs identically in CI (the publish job calls it twice) and on any dev
@@ -37,14 +39,11 @@ set -euo pipefail
 # interpolated into a container-run command / suite name. All three are
 # exact-match-validated against closed whitelists ({2404,2604}, {stable,v5,nightly},
 # and {docker,podman}) BEFORE any use.
-# `Trusted: yes` is intentional here and CONFINED to this CI-internal file://
-# smoke source — it does NOT exercise the GPG Signed-By path real users hit
-# (accepted limitation, D-14) and MUST NEVER appear in user-facing docs or
-# index.html.
 
 # ---------------------------------------------------------------------------
 # Locate repo root. Kept standalone (no config.sh/functions.sh source) so the
-# helper runs in a minimal CI-runner env, matching smoke_install_2604.sh.
+# helper runs in a minimal CI-runner env, matching smoke_install_2604.sh. It
+# sources only scripts/ci_helpers.sh, which loads nothing else.
 # ---------------------------------------------------------------------------
 relativepath="../"
 if [[ ! -v toolpath ]]; then
@@ -168,6 +167,16 @@ if [[ ! -d "${REPO_DIR}/dists" ]]; then
     echo "ERROR: ${REPO_DIR} contains no dists/ tree — not an assembled APT repo." >&2
     exit 1
 fi
+if [[ ! -s "${REPO_DIR}/podman-ubuntu.gpg" ]]; then
+    echo "ERROR: ${REPO_DIR} has no podman-ubuntu.gpg; apt cannot check its signatures." >&2
+    exit 1
+fi
+# The smoke containers are amd64 (see 3), so they install from this index.
+SUITE_PACKAGES="${REPO_DIR}/dists/${SUITE}/main/binary-amd64/Packages"
+if [[ ! -s "${SUITE_PACKAGES}" ]]; then
+    echo "ERROR: ${SUITE} has no amd64 Packages index in ${REPO_DIR}." >&2
+    exit 1
+fi
 # Canonicalize so the bind-mount source is absolute regardless of CWD.
 REPO_DIR=$(realpath "${REPO_DIR}")
 echo "Assembled repo: ${REPO_DIR}"
@@ -186,6 +195,29 @@ fi
 LIVE_REPO_URL="${LIVE_REPO_URL%/}"
 
 # ---------------------------------------------------------------------------
+# 5b. Probe the live repo from the host, before any container starts. The
+#     upgrade scenario needs the suite to be published already. fetch_url
+#     (scripts/ci_helpers.sh) tells "absent" from "failed": a 404 skips the
+#     scenario (first deploy of this suite), while a network or server error
+#     is retried and then fails the smoke test. It never turns into a skip.
+# ---------------------------------------------------------------------------
+# shellcheck source=scripts/ci_helpers.sh
+source "${toolpath}/scripts/ci_helpers.sh"
+RUN_UPGRADE=false
+UPGRADE_SKIP_REASON="LIVE_REPO_URL not set"
+if [[ -n "${LIVE_REPO_URL}" ]]; then
+    if ! probe_result="$(probe_live_suite "${LIVE_REPO_URL}" "${SUITE}")"; then
+        echo "ERROR: refusing to skip the upgrade scenario on a failed probe." >&2
+        exit 1
+    fi
+    if [[ "${probe_result}" == "run" ]]; then
+        RUN_UPGRADE=true
+    else
+        UPGRADE_SKIP_REASON="${SUITE} is not published at ${LIVE_REPO_URL} yet"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # 6. Scenario scripts. Each runs in its own throwaway ubuntu container and covers
 #    a path a real user takes (each one caught a shipped bug when added):
 #      fresh    install podman-suite, podman info, then a ROOTLESS user with their
@@ -195,13 +227,17 @@ LIVE_REPO_URL="${LIVE_REPO_URL%/}"
 #      migrate  install Ubuntu's own podman first, then podman-suite over it
 #               (dpkg "trying to overwrite" from an incomplete Conflicts list).
 #      upgrade  install from the LIVE published repo, then full-upgrade to the
-#               assembled one (package renames, new Depends). Skipped when
-#               LIVE_REPO_URL is unset or the suite is not published there yet.
+#               assembled one (package renames, new Depends), and check that
+#               every podman package is installed at the assembled version.
+#               Skipped when LIVE_REPO_URL is unset or the suite is not
+#               published there yet (see 5b).
 #    Scripts are written to a temp dir and bind-mounted, avoiding nested-quoting
-#    hazards. Trusted: yes is confined to the CI-internal file:// source (D-14).
+#    hazards.
 # ---------------------------------------------------------------------------
 SCENARIO_DIR=$(mktemp -d)
 trap 'rm -rf "${SCENARIO_DIR}"' EXIT
+# The upgrade scenario sources check_upgraded_versions from here.
+cp "${toolpath}/scripts/ci_helpers.sh" "${SCENARIO_DIR}/ci_helpers.sh"
 
 cat > "${SCENARIO_DIR}/lib.sh" << 'EOF'
 set -euo pipefail
@@ -213,7 +249,7 @@ Types: deb
 URIs: file:///opt/podman-repo
 Suites: ${SUITE}
 Components: main
-Trusted: yes
+Signed-By: /opt/podman-repo/podman-ubuntu.gpg
 APTEOF
 }
 
@@ -277,12 +313,12 @@ cat > "${SCENARIO_DIR}/upgrade.sh" << 'EOF'
 source /smoke/lib.sh
 apt-get update -qq
 apt-get install -y -q curl ca-certificates
+# The host already checked that the suite is published (section 5b). Retry
+# the live downloads, so one CDN error does not fail the gate.
+printf 'Acquire::Retries "5";\n' > /etc/apt/apt.conf.d/80-smoke-retries
 mkdir -p /etc/apt/keyrings
-curl -fsSL "${LIVE_REPO_URL}/podman-ubuntu.gpg" -o /etc/apt/keyrings/podman-ubuntu.gpg
-if ! curl -fsSI "${LIVE_REPO_URL}/dists/${SUITE}/InRelease" > /dev/null; then
-    echo ">>> SKIP upgrade: ${SUITE} is not published at ${LIVE_REPO_URL} yet"
-    exit 0
-fi
+curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 \
+    "${LIVE_REPO_URL}/podman-ubuntu.gpg" -o /etc/apt/keyrings/podman-ubuntu.gpg
 cat > /etc/apt/sources.list.d/podman-live.sources << APTEOF
 Types: deb
 URIs: ${LIVE_REPO_URL}
@@ -298,9 +334,22 @@ apt-get update -qq
 apt-get full-upgrade -y -q
 assert_dpkg_clean
 echo ">>> upgraded podman-suite: $(dpkg-query -W -f='${Version}' podman-suite)"
+# Every package of the assembled suite that is installed now, plus
+# podman-suite itself, must be fully installed at the assembled version.
+# /smoke/expected lists "<package> <version>" from the assembled index.
+source /smoke/ci_helpers.sh
+check_upgraded_versions /smoke/expected
 podman info --log-level=error > /dev/null
 echo ">>> upgrade from live repo OK"
 EOF
+
+# "<package> <version>" for every package in the assembled suite.
+awk '/^Package:/ {p=$2} /^Version:/ {if (p != "") print p, $2; p=""}' \
+    "${SUITE_PACKAGES}" > "${SCENARIO_DIR}/expected"
+if [[ ! -s "${SCENARIO_DIR}/expected" ]] || ! grep -q '^podman-suite ' "${SCENARIO_DIR}/expected"; then
+    echo "ERROR: ${SUITE} in ${REPO_DIR} does not list podman-suite." >&2
+    exit 1
+fi
 
 # ---------------------------------------------------------------------------
 # 7. Run each scenario. --privileged + --device /dev/fuse let podman initialize
@@ -310,8 +359,8 @@ EOF
 # ---------------------------------------------------------------------------
 FAILED=()
 for scenario in fresh migrate upgrade; do
-    if [[ "${scenario}" == "upgrade" && -z "${LIVE_REPO_URL}" ]]; then
-        echo ">>> SKIP scenario upgrade: LIVE_REPO_URL not set"
+    if [[ "${scenario}" == "upgrade" && "${RUN_UPGRADE}" != "true" ]]; then
+        echo ">>> SKIP scenario upgrade: ${UPGRADE_SKIP_REASON}"
         continue
     fi
     echo ""
