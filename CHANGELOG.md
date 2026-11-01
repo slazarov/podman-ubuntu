@@ -52,8 +52,24 @@ Work landed since `v1.2`, slated for the next release, `v1.3`.
   check (VAL-03) is a warning rather than a build error.
 - GitHub Actions pinned to commit SHAs (kept fresh by Dependabot).
 - Generated APT landing page renamed "Podman for Debian" → "Podman for Ubuntu".
+- CI: each build cell runs `verify_depends.sh` after packaging, with a
+  per-distro (24.04 + 26.04) dependency baseline. 24.04 skopeo may link
+  `libsqlite3-0` (host-dependent), which is accepted but not required.
+- CI: the lint workflow installs the integration-test tools and sets
+  `REQUIRE_INTEGRATION_DEPS=1`, so the reprepro/gpg harnesses run on every PR
+  instead of skipping.
+- CI: least-privilege permissions (only publish can write Pages) and
+  `persist-credentials: false` on every checkout.
 
 ### Fixed
+- Scheduled runs are no longer dropped: the `pages` concurrency group uses
+  `queue: max`. GitHub's default kept one pending run and cancelled the rest,
+  so a stable or v5 cron could vanish behind a still-running nightly.
+- `build_toolbox.sh` sets `TOOLBOX_PATH` for the compile step, so the shell
+  completions build inside a podman container (toolbox refused to run when
+  `/run/.containerenv` exists).
+- `verify_depends.sh` requires `objdump`; without it the detector silently
+  reported no dependencies.
 - `setup.sh` now starts the per-script timer, so ">>> Completed:" reports each
   script's real duration instead of the time since the Unix epoch.
 

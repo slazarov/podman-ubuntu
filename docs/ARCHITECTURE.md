@@ -134,8 +134,11 @@ repo. `.github/workflows/build-packages.yml` drives the whole thing.
 **Triggers:** three daily crons — `30 4 * * *` (nightly), `30 5 * * *`
 (stable), `30 6 * * *` (v5) — and `workflow_dispatch` with a `build_track`
 choice. A **resolve-track** job maps the firing cron (or the dispatch input) to
-a single track for the rest of the run. **Permissions:** `pages: write`,
-`id-token: write`; concurrency group `pages`.
+a single track for the rest of the run. **Permissions:** `contents: read` for
+every job; only **publish** adds `pages: write` + `id-token: write`. Checkouts
+do not keep credentials (`persist-credentials: false`). **Concurrency:** one
+workflow-wide group `pages` with `queue: max`, so runs queue in order instead
+of GitHub's default dropping all but one pending run.
 
 **Jobs:**
 
@@ -156,6 +159,9 @@ a single track for the rest of the run. **Permissions:** `pages: write`,
 
    26.04 cells bootstrap the bare container then set `SKIP_FUSE_CHECK=true`; Go
    caches are keyed per distro+arch; artifacts are named `debs-<distro>-<arch>`.
+   After packaging, each cell runs `verify_depends.sh`: the library packages
+   detected from the built binaries must match the known set for its distro,
+   and every nFPM file must render and parse.
 4. **publish** — gated `if: always() && github.ref == 'refs/heads/main'`. Runs
    the doc/repo-assembly tests, then per-distro `ci_publish.sh` into one
    accumulating `repo-output` (2404 then 2604), gates on `smoke_repo_install.sh`,
