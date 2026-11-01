@@ -400,6 +400,22 @@ jobs:
           fi
           ./scripts/package_all.sh
 
+      # Compares the library packages detected from the built binaries with
+      # the known set for this distro, and checks that every nFPM file renders
+      # and parses, so a wrong library name fails the cell before anything is
+      # uploaded or published.
+      - name: Verify detected dependencies
+        run: |
+          case "${{ matrix.distro }}" in
+            2404) DISTRO_DOTTED=24.04 ;;
+            2604) DISTRO_DOTTED=26.04 ;;
+            *) echo "ERROR: unknown matrix.distro '${{ matrix.distro }}'" >&2; exit 1 ;;
+          esac
+          export DISTRO="$DISTRO_DOTTED"
+          export PATH="/opt/go/$(ls /opt/go/)/bin:$HOME/go/bin:$PATH"
+          export DESTDIR="${{ runner.temp }}/podman-staging"
+          ./scripts/verify_depends.sh
+
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           # CICD-07: distro + arch in the artifact name — the four names are

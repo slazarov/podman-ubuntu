@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # verify_depends.sh - on-Ubuntu proof of the ldd->dpkg-query dependency detector
-# (PKG-10) plus the D-14 24.04 functional-equivalence baseline and a
+# (PKG-10) plus a per-distro (24.04, 26.04) functional-equivalence baseline and a
 # render-and-parse smoke of the ${DETECTED_DEPENDS} injection (Pitfall 3).
 #
 # This script MUST run on an Ubuntu host/container with:
@@ -19,12 +19,10 @@ set -euo pipefail
 # real injection path, not a parallel reimplementation.
 #
 # Parts:
-#   A. Detector smoke + D-14 baseline (PKG-10, D-14): run detect_runtime_depends
-#      on every component's binaries, print the detected set, and on DISTRO=24.04
-#      assert it functionally equals the t64-adjusted pre-v3.0 hardcoded baseline.
-#      The t64 transition (RESEARCH Pitfall 1) means the baseline is the OLD set
-#      with libgpgme11->libgpgme11t64 and libglib2.0-0->libglib2.0-0t64; every
-#      other name is unchanged (A2). An undocumented delta on 24.04 is a FAIL.
+#   A. Detector baseline (PKG-10, D-14): run detect_runtime_depends on every
+#      component's binaries, print the detected set, and assert it functionally
+#      equals the baseline for this distro (24.04 or 26.04). An undocumented
+#      delta is a FAIL. CI runs this in every build cell after packaging.
 #   B. Render-and-parse (Pitfall 3): render each component YAML via envsubst and
 #      confirm `nfpm pkg` parses it for both DISTRO=24.04 and DISTRO=26.04,
 #      checking the empty-deps and mixed-static-deps cases.
@@ -54,7 +52,7 @@ DISTRO_VERSION_ID="$(detect_distro_version_id)"
 
 echo ""
 echo "========================================"
-echo ">>> verify_depends.sh — detector smoke + D-14 baseline + render/parse"
+echo ">>> verify_depends.sh — detector baseline + render/parse"
 echo "========================================"
 echo "DISTRO_VERSION_ID: ${DISTRO_VERSION_ID}"
 echo "DESTDIR:           ${DESTDIR:-<unset>}"
@@ -69,7 +67,7 @@ if [[ -z "${DESTDIR:-}" || ! -d "${DESTDIR}" ]]; then
     echo "  Run the build scripts with DESTDIR set before running verify_depends.sh." >&2
     exit 1
 fi
-for tool in dpkg-query ldd realpath envsubst nfpm; do
+for tool in dpkg-query ldd objdump realpath envsubst nfpm; do
     if ! command -v "${tool}" &>/dev/null; then
         echo "ERROR: required tool '${tool}' not found on PATH — verify_depends.sh must run on an Ubuntu build host." >&2
         exit 1
@@ -81,38 +79,44 @@ done
 source "${toolpath}/scripts/component_maps.sh"
 
 # ---------------------------------------------------------------------------
-# D-14 baseline (24.04, t64-adjusted). Per RESEARCH Pitfall 1 + Open Question 2:
-# the pre-v3.0 hardcoded system-lib set, with the two t64-transitioned names
-# substituted (libgpgme11 -> libgpgme11t64, libglib2.0-0 -> libglib2.0-0t64).
-# Every other name is unchanged on 24.04 (assumption A2, verified by this run).
-# crun's JSON-parser dep is host-dependent (libjson-c5 OR libyajl2, D-04); we
-# accept either via the BASELINE_24_04_ALT map below rather than hard-coding one.
+# Expected system-library depends per distro and component.
 #
-# Functional equivalence (NOT string identity): the detected set on 24.04 must
-# equal this baseline. A name detected that is NOT in the baseline AND is not a
-# documented t64 form is a FAIL (T-19-10 — the equivalence check cannot
-# rubber-stamp a wrong detected set).
+# The detected set must equal the baseline (functional equivalence, not
+# string order). A name detected that is not in the baseline (or the optional
+# or alternative lists), or a baseline name that is not detected, is a FAIL,
+# so a wrong detected set cannot pass. 24.04 carries the t64 names
+# (libgpgme11t64, libglib2.0-0t64); 26.04 moved gpgme and subid to new
+# sonames (libgpgme45, libsubid5).
+#
+# BASELINE_ALT: crun links exactly one JSON parser, chosen by the build host;
+# either is accepted.
+# BASELINE_OPTIONAL: accepted but not required, for links that depend on what
+# the build host has installed. skopeo's Makefile adds the libsqlite3 build tag
+# when pkg-config finds sqlite3: the 24.04 runner image ships libsqlite3-dev,
+# a clean container does not.
+#
+# Components without an entry (netavark, aardvark-dns, pasta, fuse-overlayfs,
+# catatonit) have their detected set printed for the record only.
 # ---------------------------------------------------------------------------
-declare -A BASELINE_24_04=(
-    ["podman"]="libgpgme11t64 libseccomp2"
-    ["buildah"]="libgpgme11t64 libseccomp2"
-    ["skopeo"]="libgpgme11t64 libsubid4"
-    ["crun"]="libseccomp2 libsystemd0 libcap2"
-    ["conmon"]="libglib2.0-0t64 libsystemd0"
+declare -A BASELINE=(
+    ["24.04:podman"]="libgpgme11t64 libseccomp2"
+    ["24.04:buildah"]="libgpgme11t64 libseccomp2"
+    ["24.04:skopeo"]="libgpgme11t64 libsubid4"
+    ["24.04:crun"]="libseccomp2 libsystemd0 libcap2"
+    ["24.04:conmon"]="libglib2.0-0t64 libsystemd0"
+    ["26.04:podman"]="libgpgme45 libseccomp2"
+    ["26.04:buildah"]="libgpgme45 libseccomp2"
+    ["26.04:skopeo"]="libgpgme45 libsubid5"
+    ["26.04:crun"]="libseccomp2 libsystemd0 libcap2"
+    ["26.04:conmon"]="libglib2.0-0t64 libsystemd0"
 )
-# crun links exactly one JSON parser; accept either mapping (D-04).
-declare -A BASELINE_24_04_ALT=(
-    ["crun"]="libjson-c5 libyajl2"
+declare -A BASELINE_ALT=(
+    ["24.04:crun"]="libjson-c5 libyajl2"
+    ["26.04:crun"]="libjson-c5 libyajl2"
 )
-# The two names that legitimately gain t64 on 24.04 (RESEARCH Pitfall 1),
-# mapped t64-name -> pre-substitution name. A t64 name is only accepted for a
-# component when its PRE-substitution name is in that component's baseline
-# (WR-04) — a global allowlist would rubber-stamp e.g. libgpgme11t64 reported
-# by conmon (which should never link it), defeating T-19-10. Any OTHER
-# unexpected name on 24.04 is still a regression FAIL.
-declare -A T64_PRE_SUBST=(
-    ["libgpgme11t64"]="libgpgme11"
-    ["libglib2.0-0t64"]="libglib2.0-0"
+declare -A BASELINE_OPTIONAL=(
+    ["24.04:skopeo"]="libsqlite3-0"
+    ["26.04:skopeo"]="libsqlite3-0"
 )
 
 # Helper: is $1 present in the space-separated list $2 ?
@@ -125,9 +129,9 @@ in_list() {
 }
 
 # ---------------------------------------------------------------------------
-# Part A — detector smoke + D-14 24.04 functional-equivalence assertion.
+# Part A — the detected set must equal the baseline for this distro.
 # ---------------------------------------------------------------------------
-echo ">>> Part A: detector smoke + D-14 baseline"
+echo ">>> Part A: detector baseline (${DISTRO_VERSION_ID})"
 echo "----------------------------------------"
 
 partA_fail=0
@@ -145,31 +149,22 @@ for component in podman crun conmon netavark aardvark-dns pasta fuse-overlayfs c
     detected="${detected% }"
     echo "  ${component}: detected = [${detected}]"
 
-    # Only 24.04 has an asserted baseline; on other distros we record + move on
-    # (the 26.04 set is captured as new ground truth, e.g. libgpgme45/libsubid5).
-    if [[ "${DISTRO_VERSION_ID}" != "24.04" ]]; then
+    key="${DISTRO_VERSION_ID}:${component}"
+    if [[ ! -v "BASELINE[$key]" ]]; then
+        echo "    (no baseline for ${component} on ${DISTRO_VERSION_ID}; detected set recorded only)"
         continue
     fi
 
-    # fuse-overlayfs / catatonit have no pre-v3.0 hardcoded baseline; their real
-    # detected set is the open item handled in the YAML follow-up below.
-    if [[ ! -v "BASELINE_24_04[$component]" ]]; then
-        echo "    (no D-14 baseline for ${component}; detected set recorded for YAML follow-up)"
-        continue
-    fi
+    baseline="${BASELINE[$key]}"
+    alt="${BASELINE_ALT[$key]:-}"
+    optional="${BASELINE_OPTIONAL[$key]:-}"
 
-    baseline="${BASELINE_24_04[$component]}"
-    # Augment the baseline with the acceptable JSON-parser alternatives (crun).
-    alt="${BASELINE_24_04_ALT[$component]:-}"
-
-    # Per-component failure flag (WR-03): gate THIS component's PASS line on its
-    # own status, not the global partA_fail accumulator — otherwise a later
-    # passing component prints nothing once any earlier component failed.
+    # Per-component failure flag (WR-03), so a later passing component still
+    # prints its PASS line after an earlier one failed.
     comp_fail=0
 
-    # Every detected name must be in the baseline (or an accepted alt, or a
-    # documented t64 form WHOSE pre-substitution name is in THIS component's
-    # baseline). Anything else is an undocumented regression.
+    # Every detected name must be in the baseline, the accepted alternatives,
+    # or the optional list.
     for name in ${detected}; do
         if in_list "${name}" "${baseline}"; then
             continue
@@ -177,17 +172,15 @@ for component in podman crun conmon netavark aardvark-dns pasta fuse-overlayfs c
         if [[ -n "${alt}" ]] && in_list "${name}" "${alt}"; then
             continue
         fi
-        # WR-04: accept a t64 name only when its pre-substitution form is the
-        # documented baseline dep for THIS component.
-        if [[ -v "T64_PRE_SUBST[$name]" ]] && in_list "${T64_PRE_SUBST[$name]}" "${baseline}"; then
+        if [[ -n "${optional}" ]] && in_list "${name}" "${optional}"; then
             continue
         fi
-        echo "    FAIL: ${component} detected unexpected dep '${name}' not in the t64-adjusted D-14 baseline [${baseline}${alt:+ | alt: ${alt}}]" >&2
+        echo "    FAIL: ${component} detected unexpected dep '${name}' not in the ${DISTRO_VERSION_ID} baseline [${baseline}${alt:+ | alt: ${alt}}${optional:+ | optional: ${optional}}]" >&2
         comp_fail=1
     done
 
-    # Every baseline name (minus the parser-alt slot) must be detected, else a
-    # dependency silently dropped — also a regression.
+    # Every baseline name must be detected, else a dependency was silently
+    # dropped.
     for name in ${baseline}; do
         if ! in_list "${name}" "${detected}"; then
             echo "    FAIL: ${component} is missing expected baseline dep '${name}' (detected: [${detected}])" >&2
@@ -199,16 +192,16 @@ for component in podman crun conmon netavark aardvark-dns pasta fuse-overlayfs c
     if [[ -n "${alt}" ]]; then
         found_alt=0
         for name in ${alt}; do
-            in_list "${name}" "${detected}" && found_alt=1
+            in_list "${name}" "${detected}" && found_alt=$((found_alt + 1))
         done
-        if [[ "${found_alt}" -eq 0 ]]; then
-            echo "    FAIL: ${component} linked no JSON parser from [${alt}] (detected: [${detected}])" >&2
+        if [[ "${found_alt}" -ne 1 ]]; then
+            echo "    FAIL: ${component} must link exactly one JSON parser from [${alt}] (detected: [${detected}])" >&2
             comp_fail=1
         fi
     fi
 
     if [[ "${comp_fail}" -eq 0 ]]; then
-        echo "    PASS: ${component} detected set functionally equals t64-adjusted D-14 baseline"
+        echo "    PASS: ${component} detected set equals the ${DISTRO_VERSION_ID} baseline"
     else
         partA_fail=1
     fi
@@ -216,9 +209,11 @@ done
 
 if [[ "${partA_fail}" -ne 0 ]]; then
     echo "" >&2
-    echo "FAIL: Part A — 24.04 detected set diverged from the t64-adjusted D-14 baseline (see above)." >&2
+    echo "FAIL: Part A — ${DISTRO_VERSION_ID} detected set diverged from its baseline (see above)." >&2
     exit 1
 fi
+# Part B reassigns DISTRO_VERSION_ID; keep the one Part A checked for the summary.
+PARTA_DISTRO="${DISTRO_VERSION_ID}"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -325,7 +320,7 @@ echo ""
 echo "========================================"
 echo ">>> verify_depends.sh: ALL CHECKS PASSED"
 echo "========================================"
-echo "  - Part A: 24.04 detected set functionally equals the t64-adjusted D-14 baseline"
+echo "  - Part A: ${PARTA_DISTRO} detected set functionally equals its baseline"
 echo "  - Part B: every nFPM YAML renders + parses for DISTRO=24.04 and 26.04"
 echo ""
 exit 0
