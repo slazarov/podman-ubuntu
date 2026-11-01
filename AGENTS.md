@@ -42,11 +42,12 @@ There is no package.json, no compiler, no app server. Everything is Bash.
 | `scripts/install_*.sh` | Toolchain + dependency installers (Go, Rust, protoc) |
 | `scripts/package_all.sh` | DESTDIR staging tree → `.deb` files in `output/` |
 | `scripts/repo_manage.sh`, `scripts/ci_publish.sh` | APT repo assembly (reprepro) |
+| `scripts/ci_helpers.sh` | Shared CI logic, sourceable without `config.sh`: `fetch_url` (absent versus failed, with retries), resolved-env validation, nightly revision checkpoint, build cell selection, deploy propagation, compiler cache report |
 | `scripts/verify_depends.sh`, `scripts/verify_versions.sh` | Post-build validation |
 | `packaging/nfpm/*.yaml` | nFPM package definitions (one per component) |
 | `versions-stable.env` / `versions-v5.env` | Track version *policy* (series caps + soak); resolved by `scripts/resolve_versions.sh` |
 | `versions-nightly.env` | Nightly behaviour flags (sourced before `setup.sh`) |
-| `tests/` | Bash unit tests, run directly: `bash tests/<test>.sh` |
+| `tests/` | Bash unit tests, run directly: `bash tests/<test>.sh`. `tests/lib/` holds a fault-injecting mock HTTP server and `require_integration_deps` |
 | `.github/workflows/build-packages.yml` | CI: native amd64 + arm64 builds, repo publish |
 | `.github/workflows/lint.yml` | CI gate: ShellCheck + shfmt + `tests/` + gitleaks (every PR) |
 | `docs/` | Architecture (incl. CI/CD), configuration, APT repo, testing |
@@ -83,7 +84,12 @@ sudo NIGHTLY_BUILD=true SHALLOW_CLONE=false ./setup.sh  # nightly (HEAD)
   sources `config.sh` then `functions.sh`, then installs the error trap
   `trap 'error_handler $? $LINENO "$BASH_SOURCE"' ERR`.
 - Use `functions.sh` helpers instead of inlining: `git_clone_update`/`git_checkout`
-  for cloning, `run_logged` for build output, `detect_architecture` for arch.
+  for cloning, `run_logged` for build output, `detect_architecture` for arch,
+  `enable_rust_compiler_cache`/`enable_c_compiler_cache` for sccache and ccache.
+- In CI scripts, download from the live repository with `fetch_url`
+  (`scripts/ci_helpers.sh`), never `curl ... || true`. Only its "absent" result
+  (HTTP 404/410) may be read as "not published"; any other failure must stop
+  the publish.
 - Variables: `UPPERCASE` for env/config, `lowercase` locals, function-local
   parameters prefixed `l` (`lcomponent`, `lfolder`). Always quote expansions:
   `"${VAR}"`. 4-space indent inside functions.

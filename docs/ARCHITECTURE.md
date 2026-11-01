@@ -134,21 +134,33 @@ repo. `.github/workflows/build-packages.yml` drives the whole thing.
 **Triggers:** three daily crons — `30 4 * * *` (nightly), `30 5 * * *`
 (stable), `30 6 * * *` (v5) — and `workflow_dispatch` with a `build_track`
 choice. A **resolve-track** job maps the firing cron (or the dispatch input) to
-a single track for the rest of the run. **Permissions:** `contents: read` for
-every job; only **publish** adds `pages: write` + `id-token: write`. Checkouts
-do not keep credentials (`persist-credentials: false`). **Concurrency:** one
-workflow-wide group `pages` with `queue: max`, so runs queue in order instead
-of GitHub's default dropping all but one pending run.
+a single track for the rest of the run and, for stable/v5, runs the resolver
+**once**: its output (`resolved_env`) is validated and used by the republish
+guard and every build cell, so they all compare and build the same tags. A
+resolver hold (exit 3, nothing soaked yet) builds nothing, even with
+`force_rebuild`. **Permissions:** `contents: read` for every job; only
+**publish** adds `actions: read` (to read the build cells' conclusions),
+`pages: write` and `id-token: write`. Checkouts do not keep credentials
+(`persist-credentials: false`). **Concurrency:** one group per track with
+`queue: max`, so a new run of a track waits for the previous one instead of
+GitHub's default dropping all but one pending run; tracks build in parallel.
+The publish job has its own `pages-deploy` group (also `queue: max`), so only
+one run assembles and deploys at a time, and it waits until the deploy is live
+before releasing the group, so the next publish starts from what was deployed.
 
 **Jobs:**
 
-1. **check-changes** (nightly only) — compares upstream HEAD SHAs against a
-   cached `nightly-sha.json`; `skip=true` when nothing changed.
-2. **check-republish** (stable/v5 only) — `check_republish_needed.sh`;
-   `skip=true` only when every would-build version already matches what's
-   published.
+1. **check-changes** (nightly cron only) — compares each component's upstream
+   HEAD with a checkpoint of the commits that were built **and deployed**, per
+   build cell (`<distro>-<arch>`); `skip=true` when nothing changed. This job
+   only restores the checkpoint; publish saves it after a confirmed deploy,
+   with only the cells it deployed, so a failed build is retried next night.
+2. **check-republish** (stable/v5 only) — `check_republish_needed.sh` with the
+   resolved environment; `skip=true` only when every package, `podman-suite`
+   included, is already published at the resolved version on every distro and
+   arch. Any download uncertainty builds.
 3. **build** — one matrix job (`fail-fast: false`, `timeout-minutes: 180`) of
-   four native cells (no emulation):
+   four native cells (no emulation), named `build-<distro>-<arch>`:
 
    | Cell | Runner | Container |
    |------|--------|-----------|
@@ -159,14 +171,34 @@ of GitHub's default dropping all but one pending run.
 
    26.04 cells bootstrap the bare container then set `SKIP_FUSE_CHECK=true`; Go
    caches are keyed per distro+arch; artifacts are named `debs-<distro>-<arch>`.
-   After packaging, each cell runs `verify_depends.sh`: the library packages
-   detected from the built binaries must match the known set for its distro,
-   and every nFPM file must render and parse.
-4. **publish** — gated `if: always() && github.ref == 'refs/heads/main'`. Runs
-   the doc/repo-assembly tests, then per-distro `ci_publish.sh` into one
-   accumulating `repo-output` (2404 then 2604), gates on `smoke_repo_install.sh`,
-   and deploys via `configure-pages` → `upload-pages-artifact` → `deploy-pages`
-   (atomic). A single matrix job means publish requires all four cells.
+   Rust (sccache) and C (ccache) compiler output is cached per distro, arch,
+   track, Rust version and sccache version, with size caps; `CACHE_STRICT=true`
+   and a usage report fail a cell whose enabled cache was not used, and the
+   cache is saved only when the build added to it. After packaging, each cell
+   runs `verify_depends.sh`: the library packages detected from the built
+   binaries must match the known set for its distro, and every nFPM file must
+   render and parse. Nightly cells also record the upstream commits they built.
+4. **publish** — gated `if: always() && github.ref == 'refs/heads/main'`. Reads
+   every build cell's conclusion from the GitHub API and publishes exactly the
+   cells that succeeded; a successful cell whose artifact is missing fails the
+   job. A distro publishes when at least one of its cells succeeded (a failed
+   arch keeps its last-good packages, see `preserve_missing_arches`); a distro
+   whose cells all failed keeps its live suites. Then: the doc/repo-assembly
+   tests, per-distro `ci_publish.sh` into one accumulating `repo-output` (2404
+   then 2604), the integrity gate with signature checks against
+   `podman-ubuntu.gpg`, `smoke_repo_install.sh` for the published distros, and
+   the atomic deploy via `configure-pages` → `upload-pages-artifact` →
+   `deploy-pages`. Afterwards it waits until every suite's live `InRelease`
+   matches the deployed one, and (nightly) saves the revision checkpoint.
+
+Every download from the live repository goes through `fetch_url`
+(`scripts/ci_helpers.sh`), which retries network errors, cut-off bodies and
+HTTP 408/429/5xx and reports HTTP 404/410 as "absent". Only "absent" means "not
+published"; any other failure stops the publish, so a network hiccup can never
+make a suite look empty or silently drop a package. A rebuilt package whose
+name, version and architecture the live target suite already lists keeps the
+published bytes, and regenerated suites keep one previous generation of their
+by-hash indexes for clients that fetched the old `Release` mid-deploy.
 
 **Local reproduction:**
 

@@ -54,6 +54,43 @@ Each test prints a per-assertion `PASS` / `FAIL` line, a final
 `Results: N passed, M failed` summary, and exits non-zero if any assertion
 failed — so the scripts are safe to chain in CI or a shell loop.
 
+Some tests need Ubuntu tools and print `SKIP` without them:
+
+- `reprepro`, `gpg`, `gpgv`, `dpkg-deb`, `python3`, `curl`: the repository
+  assembly tests (`test_repo_assemble_byhash.sh`, `test_ci_publish_multipass.sh`,
+  `test_ci_publish_shared_pool.sh`).
+- `gpg` and `gpgv`: the signature checks in `test_verify_repo_integrity.sh`.
+- `python3`, `curl`, `git`: `test_ci_helpers.sh` and the server-error checks in
+  `test_mirror_verbatim.sh`.
+
+A skipped check passes, which is convenient on a laptop and dangerous in CI.
+Set `REQUIRE_INTEGRATION_DEPS=1` and every skip caused by a missing tool
+becomes a failure. Both CI workflows set it:
+
+```bash
+REQUIRE_INTEGRATION_DEPS=1 bash tests/test_ci_publish_multipass.sh
+```
+
+The tests never touch the live repository. The assembly tests generate a
+throwaway GPG key in a temporary `GNUPGHOME`, build fixture `.deb` files, and
+serve a mock "live" repository over HTTP. Tests that need a misbehaving server
+use `tests/lib/mock_http_server.py`, which serves a directory and answers
+chosen paths with an HTTP error or a cut-off body, for every request or only
+the first few. `tests/lib/mock_http.sh` starts and stops it.
+
+What the CI-pipeline tests cover:
+
+| Test | Covers |
+|------|--------|
+| `test_ci_helpers.sh` | `scripts/ci_helpers.sh`: `fetch_url` against injected 404, 410, 429, 503, 403 and cut-off bodies (absent versus error, retry counts, no partial files); `validate_resolved_env` (and that its names match the resolver); recording, detecting and merging nightly revisions per build cell, including a failed cell keeping its old entries; build cell selection (a distro with one failed arch still publishes; `CI_BUILD_ARCHES` matches the workflow matrix); `wait_for_propagation`; the compiler cache statistics |
+| `test_check_republish.sh` | The republish guard's helpers, and its decision with a resolved-env file against `file://` repositories: all current skips; a stale distro/arch, a differing `podman-suite` or an unpublished suite builds; an invalid file fails; the resolver is not run |
+| `test_ci_matrix.sh` | The workflow structure: four distro × arch cells, per-cell cache keys and artifacts, queued concurrency, least-privilege permissions, no persisted checkout credentials, a single resolver run whose hold stops the build even with `force_rebuild`, the nightly checkpoint saved only after deploy and propagation, cell selection from conclusions, strict downloads, compiler caches, lint running the integration tests |
+| `test_mirror_verbatim.sh` | `mirror_suite_verbatim`, and that a server error is reported as an error, never as an unpublished suite |
+| `test_verify_repo_integrity.sh` | The integrity gate, including a missing `Codename` or `SHA256` section, an unlisted architecture, a stanza without `Size`/`SHA256`, an `InRelease` that signs different text, a foreign signature and a missing `Release.gpg` |
+| `test_repo_assemble_byhash.sh` | Real reprepro assembly with by-hash and re-signing, including that a failing clearsign or detached sign is reported |
+| `test_ci_publish_multipass.sh` | Two `ci_publish.sh` passes into one output: no clobbering, the previous by-hash generation kept, signatures verified. Then the failure paths: a pool file answering 503, 404 or cut off, or a live `Release`/`Packages` answering 503, stops the publish; one 503 is retried; a failing signature step stops it; an amd64-only build keeps arm64 at its last-good version, and a failed arm64 download stops the publish instead of wiping arm64 |
+| `test_ci_publish_shared_pool.sh` | The shared pool: a rebuild of a published version adopts the published bytes (from another suite, or from the live target index itself), a corrupted live repository is healed with its previous by-hash generation kept, and a missing arch is preserved |
+
 ## Writing New Tests
 
 New tests follow the conventions established by
@@ -135,7 +172,8 @@ four jobs:
   `python3-yaml` and sets `REQUIRE_INTEGRATION_DEPS=1`, so the reprepro/gpg
   integration harnesses run on every PR: with that variable set, a harness
   whose tools are missing fails (via `tests/lib/integration_deps.sh`) instead
-  of printing SKIP and passing.
+  of printing SKIP and passing. The publish job runs the repo-assembly tests
+  and `test_ci_helpers.sh` again, with the same setting, before it deploys.
 - **gitleaks** — a secret scan over full history, **informational** for now
   (to be promoted to blocking once history is confirmed clean).
 
@@ -154,8 +192,11 @@ reprepro APT repository to GitHub Pages. That publish job also runs a subset of
 `tests/` inline as deploy gates (doc/HTML tests and the repo-assembly
 regression tests) before uploading, so a regression there blocks the deploy.
 
-The last gate before upload is `scripts/smoke_repo_install.sh`, run per distro
-against the assembled repo. Each scenario runs in a fresh privileged
+The last gate before upload is `scripts/smoke_repo_install.sh`, run once per
+distro this run built and published (suites carried over from the live
+repository were tested when they were published). apt reads the assembled repo
+with `Signed-By` set to its `podman-ubuntu.gpg`, so the signatures are checked
+as on a user's machine. Each scenario runs in a fresh privileged
 `ubuntu:<distro>` container, and any failure blocks the deploy:
 
 - **fresh** — install `podman-suite`, `podman info` as root, then as a rootless
@@ -164,7 +205,10 @@ against the assembled repo. Each scenario runs in a fresh privileged
 - **migrate** — install Ubuntu's own `podman`, then `podman-suite` over it;
   `dpkg --audit` must be clean.
 - **upgrade** — install from the live published repo, then `apt full-upgrade`
-  to the new build. Skipped if that suite isn't published yet.
+  to the new build, and check that every installed package of the suite (and
+  `podman-suite`) is `install ok installed` at the assembled version. Skipped
+  when the live `InRelease` returns 404 (the suite is not published yet); a
+  network or server error fails instead.
 
 Run it locally against any assembled repo with
 `TRACK=stable LIVE_REPO_URL=https://... ./scripts/smoke_repo_install.sh 2404 repo-output`.

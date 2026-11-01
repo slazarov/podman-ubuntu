@@ -61,7 +61,48 @@ Work landed since `v1.2`, slated for the next release, `v1.3`.
 - CI: least-privilege permissions (only publish can write Pages) and
   `persist-credentials: false` on every checkout.
 
+- CI: Rust (sccache) and C (ccache) compiler caches, keyed by distro,
+  architecture, track, Rust version and sccache version, with bounded sizes.
+  `CACHE_STRICT=true` fails a build whose enabled wrapper is missing, and each
+  build cell checks that the caches saw compile requests. The sccache download
+  is checked against a SHA256 pinned per architecture.
+- CI: `scripts/ci_helpers.sh` (shared, unit-tested CI logic) and
+  `tests/lib/mock_http_server.py`, a mock server that injects HTTP errors and
+  cut-off downloads.
+- CI: workflow runs queue per track (`queue: max`) and build in parallel;
+  publish jobs share one `pages-deploy` queue and wait until the deploy reaches
+  the live site, so the next publish starts from what was deployed.
+- CI: the stable/v5 resolver runs once per run, in `resolve-track`; the
+  republish guard and the build cells validate and use its output. A resolver
+  hold skips the build and publish cleanly, even with `force_rebuild`.
+- CI: the nightly change detection keeps a checkpoint of the commits built and
+  deployed per build cell, saved only after a confirmed deploy and only for the
+  cells that were published.
+- CI: publish reads each build cell's conclusion, publishes the cells that
+  succeeded (a distro with one failed arch still publishes, keeping that arch's
+  last-good packages) and fails if a successful cell's artifact is missing. The
+  smoke test runs for the distros this run published.
+- CI: the republish guard also compares `podman-suite`.
+
 ### Fixed
+- A network error, HTTP 5xx or 429, or a cut-off download from the live
+  repository no longer makes a suite look unpublished, silently drops a
+  package, or (when an arch's build failed) wipes that arch from the suite.
+  Downloads are retried and then stop the publish.
+- A rebuilt package with the same name, version and architecture as one in the
+  live target suite no longer replaces the published file; the published bytes
+  are kept.
+- Regenerated suites keep the previous generation of their indexes under
+  `by-hash/`, so a client holding the old `Release` during a deploy still finds
+  them.
+- A failing `gpg --clearsign` is no longer hidden; signing failures stop the
+  publish, and the integrity gate checks every suite's signatures against the
+  published key and the `Release` shape (`Suite`, `Codename`, `SHA256`, a
+  `Packages` entry per architecture, `Size`/`SHA256` per stanza).
+- The smoke test reads the assembled repository with `Signed-By` instead of
+  `Trusted: yes`, fails on a network error while probing the live repository
+  instead of skipping the upgrade scenario, and checks the installed versions
+  after the upgrade.
 - Scheduled runs are no longer dropped: the `pages` concurrency group uses
   `queue: max`. GitHub's default kept one pending run and cancelled the rest,
   so a stable or v5 cron could vanish behind a still-running nightly.

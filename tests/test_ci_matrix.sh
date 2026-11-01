@@ -10,6 +10,16 @@
 #   - publish job gated on the build job's aggregate result (atomic publish)
 #   - no cross-distro download merge in the publish job
 #   - ci_publish.sh invoked for both 2404 and 2604
+#   - runs queue instead of cancelling (per-track workflow group, one
+#     pages-deploy group for publish), with least-privilege permissions and
+#     no persisted checkout credentials
+#   - the resolver runs once, in resolve-track; a hold stops the build even
+#     with force_rebuild; the nightly checkpoint is only restored before the
+#     build and only saved after the deploy and the propagation check
+#   - publish selects cells from their conclusions, downloads strictly, and
+#     smoke-tests only the distros it built
+#   - the compiler caches are enabled, keyed per distro and arch, and checked
+#   - lint installs the integration test tools and makes skips fail
 #
 # Runs on the macOS dev host with NO CI: prefers python3 + PyYAML for precise
 # structural checks, falls back to grep/awk against the raw YAML text when
@@ -23,6 +33,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
 
 WORKFLOW="${PROJECT_ROOT}/.github/workflows/build-packages.yml"
+LINT_WORKFLOW="${PROJECT_ROOT}/.github/workflows/lint.yml"
 
 # ============================================
 # Test Framework
@@ -179,11 +190,72 @@ print('1' if ok else '0')
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))
 steps = d['jobs']['publish']['steps']
-pats = {s['with']['pattern'] for s in steps
-        if isinstance(s.get('with'), dict) and 'pattern' in s['with']}
-print('1' if pats == {'debs-2404-*','debs-2604-*'} else '0')
+dl = [s for s in steps if 'download-artifact' in str(s.get('uses', ''))]
+pats = {s['with']['pattern'] for s in dl if s['with']['pattern'].startswith('debs-')}
+ok = (pats == {'debs-2404-*','debs-2604-*'}
+      and not any(s['with'].get('merge-multiple', False) for s in dl)
+      and not any(s.get('continue-on-error') for s in steps))
+print('1' if ok else '0')
 ")
-    assert_true "py: publish downloads are per-distro, no bare debs-* merge" "${r}"
+    assert_true "py: publish downloads are per-distro, no merge, no continue-on-error" "${r}"
+
+    r=$(py "
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+j = d['jobs']
+wc = d['concurrency']
+pc = j['publish']['concurrency']
+ok = (d['permissions'] == {'contents': 'read'}
+      and j['publish']['permissions'] == {'contents': 'read', 'actions': 'read', 'pages': 'write', 'id-token': 'write'}
+      and all('permissions' not in v for k, v in j.items() if k != 'publish')
+      and wc.get('queue') == 'max' and wc.get('cancel-in-progress') is False
+      and str(wc.get('group', '')).startswith('build-packages-')
+      and pc == {'group': 'pages-deploy', 'cancel-in-progress': False, 'queue': 'max'})
+print('1' if ok else '0')
+")
+    assert_true "py: least-privilege permissions and queued concurrency" "${r}"
+
+    r=$(py "
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+j = d['jobs']
+rt = j['resolve-track']
+cond = [c.strip() for c in str(j['build']['if']).split('&&')]
+hold = [c for c in cond if 'hold' in c]
+ok = ('hold' in rt['outputs'] and 'resolved_env' in rt['outputs']
+      and any('resolve_track_versions' in str(s.get('run', '')) for s in rt['steps'])
+      and len(hold) == 1 and 'force_rebuild' not in hold[0] and \"!= 'true'\" in hold[0]
+      and \"hold != 'true'\" in str(j['check-republish']['if']))
+print('1' if ok else '0')
+")
+    assert_true "py: resolve once; a hold stops the build even with force_rebuild" "${r}"
+
+    r=$(py "
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+j = d['jobs']
+cc = [str(s.get('uses', '')) for s in j['check-changes']['steps']]
+ps = j['publish']['steps']
+idx = lambda pred: next(i for i, s in enumerate(ps) if pred(s))
+deploy = idx(lambda s: s.get('id') == 'deployment')
+wait = idx(lambda s: 'wait_for_propagation' in str(s.get('run', '')))
+save = idx(lambda s: 'actions/cache/save' in str(s.get('uses', '')))
+ok = (any('actions/cache/restore' in u for u in cc)
+      and not any('actions/cache@' in u or 'actions/cache/save' in u for u in cc)
+      and deploy < wait < save
+      and ps[save]['with']['path'] == '/tmp/nightly-revisions/checkpoint.txt')
+print('1' if ok else '0')
+")
+    assert_true "py: nightly checkpoint restored before build, saved after deploy + propagation" "${r}"
+
+    r=$(py "
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+b = d['jobs']['build']
+ok = b.get('name') == 'build-\${{ matrix.distro }}-\${{ matrix.arch }}'
+print('1' if ok else '0')
+")
+    assert_true "py: build cells are named build-<distro>-<arch> (publish reads them)" "${r}"
 
     # --- Auto-updating track wiring (stable/v5 crons + resolve-track) ---
     r=$(py "
@@ -306,15 +378,61 @@ run_grep_assertions() {
     assert_true "grep: no bare 'pattern: debs-*' (no cross-distro merge)" \
         "$([[ "${pbare}" -eq 0 ]] && echo 1 || echo 0)"
 
-    # 10. ci_publish.sh invoked for both 2404 and 2604
-    local l2404 l2604
-    l2404=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '"2404"')
-    l2604=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '"2604"')
-    assert_true "grep: compact label \"2404\" present in publish" \
-        "$([[ "${l2404}" -ge 1 ]] && echo 1 || echo 0)"
-    assert_true "grep: compact label \"2604\" present in publish" \
-        "$([[ "${l2604}" -ge 1 ]] && echo 1 || echo 0)"
+    # 10. ci_publish.sh runs for each selected distro (2404, 2604), taken in
+    #     VALID_DISTROS order from config.sh, not hardcoded in the workflow.
+    assert_contains "grep: publish takes the distros from config.sh" \
+        "${NOCOMMENT}" "sed -n '/^VALID_TRACKS=/,/^VALID_DISTROS=/p' config.sh"
+    assert_contains "grep: VALID_DISTROS lists 2404 then 2604" \
+        "$(grep '^VALID_DISTROS=' "${PROJECT_ROOT}/config.sh")" "VALID_DISTROS=(2404 2604)"
     assert_contains "grep: ci_publish.sh invoked" "${NOCOMMENT}" "ci_publish.sh"
+
+    # 10b. publish selection, strict downloads, signatures, propagation
+    assert_contains "grep: publish selects cells from their conclusions" \
+        "${NOCOMMENT}" 'published_cells "${RUNNER_TEMP}/cells.txt" artifacts'
+    assert_contains "grep: publish reads the latest cell conclusions of the whole run" \
+        "${NOCOMMENT}" '/actions/runs/${GITHUB_RUN_ID}/jobs?filter=latest'
+    assert_contains "grep: publish refuses to deploy when no cell succeeded" "${NOCOMMENT}" 'refusing to deploy'
+    assert_contains "grep: publish runs ci_publish.sh per selected distro" \
+        "${NOCOMMENT}" './scripts/ci_publish.sh "${TRACK}" "${distro}" "${deb_dir}" "${REPO_URL}" "repo-output"'
+    assert_contains "grep: smoke test runs per published distro" \
+        "${NOCOMMENT}" './scripts/smoke_repo_install.sh "${distro}"'
+    assert_true "grep: no step continues past an error" \
+        "$(printf '%s\n' "${NOCOMMENT}" | grep -q 'continue-on-error' && echo 0 || echo 1)"
+    assert_true "grep: no download merges artifacts" \
+        "$(printf '%s\n' "${NOCOMMENT}" | grep -q 'merge-multiple: true' && echo 0 || echo 1)"
+    assert_contains "grep: integrity gate checks signatures" "${NOCOMMENT}" 'verify_repo_integrity.sh --keyring'
+    assert_contains "grep: propagation is checked after deploy" "${NOCOMMENT}" 'wait_for_propagation "${REPO_URL}"'
+
+    # 10c. resolver once, queues, credentials
+    assert_equals "grep: the resolver runs exactly once (resolve-track)" "1" \
+        "$(printf '%s\n' "${NOCOMMENT}" | grep -c 'resolve_track_versions\|resolve_versions.sh')"
+    assert_contains "grep: workflow runs queue per track" "${NOCOMMENT}" 'group: build-packages-${{'
+    assert_contains "grep: publish has its own deploy queue" "${NOCOMMENT}" 'group: pages-deploy'
+    assert_equals "grep: both concurrency groups use queue: max" "2" \
+        "$(printf '%s\n' "${NOCOMMENT}" | grep -cE '^[[:space:]]*queue: max$')"
+    assert_true "grep: no concurrency group cancels in-progress runs" \
+        "$(printf '%s\n' "${NOCOMMENT}" | grep -q 'cancel-in-progress: true' && echo 0 || echo 1)"
+    local nocomment_lint
+    nocomment_lint="$(grep -v '^[[:space:]]*#' "${LINT_WORKFLOW}")"
+    assert_equals "grep: every checkout drops its credentials" \
+        "$(printf '%s\n%s\n' "${NOCOMMENT}" "${nocomment_lint}" | grep -c 'actions/checkout@')" \
+        "$(printf '%s\n%s\n' "${NOCOMMENT}" "${nocomment_lint}" | grep -c 'persist-credentials: false')"
+
+    # 10d. compiler caches
+    assert_contains "grep: compiler cache key has distro, arch, track and toolchain" "${NOCOMMENT}" \
+        'key: cc-v1-${{ matrix.distro }}-${{ matrix.arch }}-${{ steps.track.outputs.track }}-rust${{ steps.env.outputs.rust }}-sccache${{ steps.env.outputs.sccache }}-${{ github.run_id }}'
+    assert_contains "grep: compiler caches enabled and strict" "${NOCOMMENT}" 'SCCACHE_ENABLED=true CCACHE_ENABLED=true CACHE_STRICT=true'
+    assert_contains "grep: compiler cache use is checked" "${NOCOMMENT}" 'compiler_cache_report'
+    assert_contains "grep: ccache counters are zeroed before the build" "${NOCOMMENT}" 'ccache --zero-stats'
+    assert_contains "grep: compiler cache is saved only when it changed" "${NOCOMMENT}" "if: steps.ccreport.outputs.changed == 'true'"
+    assert_true "grep: the compiler cache is not saved on every run by actions/cache" \
+        "$(printf '%s\n' "${NOCOMMENT}" | grep -B3 '~/.cache/sccache' | grep -q 'uses: actions/cache@' && echo 0 || echo 1)"
+    assert_contains "grep: build cells record nightly revisions per cell" "${NOCOMMENT}" \
+        'nightly_record_revisions build "${{ matrix.distro }}-${{ matrix.arch }}"'
+
+    # 10e. lint runs the integration tests
+    assert_contains "grep: lint installs the integration test tools" "${nocomment_lint}" 'reprepro gnupg gpgv dpkg-dev'
+    assert_contains "grep: lint makes integration skips fail" "${nocomment_lint}" "REQUIRE_INTEGRATION_DEPS: '1'"
 
     # 11. three schedule crons (nightly/stable/v5) + resolve-track job
     local ncron
@@ -338,6 +456,10 @@ if [[ "${HAVE_PYYAML}" -eq 1 ]]; then
     echo ""
 else
     echo "--- PyYAML not available; running grep floor only ---"
+    if [[ "${REQUIRE_INTEGRATION_DEPS:-0}" == "1" ]]; then
+        echo "  FAIL: REQUIRE_INTEGRATION_DEPS=1 but PyYAML is missing."
+        FAIL_COUNT=$((FAIL_COUNT + 1))
+    fi
 fi
 run_grep_assertions
 
