@@ -44,8 +44,115 @@ assert_equals "numeric-only tag unchanged (toolbox)" "0.3"  "$(extract_base '0.3
 assert_equals "namespaced container-libs tag"      "0.67.1" "$(extract_base 'common/v0.67.1' 'container-configs')"
 assert_equals "catatonit v-prefixed"               "0.2.1"  "$(extract_base 'v0.2.1' 'catatonit')"
 
-echo "=== get_pkg_version ==="
+echo "=== pasta: guard row + extract_base (shared pasta_version) ==="
+assert_equals "guard COMPONENT_ROWS compares pasta (podman-pasta via PASTA_TAG)" \
+    "1" "$(printf '%s\n' "${COMPONENT_ROWS[@]}" | grep -c '^pasta|podman-pasta|PASTA_TAG|' || true)"
+
+# Offline passt fixture: one single-release date plus two same-day releases whose
+# sha order is the REVERSE of their commit order (older commit = fff1111).
 TEST_TMPDIR="$(mktemp -d)"
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+PASST="${TEST_TMPDIR}/passt"
+git init -q "${PASST}"
+_epoch=1900000000
+for _pt in 2026_09_25.ddd4444 2026_10_02.fff1111 2026_10_02.aaa2222; do
+    _epoch=$((_epoch + 86400))
+    echo "${_pt}" > "${PASST}/f"
+    git -C "${PASST}" add -A
+    GIT_COMMITTER_DATE="@${_epoch} +0000" GIT_AUTHOR_DATE="@${_epoch} +0000" \
+        git -C "${PASST}" commit -q -m "${_pt}"
+    git -C "${PASST}" tag "${_pt}"
+done
+PS="file://${PASST}"
+
+assert_equals "pasta only release of its date -> YYYYMMDD" \
+    "20260925" "$(extract_base '2026_09_25.ddd4444' 'pasta' "${PS}")"
+assert_equals "pasta first same-day release -> YYYYMMDD" \
+    "20261002" "$(extract_base '2026_10_02.fff1111' 'pasta' "${PS}")"
+assert_equals "pasta later same-day release -> YYYYMMDD.1" \
+    "20261002.1" "$(extract_base '2026_10_02.aaa2222' 'pasta' "${PS}")"
+assert_equals "pasta unreachable remote -> empty base (guard builds)" \
+    "" "$(extract_base '2026_10_02.aaa2222' 'pasta' "file://${TEST_TMPDIR}/nope" || true)"
+
+echo "=== extract_base == package_all.sh:extract_version (pasta) ==="
+# The guard's target must be byte-identical to what package_all.sh would build,
+# or skip=true can never fire for pasta. Pull the real function out of
+# package_all.sh (it cannot be sourced whole) and compare on the same tags.
+eval "$(sed -n '/^extract_version()/,/^}/p' "${PROJECT_ROOT}/scripts/package_all.sh")"
+for _pt in 2026_09_25.ddd4444 2026_10_02.fff1111 2026_10_02.aaa2222; do
+    assert_equals "pasta ${_pt}: guard base == package_all version" \
+        "$(extract_version "${_pt}" pasta "${PS}")" "$(extract_base "${_pt}" pasta "${PS}")"
+done
+assert_equals "package_all extract_version pasta same-day later release" \
+    "20261002.1" "$(extract_version '2026_10_02.aaa2222' pasta "${PS}")"
+assert_equals "package_all extract_version pasta failure is non-zero" \
+    "fail" "$(extract_version '2026_10_02.aaa2222' pasta "file://${TEST_TMPDIR}/nope" 2>/dev/null || echo fail)"
+
+echo "=== main(): end-to-end skip=true with pasta compared ==="
+# Sandbox copy of the guard with a shimmed resolver and a policy file, so main()
+# runs offline: every *_TAG is fixed, pasta's row URL points at the file:// passt
+# fixture, and the Packages indices (file://) carry every package at its target.
+E2E="${TEST_TMPDIR}/e2e"
+mkdir -p "${E2E}/scripts" "${E2E}/repo"
+cp "${PROJECT_ROOT}/scripts/check_republish_needed.sh" "${PROJECT_ROOT}/scripts/package_revision.sh" "${E2E}/scripts/"
+: > "${E2E}/versions-stable.env"
+declare -A E2E_TAGS=()
+for _row in "${COMPONENT_ROWS[@]}"; do
+    IFS='|' read -r _comp _pkg _tagvar _ <<< "${_row}"
+    case "${_comp}" in
+        pasta) E2E_TAGS["${_tagvar}"]="2026_10_02.aaa2222" ;;
+        container-configs) E2E_TAGS["${_tagvar}"]="common/v0.67.1" ;;
+        *) E2E_TAGS["${_tagvar}"]="v1.2.3" ;;
+    esac
+done
+{
+    echo '#!/bin/bash'
+    for _tv in "${!E2E_TAGS[@]}"; do
+        echo "echo 'export ${_tv}=\"${E2E_TAGS[${_tv}]}\"'"
+    done
+} > "${E2E}/scripts/resolve_versions.sh"
+chmod +x "${E2E}/scripts/resolve_versions.sh"
+for _d in 2404:24.04 2604:26.04; do
+    for _a in amd64 arm64; do
+        _dir="${E2E}/repo/dists/stable-${_d%%:*}/main/binary-${_a}"
+        mkdir -p "${_dir}"
+        for _row in "${COMPONENT_ROWS[@]}"; do
+            IFS='|' read -r _comp _pkg _tagvar _ <<< "${_row}"
+            case "${_comp}" in
+                pasta) _base="20261002.1" ;;
+                container-configs) _base="0.67.1" ;;
+                *) _base="1.2.3" ;;
+            esac
+            printf 'Package: %s\nVersion: %s~ubuntu%s.podman%s\nArchitecture: %s\n\n' \
+                "${_pkg}" "${_base}" "${_d##*:}" "${PACKAGE_REVISION}" "${_a}"
+        done > "${_dir}/Packages"
+    done
+done
+_e2e_out="$(
+    unset GITHUB_OUTPUT
+    # shellcheck disable=SC1091
+    source "${E2E}/scripts/check_republish_needed.sh"
+    for _i in "${!COMPONENT_ROWS[@]}"; do
+        [[ "${COMPONENT_ROWS[_i]}" == pasta\|* ]] && COMPONENT_ROWS[_i]="pasta|podman-pasta|PASTA_TAG|${PS}"
+    done
+    main stable "file://${E2E}/repo" 2>/dev/null
+)" || true
+assert_equals "main(): all packages (pasta at 20261002.1) published -> skip=true" "skip=true" "${_e2e_out}"
+
+echo "=== pasta dpkg ordering (same-day releases, nightly) ==="
+if command -v dpkg >/dev/null 2>&1; then
+    _sfx="~ubuntu24.04.podman1"
+    for _pair in "20261002 20261002.1" "20261002.1 20261003" "20261002~gitcba3570 20261002"; do
+        read -r _lo _hi <<< "${_pair}"
+        _ord="no"
+        dpkg --compare-versions "${_lo}${_sfx}" lt "${_hi}${_sfx}" && _ord="yes"
+        assert_equals "dpkg: ${_lo} < ${_hi}" "yes" "${_ord}"
+    done
+else
+    echo "  SKIP: dpkg not available"
+fi
+
+echo "=== get_pkg_version ==="
 PKGFILE="${TEST_TMPDIR}/Packages"
 cat > "${PKGFILE}" <<'EOF'
 Package: podman-crun

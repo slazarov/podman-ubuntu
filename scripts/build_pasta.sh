@@ -25,13 +25,12 @@ log_build_output "pasta"
 step_start "Cloning repository"
 git_clone_update git://passt.top/passt passt
 cd "${BUILD_ROOT}/passt"
-git fetch --all
-git fetch --tags
-git pull
 step_done
 
-step_start "Saving version"
-export GIT_CHECKED_OUT_TAG=$(date +"%Y%m%d")
+step_start "Checking out tag"
+# PASTA_TAG is a passt release tag (YYYY_MM_DD.<sha>) resolved for stable/v5;
+# empty -> latest tag (unpinned) or HEAD (nightly), via git_checkout.
+git_checkout "${PASTA_TAG}"
 step_done
 
 step_start "Logging version"

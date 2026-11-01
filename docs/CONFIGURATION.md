@@ -67,6 +67,7 @@ source versions-nightly.env && ./setup.sh                                  # lat
 | `TOOLBOX_TAG` | Optional | empty | Toolbox release tag (e.g. `0.3`). |
 | `FUSE_OVERLAYFS_TAG` | Optional | empty | fuse-overlayfs release tag (e.g. `v1.16`). |
 | `CATATONIT_TAG` | Optional | empty | catatonit release tag (e.g. `v0.2.1`). |
+| `PASTA_TAG` | Optional | empty | passt release tag, date-shaped `YYYY_MM_DD.<sha>` (e.g. `2026_10_02.cba3570`). stable/v5 resolve the newest soaked release (no `*_SERIES` cap); the `podman-pasta` version is the release date (`20261002`), with `.1`, `.2` … for later same-day releases (ordered by commit time). Empty = latest tag, or HEAD on nightly (`<date>~git<sha>`). |
 | `CONTAINER_LIBS_TAG` | Optional | empty | containers/container-libs tag for config files and `seccomp.json`. Uses namespaced tags such as `common/v0.67.0`. |
 | `SCCACHE_TAG` | Optional | empty | sccache release tag (e.g. `v0.14.0`), used by the stable track. |
 | `PROTOC_VERSION` | Optional | Auto-detected via `get_latest_protoc_version` | protoc version (e.g. `34.0`). |

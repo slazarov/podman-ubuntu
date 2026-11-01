@@ -21,19 +21,14 @@ set -euo pipefail
 # Output: writes `skip=<bool>` to stdout and to $GITHUB_OUTPUT when set.
 #
 # Scope / deliberate exclusions:
-#   * `pasta` is NOT compared. build_pasta.sh versions it by `date +%Y%m%d`
-#     (it has no upstream tag pin on any track), so it changes every day. A
-#     stable/v5 rebuild therefore always yields a fresh pasta even when every
-#     pinned component is unchanged. Comparing it would make this guard never
-#     fire. pasta still rides along on whatever build a real component change
-#     triggers, and the nightly track refreshes it daily.
 #   * `nightly` is out of scope — the workflow's `check-changes` job already
 #     guards the scheduled nightly run via upstream HEAD SHAs.
 #
 # Canonical version-string logic lives in scripts/package_all.sh
 # (extract_version, VERSION_SUFFIX). The minimal subset needed here is
 # reproduced below and pinned by tests/test_check_republish.sh — keep the two
-# in sync if package_all.sh's transformation changes.
+# in sync if package_all.sh's transformation changes. pasta's version is not
+# reproduced: both call the shared functions.sh:pasta_version.
 # ============================================================================
 
 REPO_URL_DEFAULT="https://slazarov.github.io/podman-ubuntu"
@@ -42,9 +37,19 @@ REPO_URL_DEFAULT="https://slazarov.github.io/podman-ubuntu"
 # shellcheck source=scripts/package_revision.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/package_revision.sh"
 
-# component | deb package name | resolved *_TAG var | upstream repo (provenance)
-# pasta is intentionally absent (see header). container-configs uses the
-# namespaced container-libs repo whose tags look like `common/vX.Y.Z`.
+# Shared tag helpers (pasta_version). Only the pure helpers are needed, so skip
+# config.sh (Ubuntu-only detection + network toolchain lookups), like the resolver.
+if [[ ! -v toolpath ]]; then
+    toolpath="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+fi
+SKIP_CONFIG_SOURCE=1
+# shellcheck source=functions.sh
+source "${toolpath}/functions.sh"
+
+# component | deb package name | resolved *_TAG var | upstream repo (provenance;
+# pasta also reads it to order same-day passt releases)
+# container-configs uses the namespaced container-libs repo whose tags look like
+# `common/vX.Y.Z`; pasta uses passt release tags `YYYY_MM_DD.<sha>`.
 COMPONENT_ROWS=(
     "podman|podman-podman|PODMAN_TAG|https://github.com/containers/podman.git"
     "crun|podman-crun|CRUN_TAG|https://github.com/containers/crun.git"
@@ -53,6 +58,7 @@ COMPONENT_ROWS=(
     "aardvark-dns|podman-aardvark-dns|AARDVARK_DNS_TAG|https://github.com/containers/aardvark-dns.git"
     "fuse-overlayfs|podman-fuse-overlayfs|FUSE_OVERLAYFS_TAG|https://github.com/containers/fuse-overlayfs.git"
     "catatonit|podman-catatonit|CATATONIT_TAG|https://github.com/openSUSE/catatonit.git"
+    "pasta|podman-pasta|PASTA_TAG|https://passt.top/passt"
     "buildah|podman-buildah|BUILDAH_TAG|https://github.com/containers/buildah.git"
     "skopeo|podman-skopeo|SKOPEO_TAG|https://github.com/containers/skopeo.git"
     "toolbox|podman-toolbx|TOOLBOX_TAG|https://github.com/containers/toolbox.git"
@@ -64,18 +70,27 @@ DISTROS=("2404:24.04" "2604:26.04")
 ARCHES=("amd64" "arm64")
 
 # ----------------------------------------------------------------------------
-# Helpers (pure — unit-tested via tests/test_check_republish.sh)
+# Helpers (unit-tested via tests/test_check_republish.sh). Pure except
+# extract_base for pasta, which queries the passt remote (pasta_version).
 # ----------------------------------------------------------------------------
 
-# extract_base <tag> <component> -> upstream base version with no distro suffix.
-# Mirrors scripts/package_all.sh:extract_version for the resolved-tag cases.
+# extract_base <tag> <component> [repo-url] -> upstream base version with no
+# distro suffix. Mirrors scripts/package_all.sh:extract_version for the
+# resolved-tag cases. [repo-url] is only used by pasta (same-day release order);
+# on failure pasta prints nothing and returns non-zero (caller -> skip=false).
 extract_base() {
     local ltag="$1"
     local lcomponent="$2"
+    local lurl="${3:-}"
     case "${lcomponent}" in
         container-configs)
             # namespaced tag: common/v0.67.1 -> 0.67.1
             echo "${ltag}" | sed 's|^.*/v||'
+            ;;
+        pasta)
+            # passt release tag: 2026_10_02.cba3570 -> 20261002 (or 20261002.N for
+            # a later same-day release) -- shared with package_all.sh.
+            pasta_version "${lurl}" "${ltag}"
             ;;
         *)
             # standard: strip a leading v (v5.8.2 -> 5.8.2; 1.28 -> 1.28)
@@ -170,19 +185,19 @@ main() {
         done
     done
 
-    # Compare every tagged component (pasta excluded) across all four indices.
-    local row comp pkg tagvar tag base target published
+    # Compare every tagged component across all four indices.
+    local row comp pkg tagvar url tag base target published
     for row in "${COMPONENT_ROWS[@]}"; do
-        # The 4th column (upstream repo URL) documents provenance but is no longer
-        # read here (the resolver owns tag resolution), so it is discarded into `_`.
-        IFS='|' read -r comp pkg tagvar _ <<< "${row}"
+        # The 4th column (upstream repo URL) documents provenance; the resolver owns
+        # tag resolution, so only extract_base reads it (pasta's same-day order).
+        IFS='|' read -r comp pkg tagvar url <<< "${row}"
 
         # Tag comes from the resolver's materialized environment (eval'd above),
         # the single source of truth shared with the build.
         tag="${!tagvar:-}"
         [[ -z "${tag}" ]] && emit_skip false "Resolved ${tagvar} is empty for ${comp} — build."
 
-        base=$(extract_base "${tag}" "${comp}")
+        base=$(extract_base "${tag}" "${comp}" "${url}") || base=""
         [[ -z "${base}" ]] && emit_skip false "Empty base version for ${comp} (tag '${tag}') — build."
 
         for distro_entry in "${DISTROS[@]}"; do
@@ -201,7 +216,7 @@ main() {
         echo ">>> ${pkg}: ${base} already published on both distros/arches." >&2
     done
 
-    emit_skip true "All ${#COMPONENT_ROWS[@]} tagged components already published at target versions (pasta excluded)."
+    emit_skip true "All ${#COMPONENT_ROWS[@]} tagged components already published at target versions."
 }
 
 # Only run when executed directly, so tests can source the helpers.

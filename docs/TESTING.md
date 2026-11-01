@@ -103,13 +103,18 @@ Current test scope is focused on the packaging version-derivation logic
 component's version format: Go-based projects (Podman, Buildah, Skopeo),
 Rust projects (Netavark, Aardvark-DNS, fuse-overlayfs v2.0+), C/autotools
 projects (fuse-overlayfs v1.x, catatonit), tag-based projects (crun,
-containers-common), the date-based pasta scheme, 2-part-to-3-part version
+containers-common), the nightly pasta `<date>~git<sha>` scheme, 2-part-to-3-part version
 normalization (toolbox), and Debian tilde-sort ordering.
 
 `tests/test_resolve_versions.sh` covers the stable/v5 version resolver offline
 (`scripts/resolve_versions.sh`): the `*_SERIES` anchored-prefix cap, the
-`STABLE_SOAK_DAYS` soak window, and deriving Buildah's version from Podman's
-`go.mod`.
+`STABLE_SOAK_DAYS` soak window, deriving Buildah's version from Podman's
+`go.mod`, and ranking/soaking passt's date-shaped `YYYY_MM_DD.<sha>` release
+tags for pasta, including same-day releases ordered by commit time
+(`functions.sh:pasta_version` → `20261002`, `20261002.1`).
+`tests/test_check_republish.sh` pins the guard's pasta base to
+`package_all.sh:extract_version` on a same-day fixture, checks the guard compares
+`podman-pasta`, and asserts the dpkg ordering `20261002 < 20261002.1 < 20261003`.
 
 ## CI Integration
 

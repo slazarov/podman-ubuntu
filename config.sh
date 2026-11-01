@@ -283,6 +283,12 @@ export FUSE_OVERLAYFS_TAG="${FUSE_OVERLAYFS_TAG:-}"
 # Catatonit Version
 export CATATONIT_TAG="${CATATONIT_TAG:-}"
 
+# Pasta (passt) Version
+# passt release tags are date-shaped: YYYY_MM_DD.<sha> (e.g. 2026_10_02.cba3570).
+# stable/v5 get a soaked release from scripts/resolve_versions.sh; empty = unpinned
+# (git_checkout falls back to the latest tag; nightly builds HEAD).
+export PASTA_TAG="${PASTA_TAG:-}"
+
 # Container-Libs Version (containers-common config files and seccomp.json)
 # Note: container-libs uses namespaced tags: common/vX.Y.Z, image/vX.Y.Z, storage/vX.Y.Z
 # For seccomp.json builds, use a common/ tag (e.g., common/v0.67.0)

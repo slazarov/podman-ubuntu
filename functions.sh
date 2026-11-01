@@ -296,6 +296,76 @@ tag_commit_epoch() {
     printf '%s\n' "${lepoch}"
 }
 
+# pasta_date_tags <repo-url> <tag> -- every passt release tag sharing <tag>'s release
+# date (YYYY_MM_DD), oldest-committed first. passt sometimes cuts several releases on
+# one day (2022_10_26.{e4df8b0,f212044}, 2023_11_07.{56d9f6d,74e6f48}); the sha
+# suffix carries no order, so same-date tags are ordered by tag_commit_epoch (ties by
+# tag name, for determinism). A date with a single tag needs no commit-time fetch.
+# Prints nothing and returns non-zero when <tag> is not date-shaped, the remote is
+# unreachable, <tag> is not among the remote's tags, or a commit time is unfetchable.
+pasta_date_tags() {
+    local lurl="$1"
+    local ltag="$2"
+    local ldate="${ltag%%.*}"
+    local ltags lt lepoch lrows="" lfound=0
+    local -a lsame=()
+
+    [[ "${ldate}" =~ ^[0-9]{4}_[0-9]{2}_[0-9]{2}$ ]] || return 1
+    ltags=$(list_upstream_tags "${lurl}" pasta) || return 1
+    while IFS= read -r lt; do
+        if [[ -n "${lt}" && "${lt%%.*}" == "${ldate}" ]]; then
+            lsame+=("${lt}")
+            if [[ "${lt}" == "${ltag}" ]]; then
+                lfound=1
+            fi
+        fi
+    done <<< "${ltags}"
+    [[ "${lfound}" -eq 1 ]] || return 1
+
+    # Fast path: the only release of its date.
+    if [[ "${#lsame[@]}" -eq 1 ]]; then
+        printf '%s\n' "${ltag}"
+        return 0
+    fi
+
+    for lt in "${lsame[@]}"; do
+        lepoch=$(tag_commit_epoch "${lurl}" "${lt}") || return 1
+        lrows+="${lepoch} ${lt}"$'\n'
+    done
+    printf '%s' "${lrows}" | sort -k1,1n -k2,2 | awk '{print $2}'
+}
+
+# pasta_version <repo-url> <tag> -- Debian base version of a passt release tag: the
+# release date without separators, plus the tag's same-day release index when it
+# is not the first release of its date (pasta_date_tags order):
+#   2026_10_02.cba3570 -> 20261002     (first / only release that day)
+#   2026_10_02.<later> -> 20261002.1   (second release that day), .2, ...
+# 20261002 < 20261002.1 < 20261003 in dpkg order, and a same-day nightly
+# (20261002~git<sha>) sorts below all of them. Single source of truth for
+# package_all.sh:extract_version and check_republish_needed.sh:extract_base.
+# Prints nothing and returns non-zero on any pasta_date_tags failure.
+pasta_version() {
+    local lurl="$1"
+    local ltag="$2"
+    local lordered lt ldate lidx=0
+
+    lordered=$(pasta_date_tags "${lurl}" "${ltag}") || return 1
+    ldate="${ltag%%.*}"
+    ldate="${ldate//_/}"
+    while IFS= read -r lt; do
+        if [[ "${lt}" == "${ltag}" ]]; then
+            if [[ "${lidx}" -eq 0 ]]; then
+                printf '%s\n' "${ldate}"
+            else
+                printf '%s.%s\n' "${ldate}" "${lidx}"
+            fi
+            return 0
+        fi
+        lidx=$((lidx + 1))
+    done <<< "${lordered}"
+    return 1
+}
+
 # parse_buildah_gomod_version -- read go.mod text on stdin, print the required
 # buildah RELEASE version WITHOUT a leading v (e.g. 1.43.2), or nothing. Handles
 # both module paths: github.com/containers/buildah (podman 5.x) and
