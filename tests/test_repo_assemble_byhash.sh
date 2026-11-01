@@ -25,6 +25,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
+# shellcheck source=tests/lib/integration_deps.sh
+source "${SCRIPT_DIR}/lib/integration_deps.sh"
 
 # ============================================
 # Test Framework
@@ -105,6 +107,7 @@ if ! command -v reprepro &>/dev/null \
    || ! command -v gpg &>/dev/null \
    || ! command -v dpkg-deb &>/dev/null \
    || ! command -v sha256sum &>/dev/null; then
+    require_integration_deps "reprepro/gpg/dpkg-deb/sha256sum"
     echo "  SKIP: reprepro/gpg/dpkg-deb/sha256sum not all available."
     echo "  NOTE: this Ubuntu-only integration harness runs on the Lima"
     echo "        ubuntu-24 VM / CI. Install reprepro and re-run there:"

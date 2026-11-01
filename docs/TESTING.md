@@ -130,7 +130,12 @@ four jobs:
 - **shfmt** — a formatting diff against the house style (`shfmt -i 4 -ci -sr`),
   **informational** (`continue-on-error`), surfacing drift without blocking.
 - **bash unit tests** — runs every `tests/test_*.sh` script in a loop and exits
-  non-zero if any test fails, so a failing unit test **blocks** the run.
+  non-zero if any test fails, so a failing unit test **blocks** the run. It
+  installs `reprepro`, `gnupg`, `gpgv`, `dpkg-dev`, `libsystemd-dev` and
+  `python3-yaml` and sets `REQUIRE_INTEGRATION_DEPS=1`, so the reprepro/gpg
+  integration harnesses run on every PR: with that variable set, a harness
+  whose tools are missing fails (via `tests/lib/integration_deps.sh`) instead
+  of printing SKIP and passing.
 - **gitleaks** — a secret scan over full history, **informational** for now
   (to be promoted to blocking once history is confirmed clean).
 

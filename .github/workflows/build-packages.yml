@@ -3,7 +3,7 @@ name: Build and Publish Packages
 on:
   schedule:
     # One cron per auto-updating track; the firing cron selects the track (see the
-    # resolve-track job). Staggered so the "pages" concurrency group serializes them.
+    # resolve-track job). The "pages" concurrency group queues them in order.
     - cron: '30 4 * * *'  # 04:30 UTC — nightly (upstream HEAD)
     - cron: '30 5 * * *'  # 05:30 UTC — stable  (Podman 6.x, series-cap + soak)
     - cron: '30 6 * * *'  # 06:30 UTC — v5      (Podman 5.x maintenance, series-cap + soak)
@@ -24,14 +24,21 @@ on:
         type: boolean
         default: false
 
+# Least privilege: every job can read the repository and nothing else. The
+# publish job adds what the Pages deploy needs.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
+# One workflow-wide group serializes runs, so only one assembles and deploys
+# the repository at a time and each starts from what the previous one
+# deployed. `queue: max` keeps every pending run: GitHub's default
+# (queue: single) keeps only one pending run per group and cancels the
+# others, so a stable or v5 cron firing while nightly was still building could
+# be dropped when the next cron queued behind it.
 concurrency:
   group: "pages"
   cancel-in-progress: false
+  queue: max
 
 jobs:
   # ============================================
@@ -151,6 +158,8 @@ jobs:
       skip: ${{ steps.guard.outputs.skip }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Compare resolved versions against the live repository
         id: guard
         run: |
@@ -261,6 +270,8 @@ jobs:
       # requirement of fuse-overlayfs), so the build step sets
       # SKIP_FUSE_CHECK=true for container cells instead of creating the node.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Resolve build track
         id: track
@@ -400,6 +411,22 @@ jobs:
           fi
           ./scripts/package_all.sh
 
+      # Compares the library packages detected from the built binaries with
+      # the known set for this distro, and checks that every nFPM file renders
+      # and parses, so a wrong library name fails the cell before anything is
+      # uploaded or published.
+      - name: Verify detected dependencies
+        run: |
+          case "${{ matrix.distro }}" in
+            2404) DISTRO_DOTTED=24.04 ;;
+            2604) DISTRO_DOTTED=26.04 ;;
+            *) echo "ERROR: unknown matrix.distro '${{ matrix.distro }}'" >&2; exit 1 ;;
+          esac
+          export DISTRO="$DISTRO_DOTTED"
+          export PATH="/opt/go/$(ls /opt/go/)/bin:$HOME/go/bin:$PATH"
+          export DESTDIR="${{ runner.temp }}/podman-staging"
+          ./scripts/verify_depends.sh
+
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           # CICD-07: distro + arch in the artifact name — the four names are
@@ -429,11 +456,17 @@ jobs:
     # (fail-fast: false); 'cancelled'/'skipped' means no build ran at all.
     if: always() && github.ref == 'refs/heads/main' && (needs.build.result == 'success' || needs.build.result == 'failure')
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Run doc and HTML unit tests
         run: |

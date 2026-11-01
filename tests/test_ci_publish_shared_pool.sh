@@ -33,6 +33,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
+# shellcheck source=tests/lib/integration_deps.sh
+source "${SCRIPT_DIR}/lib/integration_deps.sh"
 
 PASS_COUNT=0
 FAIL_COUNT=0
@@ -57,6 +59,7 @@ if ! command -v reprepro &>/dev/null \
    || ! command -v sha512sum &>/dev/null \
    || ! command -v python3 &>/dev/null \
    || ! command -v curl &>/dev/null; then
+    require_integration_deps "reprepro/gpg/dpkg-deb/sha256sum/sha512sum/python3/curl"
     echo "  SKIP: reprepro/gpg/dpkg-deb/sha256sum/sha512sum/python3/curl not all available."
     echo "        Ubuntu-only integration harness — run on the ubuntu-24 VM / CI:"
     echo "          sudo apt-get update && sudo apt-get install -y reprepro"
