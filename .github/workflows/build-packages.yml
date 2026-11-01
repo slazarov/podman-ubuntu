@@ -137,10 +137,11 @@ jobs:
   # ============================================
   # Both auto-updating tracks (stable, v5) rebuild + republish all four cells even
   # when nothing changed. This job short-circuits the run when every component is
-  # already published at the version resolve_versions.sh would build (pasta is
-  # excluded — it floats by date; see scripts/check_republish_needed.sh). It is
-  # strictly conservative for the deb comparison (any fetch uncertainty yields
-  # skip=false), but a resolver HOLD yields skip=true (nothing valid to build).
+  # already published at the version resolve_versions.sh would build (pasta
+  # included — it is pinned to a soaked passt release tag; see
+  # scripts/check_republish_needed.sh). It is strictly conservative for the deb
+  # comparison (any fetch uncertainty yields skip=false), but a resolver HOLD
+  # yields skip=true (nothing valid to build).
   # Nightly is untouched — check-changes guards its scheduled run.
   check-republish:
     needs: [resolve-track]

@@ -43,8 +43,12 @@ source "${toolpath}/functions.sh"
 # Component table: name | *_TAG var | *_SERIES var | upstream repo URL.
 # Emit order = this order. container-configs is the only namespaced component (its
 # tags are common/vX.Y.Z and its tag var is CONTAINER_LIBS_TAG -- the documented
-# triple naming mismatch). pasta (date-versioned HEAD) and sccache/protoc (build
-# tools, pinned exactly in the policy file) are intentionally ABSENT.
+# triple naming mismatch). pasta's passt release tags are date-shaped
+# (YYYY_MM_DD.<sha>, e.g. 2026_10_02.cba3570); they match the standard ^v?[0-9]
+# filter and version-sort correctly by their fixed-width date, so pasta floats to
+# the newest soaked release (no PASTA_SERIES cap); same-date releases are ordered by
+# commit time, not sha (_pasta_latest_soaked). sccache/protoc (build tools,
+# pinned exactly in the policy file) are intentionally ABSENT.
 # go-md2man is ALSO intentionally ABSENT: it is build-only man-page tooling with no
 # packaging/nfpm/*md2man* package and no entry in check_republish_needed.sh's compare
 # set, so resolving it here would let an unreachable cpuguy83/go-md2man remote HOLD
@@ -64,6 +68,7 @@ COMPONENT_ROWS=(
     "toolbox|TOOLBOX_TAG|TOOLBOX_SERIES|https://github.com/containers/toolbox.git"
     "fuse-overlayfs|FUSE_OVERLAYFS_TAG|FUSE_OVERLAYFS_SERIES|https://github.com/containers/fuse-overlayfs.git"
     "catatonit|CATATONIT_TAG|CATATONIT_SERIES|https://github.com/openSUSE/catatonit.git"
+    "pasta|PASTA_TAG|PASTA_SERIES|https://passt.top/passt"
     "container-configs|CONTAINER_LIBS_TAG|CONTAINER_LIBS_SERIES|https://github.com/containers/container-libs.git"
 )
 
@@ -136,6 +141,34 @@ _pick_soaked() {
     return 1
 }
 
+# _pasta_latest_soaked <url> <picked-tag> -- passt can cut several releases on one
+# date, and _pick_soaked orders those by their (meaningless) sha suffix. Re-pick
+# among <picked-tag>'s same-date releases: the latest-COMMITTED one that has soaked
+# (pasta_date_tags order). Return codes as _pick_soaked; 2 = a commit time could
+# not be fetched (uncertain HOLD).
+_pasta_latest_soaked() {
+    local lurl="$1"
+    local lpick="$2"
+    local lordered lt lrc li
+    local -a ltags=()
+    lordered=$(pasta_date_tags "${lurl}" "${lpick}") || return 2
+    while IFS= read -r lt; do
+        [[ -z "${lt}" ]] || ltags+=("${lt}")
+    done <<< "${lordered}"
+    for (( li = ${#ltags[@]} - 1; li >= 0; li-- )); do
+        _soak_ok "${lurl}" "${ltags[li]}" && lrc=0 || lrc=$?
+        if [[ "${lrc}" -eq 0 ]]; then
+            printf '%s\n' "${ltags[li]}"
+            return 0
+        fi
+        if [[ "${lrc}" -eq 2 ]]; then
+            return 2
+        fi
+    done
+    # Unreachable in practice: <picked-tag> itself has soaked.
+    return 1
+}
+
 # resolve_component <component> <tag-var> <series-var> <url> -- print the resolved
 # tag + return 0; 1 = deterministic hold; 2 = uncertain hold. Depends on
 # RESOLVED_PODMAN_TAG being exported before buildah is resolved (podman is row 1).
@@ -187,9 +220,12 @@ resolve_component() {
     # 3) Series cap (soaked).
     if [[ -n "${lseries}" ]]; then
         ltag=$(_pick_soaked "${lurl}" "${lcomp}" "${lseries}") && lrc=0 || lrc=$?
+        if [[ "${lrc}" -eq 0 && "${lcomp}" == "pasta" ]]; then
+            ltag=$(_pasta_latest_soaked "${lurl}" "${ltag}") && lrc=0 || lrc=$?
+        fi
         if [[ "${lrc}" -eq 0 ]]; then printf '%s\n' "${ltag}"; return 0; fi
         if [[ "${lrc}" -eq 2 ]]; then
-            echo "  HOLD ${lcomp}: series '${lseries}' unresolved (upstream unreachable)" >&2; return 2
+            echo "  HOLD ${lcomp}: series '${lseries}' unresolved (upstream unreachable or tag date unfetchable)" >&2; return 2
         fi
         echo "  HOLD ${lcomp}: no tag in series '${lseries}' has soaked ${STABLE_SOAK_DAYS:-7}d" >&2
         return 1
@@ -197,9 +233,12 @@ resolve_component() {
 
     # 4) Float (soaked).
     ltag=$(_pick_soaked "${lurl}" "${lcomp}") && lrc=0 || lrc=$?
+    if [[ "${lrc}" -eq 0 && "${lcomp}" == "pasta" ]]; then
+        ltag=$(_pasta_latest_soaked "${lurl}" "${ltag}") && lrc=0 || lrc=$?
+    fi
     if [[ "${lrc}" -eq 0 ]]; then printf '%s\n' "${ltag}"; return 0; fi
     if [[ "${lrc}" -eq 2 ]]; then
-        echo "  HOLD ${lcomp}: unresolved (upstream unreachable)" >&2; return 2
+        echo "  HOLD ${lcomp}: unresolved (upstream unreachable or tag date unfetchable)" >&2; return 2
     fi
     echo "  HOLD ${lcomp}: no soaked tag found" >&2
     return 1

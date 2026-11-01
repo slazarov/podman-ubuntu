@@ -39,12 +39,23 @@ Work landed since `v1.2`, slated for the next release, `v1.3`.
   `SECURITY.md`, PR/issue templates, and this changelog.
 
 ### Changed
+- `podman-pasta` on stable/v5 is now built from a soaked passt release tag
+  (`PASTA_TAG`, resolved by `resolve_versions.sh`) and versioned by that
+  release's date (`2026_10_02.cba3570` → `20261002`; a later same-day release
+  becomes `20261002.1`) instead of the build date,
+  so rebuilds no longer bump it and the republish guard now compares it. Hosts
+  holding a newer build-date version keep it until passt publishes a later
+  release. Nightly still builds HEAD as `<date>~git<sha>`.
 - `podman-fuse-overlayfs` is now optional: `podman-podman` and `podman-suite`
   *Recommend* it instead of depending on it (native rootless overlay on kernel
   ≥ 5.13), packaging revision bumped to `podman3`, and the `/dev/fuse` preflight
   check (VAL-03) is a warning rather than a build error.
 - GitHub Actions pinned to commit SHAs (kept fresh by Dependabot).
 - Generated APT landing page renamed "Podman for Debian" → "Podman for Ubuntu".
+
+### Fixed
+- `setup.sh` now starts the per-script timer, so ">>> Completed:" reports each
+  script's real duration instead of the time since the Unix epoch.
 
 ### Removed
 - Stale, unused root `index.html` (the authoritative page is generated during publish).

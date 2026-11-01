@@ -30,14 +30,25 @@ OUTPUT_DIR="${toolpath}/output"
 # Version Extraction
 # ============================================
 
+# extract_version <tag> <component> [repo-url] -- upstream base version (no suffix).
+# [repo-url] is only used by pasta (the passt remote, for same-day release ordering).
 extract_version() {
     local tag="$1"
     local component="$2"
+    local url="${3:-}"
 
     case "$component" in
         pasta)
-            # Date-based: already numeric (e.g., 20250302)
-            echo "${tag}"
+            # passt release tag YYYY_MM_DD.<sha> -> YYYYMMDD, or YYYYMMDD.N for the
+            # N-th later release of the same day (2026_10_02.cba3570 -> 20261002).
+            # The sha is dropped so the scale matches nightly's <date>~git<sha> (a
+            # same-day nightly sorts below the release). Shared with
+            # check_republish_needed.sh:extract_base via functions.sh:pasta_version.
+            if ! pasta_version "${url}" "${tag}"; then
+                echo "ERROR: cannot derive pasta version for tag '${tag}' from '${url}'" >&2
+                echo "  (not a YYYY_MM_DD.<sha> passt tag, remote unreachable, or commit time unfetchable)" >&2
+                return 1
+            fi
             ;;
         container-configs)
             # Namespaced tag: common/v0.67.0 -> 0.67.0
@@ -122,9 +133,9 @@ extract_version_nightly() {
             ;;
         pasta)
             # pasta has no semver tags; use datestamp~git<sha> so nightly versions
-            # are always distinct from stable (plain datestamp) even on the same
-            # calendar day — prevents reprepro pool collisions when nightly and
-            # stable are published in the same CI day with different upstream commits.
+            # are always distinct from stable/v5 (plain release date YYYYMMDD from
+            # the passt tag) and sort below a same-day release — prevents reprepro
+            # pool collisions between nightly and a release-pinned stable build.
             echo "${datestamp}~git${short_sha}"
             return
             ;;
@@ -281,7 +292,7 @@ declare -A COMPONENT_TAGS=(
     ["conmon"]="${CONMON_TAG}"
     ["netavark"]="${NETAVARK_TAG}"
     ["aardvark-dns"]="${AARDVARK_DNS_TAG}"
-    ["pasta"]=""
+    ["pasta"]="${PASTA_TAG}"
     ["fuse-overlayfs"]="${FUSE_OVERLAYFS_TAG}"
     ["catatonit"]="${CATATONIT_TAG}"
     ["buildah"]="${BUILDAH_TAG}"
@@ -310,11 +321,6 @@ for component in "${COMPONENTS[@]}"; do
     # Get tag for this component
     local_tag="${COMPONENT_TAGS[${component}]}"
 
-    # Special case: pasta uses date-based version
-    if [[ "${component}" == "pasta" ]]; then
-        local_tag="$(date +"%Y%m%d")"
-    fi
-
     # Unpinned builds: auto-detect tag from build repo when not pre-resolved
     if [[ -z "${local_tag}" ]]; then
         local_tag="$(resolve_tag_from_repo "${component}")"
@@ -341,8 +347,14 @@ for component in "${COMPONENTS[@]}"; do
             exit 1
         fi
 
+        # pasta's version needs its passt remote (same-day release ordering).
+        local_url=""
+        if [[ "${component}" == "pasta" ]]; then
+            local_url="$(git -C "${BUILD_ROOT}/${COMPONENT_BUILD_DIRS[pasta]}" remote get-url origin)"
+        fi
+
         # Extract clean version and append suffix
-        local_version="$(extract_version "${local_tag}" "${component}")${VERSION_SUFFIX}"
+        local_version="$(extract_version "${local_tag}" "${component}" "${local_url}")${VERSION_SUFFIX}"
     fi
 
     echo ">>> Packaging: podman-${component} (${local_version})"

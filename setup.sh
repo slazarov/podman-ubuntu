@@ -38,14 +38,14 @@ COMPONENTS_OK=()
 # Wrapper function for running sub-scripts with error handling and timing
 run_script() {
     local script="$1"
-    local script_start_time
+
+    script_start
 
     echo ""
     echo "========================================"
     echo ">>> Starting: ${script}"
     echo "========================================"
 
-    script_start_time=$(date +%s)
     source "${toolpath}/scripts/${script}"
 
     COMPONENTS_OK+=("${script}")

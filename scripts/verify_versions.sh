@@ -51,9 +51,21 @@ assert_lt "5.5.2~podman1" "5.5.2~ubuntu24.04.podman1"
 # 5. D-09 nightly form proven for 26.04 too: nightly < tagged on 26.04.
 assert_lt "5.9.0~git20260306.abc1234~ubuntu26.04.podman1" "5.9.0~ubuntu26.04.podman1"
 
-# 6. D-10 pasta-style date base form carries the same distro suffix on a date
-#    base: 24.04 sorts below 26.04 for the date-versioned form.
+# 6. pasta's release-date base (YYYYMMDD, from the passt tag) carries the same
+#    distro suffix: 24.04 sorts below 26.04 for the date-versioned form.
 assert_lt "20250302~ubuntu24.04.podman1" "20250302~ubuntu26.04.podman1"
+
+# 6b. pasta stable/v5 base is the passt release date (2026_10_02.cba3570 ->
+#     20261002): a later release upgrades an earlier one, and a same-day nightly
+#     (<date>~git<sha>) sorts below the release.
+assert_lt "20260925~ubuntu24.04.podman1" "20261002~ubuntu24.04.podman1"
+assert_lt "20261002~gitcba3570~ubuntu24.04.podman1" "20261002~ubuntu24.04.podman1"
+#     A later same-day passt release is YYYYMMDD.N: above the day's first release,
+#     below the next day's, and a same-day nightly still sorts below all of them.
+assert_lt "20261002~ubuntu24.04.podman1" "20261002.1~ubuntu24.04.podman1"
+assert_lt "20261002.1~ubuntu24.04.podman1" "20261002.2~ubuntu24.04.podman1"
+assert_lt "20261002.1~ubuntu24.04.podman1" "20261003~ubuntu24.04.podman1"
+assert_lt "20261002~gitcba3570~ubuntu24.04.podman1" "20261002.1~ubuntu24.04.podman1"
 
 # 7. A packaging-revision bump (scripts/package_revision.sh) upgrades installs
 #    of the same upstream version, and still sorts below the official package.

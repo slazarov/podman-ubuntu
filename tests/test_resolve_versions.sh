@@ -76,6 +76,22 @@ setup() {
     tag_repo "${CLIBS}" common/v0.68.1 40
     tag_repo "${CLIBS}" image/v0.65.0  45
     tag_repo "${CLIBS}" storage/v0.70.0 45
+
+    # passt: date-shaped release tags YYYY_MM_DD.<sha>; newest is too fresh to soak.
+    PASST="${TEST_TMPDIR}/passt"; git init -q "${PASST}"
+    tag_repo "${PASST}" 2025_12_31.0123abc 120
+    tag_repo "${PASST}" 2026_09_25.df90211  30
+    tag_repo "${PASST}" 2026_10_02.cba3570  10
+    tag_repo "${PASST}" 2026_10_30.f00ba12   2   # < 7 days: not soaked
+
+    # passt same-day releases (real precedent: 2022_10_26, 2023_11_07). The sha
+    # order is the REVERSE of the commit order, so a sha-order pick is caught:
+    # fff1111 is committed first, aaa2222 later, ccc3333 last (too fresh to soak).
+    PASSTSD="${TEST_TMPDIR}/passt-sameday"; git init -q "${PASSTSD}"
+    tag_repo "${PASSTSD}" 2026_09_25.ddd4444 30
+    tag_repo "${PASSTSD}" 2026_10_02.fff1111 20
+    tag_repo "${PASSTSD}" 2026_10_02.aaa2222 15
+    tag_repo "${PASSTSD}" 2026_10_02.ccc3333  3   # < 7 days: not soaked
 }
 
 setup
@@ -90,6 +106,8 @@ source "${PROJECT_ROOT}/scripts/resolve_versions.sh"
 P="file://${PODMAN}"
 N="file://${NETAVARK}"
 C="file://${CLIBS}"
+PS="file://${PASST}"
+PSD="file://${PASSTSD}"
 
 echo "=== _rank_upstream_tags (ranking + series + rc exclusion) ==="
 assert_equals "float picks highest overall" \
@@ -112,6 +130,49 @@ assert_equals "series=6 soak=0 -> v6.1.0 (age ignored)" \
     "v6.1.0" "$(PODMAN_SERIES=6 STABLE_SOAK_DAYS=0 resolve_component podman PODMAN_TAG PODMAN_SERIES "${P}")"
 assert_equals "float soak=7 -> v7.0.0 (highest soaked overall)" \
     "v7.0.0" "$(PODMAN_SERIES='' STABLE_SOAK_DAYS=7 resolve_component podman PODMAN_TAG PODMAN_SERIES "${P}")"
+
+echo "=== pasta: passt date-shaped release tags ==="
+assert_equals "passt tags rank by date (newest first, across a year boundary)" \
+    "2026_10_30.f00ba12 2026_10_02.cba3570 2026_09_25.df90211 2025_12_31.0123abc" \
+    "$(list_upstream_tags "${PS}" pasta | paste -sd' ')"
+assert_equals "pasta float soak=7 -> newest soaked release (skips fresh 2026_10_30)" \
+    "2026_10_02.cba3570" "$(PASTA_SERIES='' STABLE_SOAK_DAYS=7 resolve_component pasta PASTA_TAG PASTA_SERIES "${PS}")"
+assert_equals "unpinned build: get_latest_tag in a passt clone -> newest release" \
+    "2026_10_30.f00ba12" "$(cd "${PASST}" && get_latest_tag)"
+assert_equals "pasta is a resolver COMPONENT_ROWS entry (PASTA_TAG)" \
+    "1" "$(printf '%s\n' "${COMPONENT_ROWS[@]}" | grep -c '^pasta|PASTA_TAG|' || true)"
+
+echo "=== pasta: same-day passt releases (ordered by commit time, never sha) ==="
+assert_equals "pasta_date_tags lists a date's releases oldest-committed first" \
+    "2026_10_02.fff1111 2026_10_02.aaa2222 2026_10_02.ccc3333" \
+    "$(pasta_date_tags "${PSD}" 2026_10_02.aaa2222 | paste -sd' ')"
+assert_equals "pasta_version: first release of the day -> bare date" \
+    "20261002" "$(pasta_version "${PSD}" 2026_10_02.fff1111)"
+assert_equals "pasta_version: second release of the day -> .1" \
+    "20261002.1" "$(pasta_version "${PSD}" 2026_10_02.aaa2222)"
+assert_equals "pasta_version: third release of the day -> .2" \
+    "20261002.2" "$(pasta_version "${PSD}" 2026_10_02.ccc3333)"
+assert_equals "pasta_version: only release of its date -> bare date" \
+    "20260925" "$(pasta_version "${PSD}" 2026_09_25.ddd4444)"
+assert_equals "pasta_version: single-tag fast path needs no commit-time fetch" \
+    "20260925" "$( tag_commit_epoch() { return 1; }; pasta_version "${PSD}" 2026_09_25.ddd4444 )"
+assert_equals "pasta_version: tag absent upstream -> fails, prints nothing" \
+    "rc=1 out=" "$(_o=$(pasta_version "${PSD}" 2026_10_02.0000000) && echo "rc=0 out=${_o}" || echo "rc=1 out=${_o}")"
+assert_equals "pasta_version: non-date tag -> fails" \
+    "fail" "$(pasta_version "${PSD}" v1.2.3 || echo fail)"
+assert_equals "pasta_version: same-day commit time unfetchable -> fails" \
+    "fail" "$( tag_commit_epoch() { return 1; }; pasta_version "${PSD}" 2026_10_02.aaa2222 || echo fail )"
+assert_equals "pasta_version: unreachable remote -> fails" \
+    "fail" "$(pasta_version "file://${TEST_TMPDIR}/does-not-exist" 2026_10_02.aaa2222 || echo fail)"
+assert_equals "resolver soak=7 -> latest-committed SOAKED same-day release (not sha order)" \
+    "2026_10_02.aaa2222" "$(PASTA_SERIES='' STABLE_SOAK_DAYS=7 resolve_component pasta PASTA_TAG PASTA_SERIES "${PSD}")"
+assert_equals "resolver soak=0 -> latest-committed same-day release" \
+    "2026_10_02.ccc3333" "$(PASTA_SERIES='' STABLE_SOAK_DAYS=0 resolve_component pasta PASTA_TAG PASTA_SERIES "${PSD}")"
+_sd_rc=0
+( export STABLE_SOAK_DAYS=0
+  tag_commit_epoch() { return 1; }
+  resolve_component pasta PASTA_TAG PASTA_SERIES "${PSD}" ) >/dev/null 2>&1 || _sd_rc=$?
+assert_equals "resolver: same-day commit time unfetchable -> uncertain hold (rc=2)" "2" "${_sd_rc}"
 
 echo "=== exact freeze bypasses soak ==="
 assert_equals "PODMAN_TAG=v6.0.2 -> verbatim despite being unsoaked" \
