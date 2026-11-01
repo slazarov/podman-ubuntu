@@ -27,7 +27,14 @@
 # Pre-fix, ci_publish.sh's own integrity gate (or the standalone guard) fails
 # both. Post-fix, both pass.
 #
-# Ubuntu-only (reprepro + gpg + dpkg-deb). Prints SKIP + exits 0 on macOS.
+#   E. ADOPT: a stable republish whose rebuild of an UNCHANGED package (same
+#      name, version and architecture as the live stable index) has different
+#      bytes. Only the target suite lists that package, so the output pool
+#      cannot help; the published bytes must be downloaded and adopted, and
+#      the fresh rebuild dropped. Without that, E overwrites published bytes.
+#
+# Ubuntu-only (reprepro + gpg + gpgv + dpkg-deb). Prints SKIP + exits 0 on
+# macOS (a failure under REQUIRE_INTEGRATION_DEPS=1).
 
 set -euo pipefail
 
@@ -54,13 +61,14 @@ assert_equals() {
 
 if ! command -v reprepro &>/dev/null \
    || ! command -v gpg &>/dev/null \
+   || ! command -v gpgv &>/dev/null \
    || ! command -v dpkg-deb &>/dev/null \
    || ! command -v sha256sum &>/dev/null \
    || ! command -v sha512sum &>/dev/null \
    || ! command -v python3 &>/dev/null \
    || ! command -v curl &>/dev/null; then
-    require_integration_deps "reprepro/gpg/dpkg-deb/sha256sum/sha512sum/python3/curl"
-    echo "  SKIP: reprepro/gpg/dpkg-deb/sha256sum/sha512sum/python3/curl not all available."
+    require_integration_deps "reprepro/gpg/gpgv/dpkg-deb/sha256sum/sha512sum/python3/curl"
+    echo "  SKIP: reprepro/gpg/gpgv/dpkg-deb/sha256sum/sha512sum/python3/curl not all available."
     echo "        Ubuntu-only integration harness — run on the ubuntu-24 VM / CI:"
     echo "          sudo apt-get update && sudo apt-get install -y reprepro"
     echo ""
@@ -110,6 +118,11 @@ EOF_KEYGEN_RSA
 fi
 TEST_KEY_FPR="$(gpg --list-keys --with-colons | awk -F: '/^fpr:/{print $10; exit}')"
 echo "${TEST_KEY_FPR}:6:" | gpg --batch --import-ownertrust >/dev/null 2>&1
+# ci_publish.sh checks every signature against REPO_KEYRING; here that is
+# the throwaway key, not the project's published one.
+export REPO_KEYRING="${TMP_ROOT}/test-key.gpg"
+gpg --batch --export "${TEST_KEY_FPR}" > "${REPO_KEYRING}"
+export FETCH_RETRY_DELAY=0 FETCH_ATTEMPTS=3
 echo ""
 
 # build_deb <pkg> <version> <arch> <out-dir> <payload>
@@ -153,12 +166,8 @@ dotted() { case "$1" in 2404) echo 24.04;; 2604) echo 26.04;; esac; }
 skopeo_ver() { echo "1.23.0~ubuntu$(dotted "$1").podman1"; }   # shared across stable + v5
 skopeo_filename() { echo "pool/main/p/podman-skopeo/podman-skopeo_$(skopeo_ver "$1")_amd64.deb"; }
 
-# add_byhash_and_resign installs a RETURN trap referencing a function-local
-# variable, so (like every sibling harness) it must be called at TOP-LEVEL script
-# scope — never from inside another function, where the enclosing function's
-# return would re-fire the trap after that local is out of scope. Hence build_live
-# only assembles via repo_manage.sh (a separate process); signing is done at top
-# level right after each call.
+# build_live only assembles via repo_manage.sh (a separate process); each
+# scenario signs the suites right after it with add_byhash_and_resign.
 # shellcheck source=/dev/null
 source "${PROJECT_ROOT}/scripts/repo_byhash.sh"
 
@@ -220,8 +229,7 @@ serve() {  # <dir> <probe-suite> -> sets REPO_URL / HTTP_PID
 
 # assert_prevent <distro> <live> — a v5 publish whose shared-skopeo rebuild has
 # DIFFERENT bytes must NOT overwrite the published pool .deb; every suite stays
-# consistent. NB: this is a plain function (it never calls add_byhash_and_resign),
-# so it is free of the RETURN-trap-leak constraint noted above build_live.
+# consistent.
 assert_prevent() {
     local distro="$1" live="$2"
     local d; d="$(dotted "${distro}")"
@@ -362,7 +370,14 @@ for s in stable-2404 stable v5-2404; do
     assert_equals "healed suite '${s}' still present on arm64 (no-drop)" \
         "${SK_2404}" \
         "$(pkg_version "${OUT_B}/dists/${s}/main/binary-arm64/Packages" podman-skopeo)"
+    # A healed suite is regenerated, so it keeps the previous by-hash
+    # generation for clients still holding the old Release.
+    old_rel="$(sha256sum "${LIVE_B}/dists/${s}/Release" | awk '{print $1}')"
+    assert_equals "healed suite '${s}' keeps the previous Release under by-hash" "yes" \
+        "$(cmp -s "${LIVE_B}/dists/${s}/Release" "${OUT_B}/dists/${s}/by-hash/SHA256/${old_rel}" && echo yes || echo no)"
 done
+
+echo ""
 
 # ============================================
 # Scenario D: NON-DESTRUCTIVE per-arch — a missing arch build must NOT wipe the
@@ -419,6 +434,50 @@ assert_equals "stable-2604 arm64 skopeo preserved (not wiped)" \
 rc=0
 bash "${PROJECT_ROOT}/scripts/verify_repo_integrity.sh" "${OUT_D}" >/dev/null 2>&1 || rc=$?
 assert_equals "preserved-arch repo passes the integrity guard" "0" "${rc}"
+
+# ============================================
+# Scenario E: ADOPT the published bytes of an unchanged target package.
+# ============================================
+
+echo "========================================"
+echo "Scenario E: an unchanged package in the target suite keeps its published bytes (2404)"
+echo "========================================"
+
+LIVE_E="${TMP_ROOT}/live-e"
+STABLE_E="${TMP_ROOT}/live-e-stable"
+build_deb "podman-podman" "6.0.0~ubuntu24.04.podman1" amd64 "${STABLE_E}" "podman-6"
+build_deb "podman-skopeo" "${SK_2404}" amd64 "${STABLE_E}" "skopeo-published-bytes-DDDD"
+"${PROJECT_ROOT}/scripts/repo_manage.sh" stable 2404 "${STABLE_E}" "${LIVE_E}" >/dev/null
+for s in stable-2404 stable; do
+    add_byhash_and_resign "${s}" "${LIVE_E}" >/dev/null
+done
+serve "${LIVE_E}" "stable-2404" || true
+published_sha="$(sha256sum "${STABLE_E}/podman-skopeo_${SK_2404}_amd64.deb" | awk '{print $1}')"
+
+# The rebuild: podman moves on, skopeo is the same version with new bytes.
+NEW_E="${TMP_ROOT}/new-e"
+build_deb "podman-podman" "6.0.1~ubuntu24.04.podman1" amd64 "${NEW_E}" "podman-6-0-1"
+build_deb "podman-skopeo" "${SK_2404}" amd64 "${NEW_E}" "skopeo-REBUILT-with-other-bytes-EEEEEEEE"
+fresh_sha="$(sha256sum "${NEW_E}/podman-skopeo_${SK_2404}_amd64.deb" | awk '{print $1}')"
+assert_equals "fixture: rebuild differs from the published skopeo" "yes" "$([[ "${fresh_sha}" != "${published_sha}" ]] && echo yes || echo no)"
+
+OUT_E="${TMP_ROOT}/out-e"
+mkdir -p "${OUT_E}"
+rc=0
+bash "${PROJECT_ROOT}/scripts/ci_publish.sh" stable 2404 "${NEW_E}" "${REPO_URL}" "${OUT_E}" \
+    > "${TMP_ROOT}/e.log" 2>&1 || rc=$?
+if [[ "${rc}" -ne 0 ]]; then
+    tail -25 "${TMP_ROOT}/e.log" | sed 's/^/      /'
+fi
+assert_equals "ci_publish stable exits 0" "0" "${rc}"
+assert_equals "published skopeo bytes adopted into the pool" "${published_sha}" \
+    "$(sha256sum "${OUT_E}/$(skopeo_filename 2404)" | awk '{print $1}')"
+assert_equals "stable-2404 podman advanced" "6.0.1~ubuntu24.04.podman1" \
+    "$(pkg_version "${OUT_E}/dists/stable-2404/main/binary-amd64/Packages" podman-podman)"
+assert_equals "the adoption is logged" "yes" \
+    "$(grep -q 'adopting the published podman-skopeo' "${TMP_ROOT}/e.log" && echo yes || echo no)"
+assert_equals "input artifact dir left untouched" "${fresh_sha}" \
+    "$(sha256sum "${NEW_E}/podman-skopeo_${SK_2404}_amd64.deb" | awk '{print $1}')"
 
 echo ""
 echo "========================================"

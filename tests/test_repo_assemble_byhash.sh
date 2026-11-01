@@ -15,11 +15,14 @@
 #     and verifies even with zero packages (D-14).
 #   - A1 confirmation: record which hash algorithms reprepro actually emitted and
 #     assert by-hash exists for at least the strongest one.
+#   - A failing `gpg --clearsign` or detached sign makes
+#     add_byhash_and_resign return non-zero (no masked signing failure).
 #
 # Platform note: this harness is Ubuntu-only. reprepro + gpg + dpkg-deb are
 # required. On the macOS dev host (no reprepro/dpkg-deb) the harness prints SKIP
 # and exits 0 — mirroring the dpkg-dependent skip convention in
-# tests/test_detect_distro_depends.sh. Run it on the Lima ubuntu-24 VM / CI.
+# tests/test_detect_distro_depends.sh. With REQUIRE_INTEGRATION_DEPS=1 (CI) a
+# missing tool fails the test instead. Run it on the Lima ubuntu-24 VM / CI.
 
 set -euo pipefail
 
@@ -356,14 +359,13 @@ assert_grep "Acquire-By-Hash: yes present in empty stable-2604 Release" \
 echo ""
 echo "Test group F: CR-01 — pipefail isolation regression for add_byhash_and_resign"
 echo ""
-# The whole harness runs under `set -euo pipefail` (line 24). Before this fix a
-# benign non-zero pipe head inside the helper (e.g. a listed index file that has
-# been deleted, forcing the `[[ -f "${src}" ]] || continue` skip path and
-# exercising the awk|while + cp loops) could abort the function AFTER the
-# destructive `rm -f InRelease Release.gpg` but BEFORE the re-sign, publishing a
-# half-signed suite. We prove the helper survives that condition and still
-# produces a verifiable signature chain, and that it does not leak its local
-# `set +e +o pipefail` into the caller.
+# The whole harness runs under `set -euo pipefail`. A listed index file that
+# has been deleted takes the `[[ -f "${src}" ]] || continue` skip path; that
+# must not abort the function AFTER the destructive `rm -f InRelease
+# Release.gpg` but BEFORE the re-sign, which would publish a half-signed
+# suite. We prove the helper survives that condition and still produces a
+# verifiable signature chain, and that it leaves the caller's shell options
+# alone.
 
 # F-1 / F-2: delete one index file that stable-2404's Release lists under
 # SHA256:, then re-run add_byhash_and_resign and assert it returns 0 and the
@@ -398,8 +400,7 @@ else
     echo "  SKIP: no stable-2404 Packages index found to delete (F-1/F-2)"
 fi
 
-# F-3: the caller's shell options must be identical before and after the call —
-# the RETURN trap must restore them and must not leak `set +e +o pipefail`.
+# F-3: the caller's shell options must be identical before and after the call.
 OPTS_BEFORE="$(set +o)"
 add_byhash_and_resign "v5-2404" "${OUT}"
 OPTS_AFTER="$(set +o)"
@@ -471,6 +472,40 @@ assert_grep "Acquire-By-Hash: yes present in stable-2604 Release (G-3)" \
     '^Acquire-By-Hash: yes' "${G_TARGET}/Release"
 assert_succeeds "gpg --verify InRelease for stable-2604 target (G-3)" \
     gpg --verify "${G_TARGET}/InRelease"
+
+echo ""
+echo "Test group H: a failing signature step is reported, never masked"
+echo ""
+# A gpg on PATH that fails one signing mode and passes everything else
+# through to the real gpg. add_byhash_and_resign must return non-zero and
+# must not leave a stale or partial signature behind.
+REAL_GPG="$(command -v gpg)"
+SHIM_DIR="${TMP_ROOT}/gpg-shim"
+mkdir -p "${SHIM_DIR}"
+cat > "${SHIM_DIR}/gpg" <<EOF_SHIM
+#!/bin/bash
+for a in "\$@"; do
+    case "\$a" in
+        --clearsign) [[ "\${FAIL_GPG_MODE:-}" == clearsign ]] && exit 2 ;;
+        -abs) [[ "\${FAIL_GPG_MODE:-}" == detach ]] && exit 2 ;;
+    esac
+done
+exec "${REAL_GPG}" "\$@"
+EOF_SHIM
+chmod +x "${SHIM_DIR}/gpg"
+
+for mode in clearsign detach; do
+    rc=0
+    PATH="${SHIM_DIR}:${PATH}" FAIL_GPG_MODE="${mode}" \
+        add_byhash_and_resign "v5-2404" "${OUT}" >/dev/null 2>&1 || rc=$?
+    assert_equals "add_byhash_and_resign returns non-zero when ${mode} signing fails (H-1)" \
+        "1" "${rc}"
+done
+assert_equals "no Release.gpg left behind after a failed detached sign (H-2)" "no" \
+    "$([[ -f "${OUT}/dists/v5-2404/Release.gpg" ]] && echo yes || echo no)"
+# The real gpg signs again cleanly afterwards.
+assert_succeeds "add_byhash_and_resign succeeds again with the real gpg (H-3)" \
+    add_byhash_and_resign "v5-2404" "${OUT}"
 
 # ============================================
 # Summary

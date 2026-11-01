@@ -100,19 +100,27 @@ for `git describe` is available. `versions-nightly.env` sets both variables.
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `CARGO_BUILD_JOBS` | Optional | `$NPROC` | Parallel job count for cargo builds. |
-| `SCCACHE_ENABLED` | Optional | `false` | Enable sccache for Rust build caching (50–90% rebuild speedup). |
+| `SCCACHE_ENABLED` | Optional | `false` | Enable sccache for Rust build caching. CI sets it to `true`. |
 | `SCCACHE_VERSION` | Optional | `0.14.0` | sccache version (only used when `SCCACHE_ENABLED=true`). |
 | `SCCACHE_DIR` | Optional | `/var/cache/sccache` | sccache cache directory (only used when `SCCACHE_ENABLED=true`). |
+| `SCCACHE_CACHE_SIZE` | Optional | `2G` | Maximum sccache size; the oldest entries are evicted beyond it. CI uses `1G`. |
+| `SCCACHE_SHA256` | Optional | pinned per arch for `0.14.0` | SHA256 of the sccache release tarball for this architecture. `install_rust.sh` refuses a download that does not match. For another `SCCACHE_VERSION`, set it yourself, or leave it empty to check against the `.sha256` file published with the release. |
 | `MOLD_ENABLED` | Optional | `false` | Enable the mold linker for Rust builds (5–10x faster linking). Requires clang as the linker driver (installed automatically with mold). |
 
 ### Build optimization (C / C++)
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `CCACHE_ENABLED` | Optional | `false` | Enable ccache for C build caching (up to 30x faster warm-cache rebuilds). |
+| `CCACHE_ENABLED` | Optional | `false` | Enable ccache for C builds (crun, conmon, catatonit, pasta, fuse-overlayfs 1.x). CI sets it to `true`. |
 | `CCACHE_DIR` | Optional | `/var/cache/ccache` | ccache cache directory (only used when `CCACHE_ENABLED=true`). |
-| `CCACHE_MAXSIZE` | Optional | `2G` | ccache maximum cache size. |
+| `CCACHE_MAXSIZE` | Optional | `2G` | ccache maximum cache size. CI uses `500M`. |
 | `CCACHE_COMPILERCHECK` | Optional | `content` | Hash compiler binary content for correct cache invalidation on GCC upgrades. |
+
+`CACHE_STRICT` (default `false`) applies to both caches. With `false`, an
+enabled cache whose tool is missing prints a warning and the build runs
+uncached. With `true`, the build fails instead. CI sets `true`, and each build
+cell also checks that the caches saw compile requests, so a broken cache setup
+shows up as a failure rather than as a slow build.
 
 ### Build optimization (Go)
 
@@ -134,6 +142,36 @@ for `git describe` is available. `versions-nightly.env` sets both variables.
 
 `GPG_KEY_ID` is derived at runtime inside `repo_manage.sh` from the imported keyring
 fingerprint; it is not a user-supplied variable.
+
+### Publish pipeline (CI)
+
+These tune `scripts/ci_publish.sh`, `scripts/ci_helpers.sh` and the smoke test.
+The defaults are what CI uses; the tests lower the retry counts.
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `REPO_KEYRING` | Optional | `<output-dir>/podman-ubuntu.gpg` | Public key `ci_publish.sh` checks every suite's signatures against at the end of each pass. The tests point it at their throwaway key. |
+| `FETCH_ATTEMPTS` | Optional | `4` | How many times `fetch_url` tries a download that fails with a network error, a cut-off body or HTTP 408, 429 or 5xx. Only HTTP 404/410 counts as "not published"; any other failure that outlasts the retries stops the publish. |
+| `FETCH_RETRY_DELAY` | Optional | `2` | Seconds between tries, multiplied by the attempt number. |
+| `FETCH_MAX_TIME` | Optional | `300` | Time limit for one download, in seconds. |
+| `PROPAGATION_ATTEMPTS` | Optional | `30` | How many times the publish job polls each suite's live `InRelease` after a deploy. |
+| `PROPAGATION_DELAY` | Optional | `10` | Seconds between those polls. |
+
+`check_republish_needed.sh <stable|v5> [repo-url] [resolved-env-file]` takes an
+optional third argument: the output of `resolve_versions.sh`. CI passes the one
+`resolve-track` produced, so the resolver runs once per run. The file must
+contain only `export NAME="value"` lines for the known `*_TAG` names (and
+`PROTOC_VERSION`/`PROTOC_TAG`), each component exactly once; anything else
+fails the guard. Without the argument, the guard runs the resolver itself.
+
+`smoke_repo_install.sh` reads the assembled repository with apt's `Signed-By`
+pointing at the repository's own `podman-ubuntu.gpg`, so apt checks the
+signatures as it does for users. With `LIVE_REPO_URL` set, it first probes the
+live `dists/<suite>/InRelease` from the host: HTTP 404 skips the upgrade
+scenario (the suite is not published yet), while a network or server error
+fails the smoke test. After the upgrade it checks that every installed package
+of the assembled suite, and `podman-suite` itself, is `install ok installed`
+at the assembled version.
 
 ## Configuration files
 
