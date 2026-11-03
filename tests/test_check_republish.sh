@@ -73,12 +73,12 @@ for _pt in 2026_09_25.ddd4444 2026_10_02.fff1111 2026_10_02.aaa2222; do
 done
 PS="file://${PASST}"
 
-assert_equals "pasta only release of its date -> YYYYMMDD" \
-    "20260925" "$(extract_base '2026_09_25.ddd4444' 'pasta' "${PS}")"
-assert_equals "pasta first same-day release -> YYYYMMDD" \
-    "20261002" "$(extract_base '2026_10_02.fff1111' 'pasta' "${PS}")"
-assert_equals "pasta later same-day release -> YYYYMMDD.1" \
-    "20261002.1" "$(extract_base '2026_10_02.aaa2222' 'pasta' "${PS}")"
+assert_equals "pasta only release of its date -> 1:YYYY.MM.DD" \
+    "1:2026.09.25" "$(extract_base '2026_09_25.ddd4444' 'pasta' "${PS}")"
+assert_equals "pasta first same-day release -> 1:YYYY.MM.DD" \
+    "1:2026.10.02" "$(extract_base '2026_10_02.fff1111' 'pasta' "${PS}")"
+assert_equals "pasta later same-day release -> 1:YYYY.MM.DD.1" \
+    "1:2026.10.02.1" "$(extract_base '2026_10_02.aaa2222' 'pasta' "${PS}")"
 assert_equals "pasta unreachable remote -> empty base (guard builds)" \
     "" "$(extract_base '2026_10_02.aaa2222' 'pasta' "file://${TEST_TMPDIR}/nope" || true)"
 
@@ -92,9 +92,35 @@ for _pt in 2026_09_25.ddd4444 2026_10_02.fff1111 2026_10_02.aaa2222; do
         "$(extract_version "${_pt}" pasta "${PS}")" "$(extract_base "${_pt}" pasta "${PS}")"
 done
 assert_equals "package_all extract_version pasta same-day later release" \
-    "20261002.1" "$(extract_version '2026_10_02.aaa2222' pasta "${PS}")"
+    "1:2026.10.02.1" "$(extract_version '2026_10_02.aaa2222' pasta "${PS}")"
 assert_equals "package_all extract_version pasta failure is non-zero" \
     "fail" "$(extract_version '2026_10_02.aaa2222' pasta "file://${TEST_TMPDIR}/nope" 2>/dev/null || echo fail)"
+
+echo "=== guard target == nFPM control Version: (epoch split + pasta.yaml) ==="
+# package_all.sh moves a leading N: into nFPM's epoch: field; nFPM writes
+# Version: <epoch>:<version> and names the file <name>_<version>_<arch>.deb.
+# Replay that split (pulled from package_all.sh) and render pasta.yaml the way
+# package_all.sh does, then rebuild the control Version: and pool filename.
+eval "split_epoch() { $(sed -n '/^    if \[\[ "\${local_version}" =~ \^(\[0-9\]+):/,/^    fi$/p' "${PROJECT_ROOT}/scripts/package_all.sh") }"
+_sfx="~ubuntu24.04.podman3"
+local_version="$(extract_version '2026_10_02.fff1111' pasta "${PS}")${_sfx}"
+_target="$(extract_base '2026_10_02.fff1111' pasta "${PS}")${_sfx}"
+split_epoch
+assert_equals "epoch split: EPOCH=1" "1" "${EPOCH:-}"
+assert_equals "epoch split: version has no epoch" "2026.10.02${_sfx}" "${local_version}"
+_rendered="$(EPOCH="${EPOCH}" VERSION="${local_version}" ARCH=amd64 DESTDIR=/x DETECTED_DEPENDS='' \
+    envsubst "$(grep -o "envsubst '[^']*' < \"\${NFPM_DIR}/\${component}.yaml\"" "${PROJECT_ROOT}/scripts/package_all.sh" \
+        | sed "s/^envsubst '//; s/'.*//")" < "${PROJECT_ROOT}/packaging/nfpm/pasta.yaml")"
+_r_epoch="$(sed -n 's/^epoch: "\(.*\)"$/\1/p' <<< "${_rendered}")"
+_r_ver="$(sed -n 's/^version: "\(.*\)"$/\1/p' <<< "${_rendered}")"
+assert_equals "control Version: (epoch:version) == guard target" "${_target}" "${_r_epoch}:${_r_ver}"
+assert_equals "pool filename carries no epoch" \
+    "podman-pasta_2026.10.02${_sfx}_amd64.deb" "podman-pasta_${_r_ver}_amd64.deb"
+local_version="1.2.3${_sfx}"
+split_epoch
+assert_equals "non-pasta version: EPOCH empty" "" "${EPOCH}"
+assert_equals "non-pasta version: unchanged" "1.2.3${_sfx}" "${local_version}"
+unset local_version EPOCH
 
 echo "=== main(): end-to-end skip=true with pasta compared ==="
 # Sandbox copy of the guard with a shimmed resolver and a policy file, so main()
@@ -135,7 +161,7 @@ write_e2e_repo() {
             for _row in "${COMPONENT_ROWS[@]}"; do
                 IFS='|' read -r _comp _pkg _tagvar _ <<< "${_row}"
                 case "${_comp}" in
-                    pasta) _base="20261002.1" ;;
+                    pasta) _base="1:2026.10.02.1" ;;
                     container-configs) _base="0.67.1" ;;
                     *) _base="1.2.3" ;;
                 esac
@@ -158,7 +184,7 @@ _e2e_out="$(
     done
     main stable "file://${E2E}/repo" 2>/dev/null
 )" || true
-assert_equals "main(): all packages (pasta at 20261002.1) published -> skip=true" "skip=true" "${_e2e_out}"
+assert_equals "main(): all packages (pasta at 1:2026.10.02.1) published -> skip=true" "skip=true" "${_e2e_out}"
 
 echo "=== main(): decision flow with a resolved-env file ==="
 # The same tags as the shimmed resolver, in resolve_versions.sh's output form.
@@ -207,10 +233,15 @@ BAD="${TEST_TMPDIR}/bad.env"
 { cat "${ENVF}"; echo 'export PODMAN_TAG="v9.9.9"'; } > "${BAD}"
 assert_equals "invalid resolved env -> exit 1, not a decision" "exit 1" "$(decide "${E2E}/repo" "${BAD}")"
 
-echo "=== pasta dpkg ordering (same-day releases, nightly) ==="
+echo "=== pasta dpkg ordering (same-day releases, nightly, pre-epoch upgrade) ==="
 if command -v dpkg >/dev/null 2>&1; then
     _sfx="~ubuntu24.04.podman1"
-    for _pair in "20261002 20261002.1" "20261002.1 20261003" "20261002~gitcba3570 20261002"; do
+    # Release/same-day/nightly order, plus every pre-epoch scheme (build dates,
+    # incl. 20261024 live in v5; old nightly) below the epoch-1 forms.
+    for _pair in "1:2026.10.02 1:2026.10.02.1" "1:2026.10.02.1 1:2026.10.03" \
+        "1:2026.10.02~gitcba3570 1:2026.10.02" "20261101 1:2026.10.02~gitcba3570" \
+        "20261101 1:2026.10.02" "20261024 1:2026.10.02" "20261002.1 1:2026.09.25" \
+        "20261103~git6aa4f88 1:2026.11.02~git6aa4f88"; do
         read -r _lo _hi <<< "${_pair}"
         _ord="no"
         dpkg --compare-versions "${_lo}${_sfx}" lt "${_hi}${_sfx}" && _ord="yes"

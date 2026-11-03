@@ -103,8 +103,11 @@ extract_base() {
             echo "${ltag}" | sed 's|^.*/v||'
             ;;
         pasta)
-            # passt release tag: 2026_10_02.cba3570 -> 20261002 (or 20261002.N for
-            # a later same-day release) -- shared with package_all.sh.
+            # passt release tag: 2026_10_02.cba3570 -> 1:2026.10.02 (or
+            # 1:2026.10.02.N for a later same-day release) -- shared with
+            # package_all.sh. The epoch is kept: nFPM writes it into the
+            # published Version: field (1:2026.10.02~ubuntu...), so the target
+            # must carry it to compare equal.
             pasta_version "${lurl}" "${ltag}"
             ;;
         *)

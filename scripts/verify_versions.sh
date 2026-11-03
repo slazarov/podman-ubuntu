@@ -15,6 +15,9 @@ set -euo pipefail
 # upstream, 24.04 < 26.04, the D-09 nightly form < tagged, and the legacy
 # already-published `~podman1` form < the new `~ubuntu24.04.podman1` form so
 # existing installs upgrade cleanly.
+# podman-pasta is deliberately exempt from "yields to official upstream": it is
+# epoch 1 and named differently from Ubuntu's `passt` (which it
+# Conflicts/Replaces), so the invariant does not apply to it.
 
 # assert_lt <lower> <higher>
 # Succeeds (prints OK) when <lower> sorts strictly below <higher> per dpkg
@@ -51,21 +54,30 @@ assert_lt "5.5.2~podman1" "5.5.2~ubuntu24.04.podman1"
 # 5. D-09 nightly form proven for 26.04 too: nightly < tagged on 26.04.
 assert_lt "5.9.0~git20260306.abc1234~ubuntu26.04.podman1" "5.9.0~ubuntu26.04.podman1"
 
-# 6. pasta's release-date base (YYYYMMDD, from the passt tag) carries the same
-#    distro suffix: 24.04 sorts below 26.04 for the date-versioned form.
-assert_lt "20250302~ubuntu24.04.podman1" "20250302~ubuntu26.04.podman1"
+# 6. pasta's epoch + dotted release-date base (1:YYYY.MM.DD, from the passt tag)
+#    carries the same distro suffix: 24.04 sorts below 26.04.
+assert_lt "1:2025.03.02~ubuntu24.04.podman1" "1:2025.03.02~ubuntu26.04.podman1"
 
-# 6b. pasta stable/v5 base is the passt release date (2026_10_02.cba3570 ->
-#     20261002): a later release upgrades an earlier one, and a same-day nightly
-#     (<date>~git<sha>) sorts below the release.
-assert_lt "20260925~ubuntu24.04.podman1" "20261002~ubuntu24.04.podman1"
-assert_lt "20261002~gitcba3570~ubuntu24.04.podman1" "20261002~ubuntu24.04.podman1"
-#     A later same-day passt release is YYYYMMDD.N: above the day's first release,
-#     below the next day's, and a same-day nightly still sorts below all of them.
-assert_lt "20261002~ubuntu24.04.podman1" "20261002.1~ubuntu24.04.podman1"
-assert_lt "20261002.1~ubuntu24.04.podman1" "20261002.2~ubuntu24.04.podman1"
-assert_lt "20261002.1~ubuntu24.04.podman1" "20261003~ubuntu24.04.podman1"
-assert_lt "20261002~gitcba3570~ubuntu24.04.podman1" "20261002.1~ubuntu24.04.podman1"
+# 6b. pasta stable/v5 base is epoch 1 + the passt release date dotted
+#     (2026_10_02.cba3570 -> 1:2026.10.02): a later release upgrades an earlier
+#     one, and a same-day nightly (1:<date>~git<sha>) sorts below the release.
+assert_lt "1:2026.09.25~ubuntu24.04.podman1" "1:2026.10.02~ubuntu24.04.podman1"
+assert_lt "1:2026.10.02~gitcba3570~ubuntu24.04.podman1" "1:2026.10.02~ubuntu24.04.podman1"
+#     A later same-day passt release is 1:YYYY.MM.DD.N: above the day's first
+#     release, below the next day's, and a same-day nightly still sorts below.
+assert_lt "1:2026.10.02~ubuntu24.04.podman1" "1:2026.10.02.1~ubuntu24.04.podman1"
+assert_lt "1:2026.10.02.1~ubuntu24.04.podman1" "1:2026.10.02.2~ubuntu24.04.podman1"
+assert_lt "1:2026.10.02.1~ubuntu24.04.podman1" "1:2026.10.03~ubuntu24.04.podman1"
+assert_lt "1:2026.10.02~gitcba3570~ubuntu24.04.podman1" "1:2026.10.02.1~ubuntu24.04.podman1"
+
+# 6c. Upgrade from the pre-epoch schemes: build dates (up to ~20261101 on
+#     stable; the build-date version 20261024 live in v5), and old nightlies
+#     (YYYYMMDD~git<sha>) all sort below every epoch-1 version, so apt upgrades
+#     existing installs.
+assert_lt "20261101~ubuntu24.04.podman3" "1:2026.10.02~ubuntu24.04.podman3"
+assert_lt "20261024~ubuntu26.04.podman3" "1:2026.10.02~ubuntu26.04.podman3"
+assert_lt "20261101~ubuntu24.04.podman3" "1:2026.10.02~gitcba3570~ubuntu24.04.podman3"
+assert_lt "20261103~git6aa4f88~ubuntu24.04.podman3" "1:2026.11.02~git6aa4f88~ubuntu24.04.podman3"
 
 # 7. A packaging-revision bump (scripts/package_revision.sh) upgrades installs
 #    of the same upstream version, and still sorts below the official package.

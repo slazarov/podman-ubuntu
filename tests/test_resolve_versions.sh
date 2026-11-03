@@ -146,16 +146,16 @@ echo "=== pasta: same-day passt releases (ordered by commit time, never sha) ===
 assert_equals "pasta_date_tags lists a date's releases oldest-committed first" \
     "2026_10_02.fff1111 2026_10_02.aaa2222 2026_10_02.ccc3333" \
     "$(pasta_date_tags "${PSD}" 2026_10_02.aaa2222 | paste -sd' ')"
-assert_equals "pasta_version: first release of the day -> bare date" \
-    "20261002" "$(pasta_version "${PSD}" 2026_10_02.fff1111)"
+assert_equals "pasta_version: first release of the day -> 1:YYYY.MM.DD" \
+    "1:2026.10.02" "$(pasta_version "${PSD}" 2026_10_02.fff1111)"
 assert_equals "pasta_version: second release of the day -> .1" \
-    "20261002.1" "$(pasta_version "${PSD}" 2026_10_02.aaa2222)"
+    "1:2026.10.02.1" "$(pasta_version "${PSD}" 2026_10_02.aaa2222)"
 assert_equals "pasta_version: third release of the day -> .2" \
-    "20261002.2" "$(pasta_version "${PSD}" 2026_10_02.ccc3333)"
-assert_equals "pasta_version: only release of its date -> bare date" \
-    "20260925" "$(pasta_version "${PSD}" 2026_09_25.ddd4444)"
+    "1:2026.10.02.2" "$(pasta_version "${PSD}" 2026_10_02.ccc3333)"
+assert_equals "pasta_version: only release of its date -> 1:YYYY.MM.DD" \
+    "1:2026.09.25" "$(pasta_version "${PSD}" 2026_09_25.ddd4444)"
 assert_equals "pasta_version: single-tag fast path needs no commit-time fetch" \
-    "20260925" "$( tag_commit_epoch() { return 1; }; pasta_version "${PSD}" 2026_09_25.ddd4444 )"
+    "1:2026.09.25" "$( tag_commit_epoch() { return 1; }; pasta_version "${PSD}" 2026_09_25.ddd4444 )"
 assert_equals "pasta_version: tag absent upstream -> fails, prints nothing" \
     "rc=1 out=" "$(_o=$(pasta_version "${PSD}" 2026_10_02.0000000) && echo "rc=0 out=${_o}" || echo "rc=1 out=${_o}")"
 assert_equals "pasta_version: non-date tag -> fails" \

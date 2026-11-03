@@ -39,11 +39,14 @@ extract_version() {
 
     case "$component" in
         pasta)
-            # passt release tag YYYY_MM_DD.<sha> -> YYYYMMDD, or YYYYMMDD.N for the
-            # N-th later release of the same day (2026_10_02.cba3570 -> 20261002).
-            # The sha is dropped so the scale matches nightly's <date>~git<sha> (a
-            # same-day nightly sorts below the release). Shared with
-            # check_republish_needed.sh:extract_base via functions.sh:pasta_version.
+            # passt release tag YYYY_MM_DD.<sha> -> 1:YYYY.MM.DD, or 1:YYYY.MM.DD.N
+            # for the N-th later release of the same day (2026_10_02.cba3570 ->
+            # 1:2026.10.02). The epoch (PASTA_EPOCH) lifts every version above the
+            # old build-date scheme; the packaging loop moves it into nFPM's
+            # `epoch:` field. The sha is dropped so the scale matches nightly's
+            # 1:<date>~git<sha> (a same-day nightly sorts below the release).
+            # Shared with check_republish_needed.sh:extract_base via
+            # functions.sh:pasta_version.
             if ! pasta_version "${url}" "${tag}"; then
                 echo "ERROR: cannot derive pasta version for tag '${tag}' from '${url}'" >&2
                 echo "  (not a YYYY_MM_DD.<sha> passt tag, remote unreachable, or commit time unfetchable)" >&2
@@ -69,7 +72,8 @@ extract_version() {
 # so nightly versions sort BELOW tagged releases via dpkg tilde convention.
 #
 # Args: component (string), repo_path (path to cloned repo)
-# Output: version string like "5.9.0~git20260306.abc1234" or plain "20260306" for pasta
+# Output: version string like "5.9.0~git20260306.abc1234", or
+#         "1:2026.03.06~gitabc1234" for pasta (epoch, dotted date)
 
 extract_version_nightly() {
     local component="$1"
@@ -132,11 +136,13 @@ extract_version_nightly() {
                 | head -1 | sed 's|common/v||')
             ;;
         pasta)
-            # pasta has no semver tags; use datestamp~git<sha> so nightly versions
-            # are always distinct from stable/v5 (plain release date YYYYMMDD from
+            # pasta has no semver tags; use <epoch>:YYYY.MM.DD~git<sha> so nightly
+            # versions are always distinct from stable/v5 (<epoch>:YYYY.MM.DD from
             # the passt tag) and sort below a same-day release — prevents reprepro
             # pool collisions between nightly and a release-pinned stable build.
-            echo "${datestamp}~git${short_sha}"
+            # Same PASTA_EPOCH (functions.sh) as stable/v5, so it outranks the
+            # pre-epoch YYYYMMDD~git<sha> nightlies already installed.
+            echo "${PASTA_EPOCH}:${datestamp:0:4}.${datestamp:4:2}.${datestamp:6:2}~git${short_sha}"
             return
             ;;
         *)
@@ -362,6 +368,18 @@ for component in "${COMPONENTS[@]}"; do
     # Export variables and expand them in nFPM config
     # nFPM doesn't expand env vars in contents.src paths (Go glob is literal),
     # so we pre-process the YAML with envsubst
+    # A leading Debian epoch (N:, pasta only — functions.sh:PASTA_EPOCH) goes to
+    # nFPM's `epoch:` field, never into `version:`: nFPM would otherwise put the
+    # colon into the .deb filename. Control Version: still reads N:<version>.
+    # EPOCH stays empty for every other component, whose manifests have no
+    # `epoch:` key, so their Version: and filenames are unchanged.
+    if [[ "${local_version}" =~ ^([0-9]+):(.+)$ ]]; then
+        EPOCH="${BASH_REMATCH[1]}"
+        local_version="${BASH_REMATCH[2]}"
+    else
+        EPOCH=""
+    fi
+    export EPOCH
     export VERSION="${local_version}"
     export ARCH="${ARCH}"
     export DESTDIR="${DESTDIR}"
@@ -398,7 +416,7 @@ for component in "${COMPONENTS[@]}"; do
     export DETECTED_DEPENDS
 
     nfpm_config="$(mktemp)"
-    envsubst '${VERSION} ${ARCH} ${DESTDIR} ${DETECTED_DEPENDS}' < "${NFPM_DIR}/${component}.yaml" > "${nfpm_config}"
+    envsubst '${VERSION} ${EPOCH} ${ARCH} ${DESTDIR} ${DETECTED_DEPENDS}' < "${NFPM_DIR}/${component}.yaml" > "${nfpm_config}"
 
     # pasta ships the x86_64-only AVX2 fast-path variants when the build staged
     # them. They can't live in the arch-shared manifest — nFPM aborts on a src

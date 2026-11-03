@@ -335,14 +335,25 @@ pasta_date_tags() {
     printf '%s' "${lrows}" | sort -k1,1n -k2,2 | awk '{print $2}'
 }
 
-# pasta_version <repo-url> <tag> -- Debian base version of a passt release tag: the
-# release date without separators, plus the tag's same-day release index when it
-# is not the first release of its date (pasta_date_tags order):
-#   2026_10_02.cba3570 -> 20261002     (first / only release that day)
-#   2026_10_02.<later> -> 20261002.1   (second release that day), .2, ...
-# 20261002 < 20261002.1 < 20261003 in dpkg order, and a same-day nightly
-# (20261002~git<sha>) sorts below all of them. Single source of truth for
-# package_all.sh:extract_version and check_republish_needed.sh:extract_base.
+# PASTA_EPOCH -- Debian epoch carried by every podman-pasta version on every track
+# (stable, v5, nightly). Commit 44350a2 switched stable/v5 from build dates
+# (20261101) to passt release dates (20261002), which sort lower, so apt would
+# never upgrade existing installs; the epoch sorts above every pre-epoch version.
+# Permanent once published -- never remove or lower it. package_all.sh splits it
+# off into nFPM's `epoch:` field so the .deb filename carries no colon.
+PASTA_EPOCH=1
+
+# pasta_version <repo-url> <tag> -- Debian base version of a passt release tag:
+# ${PASTA_EPOCH}: plus the release date dotted (YYYY.MM.DD), plus the tag's same-day
+# release index when it is not the first release of its date (pasta_date_tags order):
+#   2026_10_02.cba3570 -> 1:2026.10.02     (first / only release that day)
+#   2026_10_02.<later> -> 1:2026.10.02.1   (second release that day), .2, ...
+# The dotted date keeps pool filenames (which drop the epoch) distinct from the
+# already-published undotted 20261002-style debs.
+# 1:2026.10.02 < 1:2026.10.02.1 < 1:2026.10.03 in dpkg order, and a same-day
+# nightly (1:2026.10.02~git<sha>) sorts below all of them. Single source of truth
+# for package_all.sh:extract_version and check_republish_needed.sh:extract_base,
+# so the guard's target equals the published Version: field, epoch included.
 # Prints nothing and returns non-zero on any pasta_date_tags failure.
 pasta_version() {
     local lurl="$1"
@@ -351,7 +362,7 @@ pasta_version() {
 
     lordered=$(pasta_date_tags "${lurl}" "${ltag}") || return 1
     ldate="${ltag%%.*}"
-    ldate="${ldate//_/}"
+    ldate="${PASTA_EPOCH}:${ldate//_/.}"
     while IFS= read -r lt; do
         if [[ "${lt}" == "${ltag}" ]]; then
             if [[ "${lidx}" -eq 0 ]]; then
