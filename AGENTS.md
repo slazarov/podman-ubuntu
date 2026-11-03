@@ -39,7 +39,7 @@ There is no package.json, no compiler, no app server. Everything is Bash.
 | `config.sh` | Central config: arch detection, version vars, cache toggles |
 | `functions.sh` | Shared helpers: `git_clone_update`, `run_logged`, `error_handler`, `step_start`/`step_done` |
 | `scripts/build_<component>.sh` | One script per component; each runs standalone |
-| `scripts/install_*.sh` | Toolchain + dependency installers (Go, Rust, protoc) |
+| `scripts/install_*.sh` | Toolchain + dependency installers (Go, Rust; protoc comes from apt) |
 | `scripts/package_all.sh` | DESTDIR staging tree → `.deb` files in `output/` |
 | `scripts/repo_manage.sh`, `scripts/ci_publish.sh` | APT repo assembly (reprepro) |
 | `scripts/ci_helpers.sh` | Shared CI logic, sourceable without `config.sh`: `fetch_url` (absent versus failed, with retries), resolved-env validation, nightly revision checkpoint, build cell selection, deploy propagation, compiler cache report |

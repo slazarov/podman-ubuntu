@@ -113,7 +113,7 @@ For users who prefer to compile everything locally rather than using the APT rep
 - Root or sudo access
 - Internet access
 
-The build auto-detects the Go and Rust toolchain versions from upstream sources (Podman's `go.mod` and Netavark's `Cargo.toml`) and installs Go, Rust, and protoc itself, so no manual toolchain setup is required.
+The build auto-detects the Go and Rust toolchain versions from upstream sources (Podman's `go.mod` and Netavark's `Cargo.toml`) and installs Go and Rust itself (protoc comes from Ubuntu's `protobuf-compiler` package), so no manual toolchain setup is required.
 
 ### Build Steps
 

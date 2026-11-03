@@ -74,9 +74,6 @@ run_script "install_dependencies.sh"
 # Install RUST
 run_script "install_rust.sh"
 
-# Install Protoc
-run_script "install_protoc.sh"
-
 # Install Go
 run_script "install_go.sh"
 

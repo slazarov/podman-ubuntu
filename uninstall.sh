@@ -167,11 +167,14 @@ safe_rm_file "/usr/local/bin/passt" "binary"
 safe_rm_file "/usr/local/bin/passt.avx2" "binary"
 safe_rm_file "/usr/local/bin/pasta" "binary"
 safe_rm_file "/usr/local/bin/pasta.avx2" "binary"
+# Legacy: protoc used to be downloaded into /opt/protoc and linked here; it now
+# comes from Ubuntu's protobuf-compiler package.
 safe_rm_file "/usr/local/bin/protoc" "binary"
 safe_rm_file "/usr/local/bin/sccache" "binary"
 
 # Remove Go installation
 safe_rm_dir "/opt/go" "go installation"
+safe_rm_dir "/opt/protoc" "legacy protoc installation"
 
 # Remove container-libs build directory
 safe_rm_dir "${BUILD_ROOT}/container-libs" "container-libs build"
