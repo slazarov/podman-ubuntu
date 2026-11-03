@@ -93,6 +93,10 @@ Work landed since `v1.2`, slated for the next release, `v1.3`.
 - CI: the republish guard also compares `podman-suite`.
 
 ### Fixed
+- toolbox builds again on Ubuntu 24.04. The `CC="ccache gcc"` a C component
+  turns on no longer carries over into later components, and the toolbox build
+  links with `-z lazy`. Before this, the completion step failed with
+  `undefined symbol: nvmlGpuInstanceGetComputeInstanceProfileInfoV`.
 - A network error, HTTP 5xx or 429, or a cut-off download from the live
   repository no longer makes a suite look unpublished, silently drops a
   package, or (when an arch's build failed) wipes that arch from the suite.
