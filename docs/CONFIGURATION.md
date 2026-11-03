@@ -28,7 +28,7 @@ group them by purpose.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `ARCH` | Optional | Auto-detected via `detect_architecture` | Target architecture. Either `amd64` or `arm64`. Drives `GOARCH`, `PROTOC_ARCH`, `RUSTUP_ARCH`, and `SCCACHE_ARCH`. |
+| `ARCH` | Optional | Auto-detected via `detect_architecture` | Target architecture. Either `amd64` or `arm64`. Drives `GOARCH`, `RUSTUP_ARCH`, and `SCCACHE_ARCH`. |
 | `NPROC` | Optional | `$(nproc)` | Parallel job count for `make`/`cargo` builds. |
 | `SHALLOW_CLONE` | Optional | `true` | Shallow-clone git repositories to reduce network transfer. Set to `false` for development/debugging (required for nightly `git describe` support). |
 | `PACKAGE_REVISION` | Optional | see `scripts/package_revision.sh` | The `N` in the `~ubuntu{VERSION_ID}.podman{N}` version suffix. Bump the default in `scripts/package_revision.sh` whenever packaging changes without an upstream version change — otherwise apt sees an identical version and the publish step reuses the already-published `.deb`. |
@@ -70,8 +70,6 @@ source versions-nightly.env && ./setup.sh                                  # lat
 | `PASTA_TAG` | Optional | empty | passt release tag, date-shaped `YYYY_MM_DD.<sha>` (e.g. `2026_10_02.cba3570`). stable/v5 resolve the newest soaked release (no `*_SERIES` cap); the `podman-pasta` version is epoch `1` plus the dotted release date (`1:2026.10.02`), with `.1`, `.2` … for later same-day releases (ordered by commit time). Empty = latest tag, or HEAD on nightly (`1:<YYYY.MM.DD>~git<sha>`). The epoch (`functions.sh:PASTA_EPOCH`, all tracks) lifts every version above the old build-date packages (up to ~`20261101` on stable; `20261024` live in v5) so existing installs upgrade; the dotted date keeps pool filenames, which omit the epoch, distinct from those old debs. The epoch is permanent. |
 | `CONTAINER_LIBS_TAG` | Optional | empty | containers/container-libs tag for config files and `seccomp.json`. Uses namespaced tags such as `common/v0.67.0`. |
 | `SCCACHE_TAG` | Optional | empty | sccache release tag (e.g. `v0.14.0`), used by the stable track. |
-| `PROTOC_VERSION` | Optional | Auto-detected via `get_latest_protoc_version` | protoc version (e.g. `34.0`). |
-| `PROTOC_TAG` | Optional | Derived as `v${PROTOC_VERSION}` | protoc release tag. |
 | `GOVERSION` | Optional | Auto-detected from Podman's `go.mod` via `get_required_go_version` | Go toolchain version. Sets `GOPATH` and `GOROOT` under `/opt/go/${GOVERSION}`. |
 | `RUST_VERSION` | Optional | Auto-detected from Netavark's `Cargo.toml` via `get_required_rust_version` | Rust toolchain version. |
 
@@ -160,8 +158,8 @@ The defaults are what CI uses; the tests lower the retry counts.
 `check_republish_needed.sh <stable|v5> [repo-url] [resolved-env-file]` takes an
 optional third argument: the output of `resolve_versions.sh`. CI passes the one
 `resolve-track` produced, so the resolver runs once per run. The file must
-contain only `export NAME="value"` lines for the known `*_TAG` names (and
-`PROTOC_VERSION`/`PROTOC_TAG`), each component exactly once; anything else
+contain only `export NAME="value"` lines for the known `*_TAG` names, each
+component exactly once; anything else
 fails the guard. Without the argument, the guard runs the resolver itself.
 
 `smoke_repo_install.sh` reads the assembled repository with apt's `Signed-By`
@@ -303,7 +301,6 @@ Defaults are defined in `config.sh` using the `${VAR:-default}` pattern. Notable
 | `BUILD_ROOT` | `${toolpath}/build` | `config.sh` |
 | `GOVERSION` | from Podman `go.mod` | `config.sh` (`get_required_go_version`) |
 | `RUST_VERSION` | from Netavark `Cargo.toml` | `config.sh` (`get_required_rust_version`) |
-| `PROTOC_VERSION` | latest detected | `config.sh` (`get_latest_protoc_version`) |
 | `OUTPUT_DIR` | `${toolpath}/output` | `scripts/package_all.sh` |
 | `OUTPUT_DIR` | `${toolpath}/repo-output` | `scripts/repo_manage.sh` (3rd argument) |
 

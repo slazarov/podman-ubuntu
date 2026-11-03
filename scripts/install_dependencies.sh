@@ -76,8 +76,10 @@ apt-get install -y libfuse3-dev
 apt-get install -y libsubid-dev meson codespell cmake bash-completion
 apt-get install -y systemd-dev
 
-# Dependencies to install Protoc
-apt-get install -y unzip
+# protoc: netavark's build generates its gRPC code from a .proto file at
+# cargo build time. Ubuntu's protoc (3.21.x on 24.04 and 26.04) builds every
+# netavark release we ship; nothing else uses it.
+apt-get install -y protobuf-compiler
 
 # Optional: ccache for C build caching (when CCACHE_ENABLED=true)
 if [[ "${CCACHE_ENABLED:-false}" == "true" ]]; then

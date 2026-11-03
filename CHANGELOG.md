@@ -39,6 +39,11 @@ Work landed since `v1.2`, slated for the next release, `v1.3`.
   `SECURITY.md`, PR/issue templates, and this changelog.
 
 ### Changed
+- protoc now comes from Ubuntu's `protobuf-compiler` package (3.21.x on 24.04
+  and 26.04) instead of a download from protobuf's GitHub releases.
+  `install_protoc.sh`, `PROTOC_VERSION`/`PROTOC_TAG` and the nightly lookup of
+  the latest release are gone. That lookup used the unauthenticated GitHub API
+  and, when rate-limited, returned an empty version that failed the build.
 - `podman-pasta` on stable/v5 is now built from a soaked passt release tag
   (`PASTA_TAG`, resolved by `resolve_versions.sh`) and versioned by that
   release's date (`2026_10_02.cba3570` → `20261002`; a later same-day release

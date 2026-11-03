@@ -47,8 +47,8 @@ source "${toolpath}/functions.sh"
 # (YYYY_MM_DD.<sha>, e.g. 2026_10_02.cba3570); they match the standard ^v?[0-9]
 # filter and version-sort correctly by their fixed-width date, so pasta floats to
 # the newest soaked release (no PASTA_SERIES cap); same-date releases are ordered by
-# commit time, not sha (_pasta_latest_soaked). sccache/protoc (build tools,
-# pinned exactly in the policy file) are intentionally ABSENT.
+# commit time, not sha (_pasta_latest_soaked). sccache (a build tool, pinned in
+# config.sh) is intentionally ABSENT; protoc comes from Ubuntu's apt package.
 # go-md2man is ALSO intentionally ABSENT: it is build-only man-page tooling with no
 # packaging/nfpm/*md2man* package and no entry in check_republish_needed.sh's compare
 # set, so resolving it here would let an unreachable cpuguy83/go-md2man remote HOLD
@@ -294,14 +294,6 @@ resolve_all() {
     if [[ "${lheld_det}" -ne 0 ]]; then
         echo "ERROR: held — no soaked target yet (upstream reachable); nothing to build" >&2
         return 3
-    fi
-
-    # Pass through exact build-tool pins from the policy (toolchain, not components).
-    if [[ -n "${PROTOC_VERSION:-}" ]]; then
-        lexports+=("export PROTOC_VERSION=\"${PROTOC_VERSION}\"")
-    fi
-    if [[ -n "${PROTOC_TAG:-}" ]]; then
-        lexports+=("export PROTOC_TAG=\"${PROTOC_TAG}\"")
     fi
 
     printf '%s\n' "${lexports[@]}"

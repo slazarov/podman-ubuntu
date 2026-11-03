@@ -155,8 +155,6 @@ RESOLVED_ENV_REQUIRED_KEYS=(
     SKOPEO_TAG TOOLBOX_TAG FUSE_OVERLAYFS_TAG CATATONIT_TAG CONTAINER_LIBS_TAG
     PASTA_TAG
 )
-# Build-tool pins the resolver passes through when the policy sets them.
-RESOLVED_ENV_OPTIONAL_KEYS=(PROTOC_VERSION PROTOC_TAG)
 
 # validate_resolved_env <file> -> 0 when valid, 1 otherwise (reasons on stderr).
 validate_resolved_env() {
@@ -179,7 +177,7 @@ validate_resolved_env() {
         fi
         lkey="${BASH_REMATCH[1]}"
         lknown=false
-        for lk in "${RESOLVED_ENV_REQUIRED_KEYS[@]}" "${RESOLVED_ENV_OPTIONAL_KEYS[@]}"; do
+        for lk in "${RESOLVED_ENV_REQUIRED_KEYS[@]}"; do
             [[ "${lk}" == "${lkey}" ]] && lknown=true
         done
         if [[ "${lknown}" != "true" ]]; then

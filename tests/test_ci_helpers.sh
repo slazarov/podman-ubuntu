@@ -134,7 +134,6 @@ export FUSE_OVERLAYFS_TAG="v1.16"
 export CATATONIT_TAG="v0.2.1"
 export CONTAINER_LIBS_TAG="common/v0.67.1"
 export PASTA_TAG="2026_10_02.cba3570"
-export PROTOC_VERSION="29.3"
 EOF
 
 vrc() {
@@ -153,7 +152,7 @@ assert_equals "missing component tag is rejected" "1" "$(vrc "${TMP}/missing.env
 { cat "${GOOD_ENV}"; echo 'export LD_PRELOAD="/tmp/x.so"'; } > "${TMP}/unknown.env"
 assert_equals "unknown name is rejected" "1" "$(vrc "${TMP}/unknown.env")"
 # shellcheck disable=SC2016
-{ cat "${GOOD_ENV}"; echo 'export PROTOC_TAG="$(touch /tmp/pwned)"'; } > "${TMP}/inject.env"
+{ grep -v '^export PASTA_TAG=' "${GOOD_ENV}"; echo 'export PASTA_TAG="$(touch /tmp/pwned)"'; } > "${TMP}/inject.env"
 assert_equals "command substitution is rejected" "1" "$(vrc "${TMP}/inject.env")"
 { cat "${GOOD_ENV}"; echo 'export PODMAN_TAG="v6.0.2"'; } > "${TMP}/dup.env"
 assert_equals "duplicate name is rejected" "1" "$(vrc "${TMP}/dup.env")"

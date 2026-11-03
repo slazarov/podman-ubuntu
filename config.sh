@@ -23,20 +23,18 @@ export GOARCH="$ARCH"  # Go uses: amd64, arm64
 
 case "$ARCH" in
     amd64)
-        export PROTOC_ARCH="x86_64"
         export RUSTUP_ARCH="x86_64-unknown-linux-gnu"
         export SCCACHE_ARCH="x86_64-unknown-linux-musl"
         _SCCACHE_DEFAULT_SHA256="8424b38cda4ecce616a1557d81328f3d7c96503a171eab79942fad618b42af44"
         ;;
     arm64)
-        export PROTOC_ARCH="aarch_64"
         export RUSTUP_ARCH="aarch64-unknown-linux-gnu"
         export SCCACHE_ARCH="aarch64-unknown-linux-musl"
         _SCCACHE_DEFAULT_SHA256="62a6c942c47c93333bc0174704800cef7edfa0416d08e1356c1d3e39f0b462f2"
         ;;
 esac
 
-echo "Architecture: ${ARCH} (Go: ${GOARCH}, Protoc: ${PROTOC_ARCH}, Rust: ${RUSTUP_ARCH})"
+echo "Architecture: ${ARCH} (Go: ${GOARCH}, Rust: ${RUSTUP_ARCH})"
 
 # ============================================
 # Distro Identity & Version Suffix
@@ -316,20 +314,6 @@ export PASTA_TAG="${PASTA_TAG:-}"
 # For seccomp.json builds, use a common/ tag (e.g., common/v0.67.0)
 export CONTAINER_LIBS_TAG="${CONTAINER_LIBS_TAG:-}"
 
-# Protoc Version and Path
-#export PROTOC_VERSION="33.1"
-#export PROTOC_TAG="v${PROTOC_VERSION}"
-
-# Auto-detect latest protoc version if not specified
-if [[ -z "${PROTOC_VERSION:-}" ]]; then
-    export PROTOC_VERSION=$(get_latest_protoc_version)
-fi
-# Derive PROTOC_TAG from PROTOC_VERSION if not already set
-if [[ -z "${PROTOC_TAG:-}" ]]; then
-    export PROTOC_TAG="v${PROTOC_VERSION}"
-fi
-export PROTOC_ROOT_FOLDER="/opt/protoc"
-export PROTOC_PATH="${PROTOC_ROOT_FOLDER}/${PROTOC_VERSION}/bin/protoc"
 
 # Create Build Folder Root
 mkdir -p "${BUILD_ROOT}"

@@ -34,7 +34,6 @@ graph TD
     subgraph Toolchain Install
         DEPS[install_dependencies.sh]
         RUST[install_rust.sh]
-        PROTOC[install_protoc.sh]
         GO[install_go.sh]
     end
 
@@ -59,7 +58,7 @@ graph TD
     SETUP --> FUNC
     CONFIG --> FUNC
     SETUP --> PRE
-    SETUP --> DEPS --> RUST --> PROTOC --> GO --> BUILDS
+    SETUP --> DEPS --> RUST --> GO --> BUILDS
     BUILDS -->|DESTDIR staging tree| PKG
     PKG --> NFPM
     PKG -->|output/*.deb| REPO
@@ -101,8 +100,9 @@ moves through the system as follows:
    before any build work begins.
 
 3. **Toolchain install.** `setup.sh` runs `install_dependencies.sh`,
-   `install_rust.sh`, `install_protoc.sh`, and `install_go.sh` to prepare the
-   build environment.
+   `install_rust.sh`, and `install_go.sh` to prepare the build environment.
+   protoc, which netavark's build needs, comes from Ubuntu's
+   `protobuf-compiler` package (installed by `install_dependencies.sh`).
 
 4. **Component compilation.** `setup.sh` runs each `scripts/build_*.sh` in
    sequence. Each build script clones/updates its upstream repository into
@@ -309,7 +309,7 @@ The repository is organized around the pipeline stages described above:
 ├── scripts/                # Per-stage and per-component scripts
 │   ├── preflight_check.sh  # Host validation before building
 │   ├── resolve_versions.sh # Materializes concrete *_TAGs from a track policy file
-│   ├── install_*.sh        # Toolchain installers (rust, go, protoc, deps, ...)
+│   ├── install_*.sh        # Toolchain installers (rust, go, deps, ...)
 │   ├── build_*.sh          # One compile script per upstream component
 │   ├── package_all.sh      # Builds all .deb packages via nFPM
 │   ├── component_maps.sh   # Shared COMPONENT_BINARIES / INJECT_ONLY_DEPENDS maps

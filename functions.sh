@@ -408,15 +408,6 @@ get_required_buildah_tag() {
     printf 'v%s\n' "${lver}"
 }
 
-get_latest_protoc_version() {
-    # Fetch latest protoc release from GitHub API
-    # Returns version WITHOUT v prefix (e.g., "34.0" not "v34.0")
-    local latest_tag
-    latest_tag=$(curl -s "https://api.github.com/repos/protocolbuffers/protobuf/releases/latest" | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
-    # Strip v prefix if present (tag_name is "v34.0", we want "34.0")
-    echo "${latest_tag#v}"
-}
-
 get_latest_go_version() {
     # Fetch latest Go version from go.dev JSON API
     # Returns version WITHOUT go prefix (e.g., "1.26.0" not "go1.26.0")
@@ -620,7 +611,6 @@ cleanup_build_artifacts() {
     # Remove downloaded archives if build directories exist
     if [ -d "${BUILD_ROOT}/aardvark-dns" ]; then
         rm -f "${toolpath}/build/go*.linux-${ARCH}.tar.gz"
-        rm -f "${toolpath}/build/protoc*-linux-${ARCH}.zip"
         rm -f "${toolpath}/build/rustup-init.sh"
     fi
 
