@@ -140,7 +140,7 @@ Current test scope is focused on the packaging version-derivation logic
 component's version format: Go-based projects (Podman, Buildah, Skopeo),
 Rust projects (Netavark, Aardvark-DNS, fuse-overlayfs v2.0+), C/autotools
 projects (fuse-overlayfs v1.x, catatonit), tag-based projects (crun,
-containers-common), the nightly pasta `<date>~git<sha>` scheme, 2-part-to-3-part version
+containers-common), the nightly pasta `1:<YYYY.MM.DD>~git<sha>` scheme, 2-part-to-3-part version
 normalization (toolbox), and Debian tilde-sort ordering.
 
 `tests/test_resolve_versions.sh` covers the stable/v5 version resolver offline
@@ -148,10 +148,17 @@ normalization (toolbox), and Debian tilde-sort ordering.
 `STABLE_SOAK_DAYS` soak window, deriving Buildah's version from Podman's
 `go.mod`, and ranking/soaking passt's date-shaped `YYYY_MM_DD.<sha>` release
 tags for pasta, including same-day releases ordered by commit time
-(`functions.sh:pasta_version` → `20261002`, `20261002.1`).
+(`functions.sh:pasta_version` → `1:2026.10.02`, `1:2026.10.02.1`).
 `tests/test_check_republish.sh` pins the guard's pasta base to
-`package_all.sh:extract_version` on a same-day fixture, checks the guard compares
-`podman-pasta`, and asserts the dpkg ordering `20261002 < 20261002.1 < 20261003`.
+`package_all.sh:extract_version` on a same-day fixture, replays package_all.sh's
+epoch split, renders `pasta.yaml`, and checks that the rendered `epoch:` and
+`version:` rebuild the guard target (`1:2026.10.02~…`) with an epoch-free
+filename (it does not run nFPM; `scripts/verify_depends.sh` Part B runs nFPM on
+the rendered `pasta.yaml` and checks the control `Version:` starts with `1:`),
+checks the guard compares `podman-pasta`, and asserts the dpkg ordering
+`1:2026.10.02 < 1:2026.10.02.1 < 1:2026.10.03` plus pre-epoch upgrades
+(`20261101`, `20261024`, `YYYYMMDD~git<sha>` < every `1:` version).
+`scripts/verify_versions.sh` asserts the same upgrade orderings.
 
 ## CI Integration
 

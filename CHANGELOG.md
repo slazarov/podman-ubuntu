@@ -43,9 +43,17 @@ Work landed since `v1.2`, slated for the next release, `v1.3`.
   (`PASTA_TAG`, resolved by `resolve_versions.sh`) and versioned by that
   release's date (`2026_10_02.cba3570` → `20261002`; a later same-day release
   becomes `20261002.1`) instead of the build date,
-  so rebuilds no longer bump it and the republish guard now compares it. Hosts
-  holding a newer build-date version keep it until passt publishes a later
-  release. Nightly still builds HEAD as `<date>~git<sha>`.
+  so rebuilds no longer bump it and the republish guard now compares it.
+  Nightly still builds HEAD. (Version format superseded by the epoch entry
+  below.)
+- `podman-pasta` versions now carry Debian epoch `1` on every track, with the
+  date dotted: `1:2026.10.02`, `1:2026.10.02.1` for a later same-day release,
+  and `1:2026.11.02~git<sha>` on nightly. The release-date versions above sorted
+  below the build-date (`20261101`) and already-published (`20261024`) versions,
+  so apt never upgraded those installs; the epoch sorts above all of them. The
+  epoch goes through nFPM's `epoch:` field, so filenames carry no colon, and the
+  dotted date keeps them distinct from the old `20261002`-style pool files. The
+  epoch is permanent.
 - `podman-fuse-overlayfs` is now optional: `podman-podman` and `podman-suite`
   *Recommend* it instead of depending on it (native rootless overlay on kernel
   ≥ 5.13), packaging revision bumped to `podman3`, and the `/dev/fuse` preflight
@@ -85,6 +93,10 @@ Work landed since `v1.2`, slated for the next release, `v1.3`.
 - CI: the republish guard also compares `podman-suite`.
 
 ### Fixed
+- toolbox builds again on Ubuntu 24.04. The `CC="ccache gcc"` a C component
+  turns on no longer carries over into later components, and the toolbox build
+  links with `-z lazy`. Before this, the completion step failed with
+  `undefined symbol: nvmlGpuInstanceGetComputeInstanceProfileInfoV`.
 - A network error, HTTP 5xx or 429, or a cut-off download from the live
   repository no longer makes a suite look unpublished, silently drops a
   package, or (when an arch's build failed) wipes that arch from the suite.

@@ -3,6 +3,10 @@ arch: "${ARCH}"
 platform: linux
 version: "${VERSION}"
 version_schema: none
+# Debian epoch (functions.sh:PASTA_EPOCH), split off the version by
+# package_all.sh. Kept out of `version:` so the .deb filename has no colon;
+# the control file still reads Version: <epoch>:<version>.
+epoch: "${EPOCH}"
 maintainer: "Podman Ubuntu <noreply@github.com>"
 description: "User-mode networking for rootless containers (compiled from source)"
 vendor: "podman-ubuntu"

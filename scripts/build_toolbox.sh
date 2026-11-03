@@ -47,7 +47,16 @@ step_start "Building"
 # in a toolbox container and refuses to run unless TOOLBOX_PATH is set. Docker
 # containers (CI) and bare hosts are unaffected. The value is only checked for
 # presence during completion generation.
-TOOLBOX_PATH="${TOOLBOX_PATH:-/usr/bin/toolbox}" run_logged meson compile -C builddir
+#
+# The build also links `toolbox` through `go run` for those completions.
+# Toolbox needs lazy symbol binding: the NVIDIA libraries it uses are loaded
+# at runtime, so their symbols are unresolved when the binary starts. If Go
+# links a PIE (e.g. with CC="ccache gcc"), Ubuntu's gcc adds "-z now" and the
+# binary dies with "undefined symbol: nvml...". Toolbox releases up to 0.3
+# do not pass "-z lazy" to `go run` (upstream fixed it later), so add it here.
+TOOLBOX_PATH="${TOOLBOX_PATH:-/usr/bin/toolbox}" \
+    CGO_LDFLAGS="${CGO_LDFLAGS:-} -Wl,-z,lazy" \
+    run_logged meson compile -C builddir
 step_done
 
 step_start "Testing"

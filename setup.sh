@@ -46,7 +46,23 @@ run_script() {
     echo ">>> Starting: ${script}"
     echo "========================================"
 
+    # Sub-scripts are sourced, so their exports reach every later script.
+    # enable_c_compiler_cache / enable_rust_compiler_cache export CC and
+    # RUSTC_WRAPPER for ONE component's build; restore them afterwards so they
+    # do not leak. A leaked CC="ccache gcc" makes Go link cgo binaries as PIE,
+    # which Ubuntu's gcc links with "-z now", and toolbox (NVIDIA libraries
+    # bound lazily) then fails at startup with "undefined symbol: nvml...".
+    local cc_was_set="${CC+x}" cc_saved="${CC:-}"
+    local rustc_wrapper_was_set="${RUSTC_WRAPPER+x}" rustc_wrapper_saved="${RUSTC_WRAPPER:-}"
+
     source "${toolpath}/scripts/${script}"
+
+    if [[ -n "${cc_was_set}" ]]; then export CC="${cc_saved}"; else unset CC; fi
+    if [[ -n "${rustc_wrapper_was_set}" ]]; then
+        export RUSTC_WRAPPER="${rustc_wrapper_saved}"
+    else
+        unset RUSTC_WRAPPER
+    fi
 
     COMPONENTS_OK+=("${script}")
     script_done "${script}"

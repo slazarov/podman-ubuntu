@@ -235,13 +235,19 @@ render_one() {
     local yaml="$1" comp="$2" detected_fragment="$3"
     local rendered="${tmp_render_dir}/nfpm-${comp}.yaml"
 
-    # Mirror package_all.sh: export the same four vars and allowlist them.
+    # Mirror package_all.sh: export the same five vars and allowlist them.
+    # EPOCH is pasta's Debian epoch (functions.sh:PASTA_EPOCH), empty otherwise.
     export VERSION="0.0.0~ubuntu${DISTRO_VERSION_ID}.podman1"
+    if [[ "${comp}" == "pasta" ]]; then
+        export EPOCH="${PASTA_EPOCH}"
+    else
+        export EPOCH=""
+    fi
     export ARCH="${ARCH}"
     export DESTDIR="${DESTDIR}"
     export DETECTED_DEPENDS="${detected_fragment}"
 
-    envsubst '${VERSION} ${ARCH} ${DESTDIR} ${DETECTED_DEPENDS}' < "${yaml}" > "${rendered}"
+    envsubst '${VERSION} ${EPOCH} ${ARCH} ${DESTDIR} ${DETECTED_DEPENDS}' < "${yaml}" > "${rendered}"
 
     # `nfpm pkg` parses+validates the config; a YAML error or garbled depends
     # block makes it exit non-zero. Target a throwaway dir.
@@ -249,6 +255,22 @@ render_one() {
         echo "    FAIL: nfpm rejected rendered ${comp}.yaml (DISTRO=${DISTRO_VERSION_ID})" >&2
         sed 's/^/      /' "${tmp_render_dir}/nfpm.err" >&2
         return 1
+    fi
+
+    # pasta: the epoch must reach the control Version: (1:...) but never the
+    # .deb filename (nFPM's epoch: field, not version:).
+    if [[ "${comp}" == "pasta" ]]; then
+        local pasta_deb pasta_ver
+        pasta_deb="$(find "${tmp_render_dir}" -maxdepth 1 -name "podman-pasta_*${VERSION}_*.deb" | head -n1)"
+        pasta_ver="$([[ -n "${pasta_deb}" ]] && dpkg-deb -f "${pasta_deb}" Version || true)"
+        if [[ "${pasta_ver}" != "${PASTA_EPOCH}":* ]]; then
+            echo "    FAIL: podman-pasta control Version '${pasta_ver}' lacks epoch ${PASTA_EPOCH}: (DISTRO=${DISTRO_VERSION_ID})" >&2
+            return 1
+        fi
+        if [[ "$(basename "${pasta_deb}")" == *:* ]]; then
+            echo "    FAIL: podman-pasta deb filename '$(basename "${pasta_deb}")' contains a colon (DISTRO=${DISTRO_VERSION_ID})" >&2
+            return 1
+        fi
     fi
 
     # Assert the rendered depends block is well-formed: if the source YAML has a

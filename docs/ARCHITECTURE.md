@@ -246,7 +246,9 @@ is published as `podman-ubuntu.gpg`.
 `check_republish_needed.sh`, which compares would-build versions against what's
 published across both distros × arches and emits `skip=true` only on a full
 match (`pasta` included — stable/v5 pin it to a soaked passt release tag,
-versioned by the release date, `.N` for a later same-day release). It is strictly conservative — any
+versioned `1:YYYY.MM.DD` — epoch 1 plus the dotted release date, `.N` for a
+later same-day release; the epoch rides nFPM's `epoch:` field, so the guard's
+target includes it while pool filenames omit it). It is strictly conservative — any
 fetch/resolve uncertainty → `skip=false` — and unit-pinned by
 `test_check_republish.sh`.
 

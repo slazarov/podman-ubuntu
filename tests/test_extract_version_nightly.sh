@@ -200,6 +200,8 @@ source_extract_version_nightly() {
     # Extract the function using sed: from 'extract_version_nightly()' to the closing '}'
     # We eval it to define it in this shell
     eval "$(sed -n '/^extract_version_nightly()/,/^}/p' "${PROJECT_ROOT}/scripts/package_all.sh")"
+    # The pasta branch reads PASTA_EPOCH (functions.sh, sourced by package_all.sh).
+    eval "$(grep -E '^PASTA_EPOCH=' "${PROJECT_ROOT}/functions.sh")"
 }
 
 # ============================================
@@ -231,11 +233,25 @@ result=$(extract_version_nightly "podman" "${TEST_TMPDIR}/podman")
 assert_matches "podman version format" "^5\.9\.0~git${TODAY}\.[0-9a-f]{7}$" "${result}"
 
 echo ""
-echo "Test 2: Pasta nightly version (date~git<sha> to prevent pool collisions)"
+echo "Test 2: Pasta nightly version (epoch:date~git<sha> to prevent pool collisions)"
 result=$(extract_version_nightly "pasta" "${TEST_TMPDIR}/pasta")
-# Should be YYYYMMDD~git<7-char-sha> — the tilde-sha suffix prevents nightly
-# from sharing a version string with same-day stable builds in the reprepro pool.
-assert_matches "pasta returns date~git<sha>" "^[0-9]{8}~git[0-9a-f]{7}$" "${result}"
+# Should be 1:YYYY.MM.DD~git<7-char-sha> — the tilde-sha suffix prevents nightly
+# from sharing a version string with same-day stable builds in the reprepro pool,
+# and the epoch (shared with stable/v5) outranks pre-epoch YYYYMMDD~git<sha> installs.
+pasta_sha=$(git -C "${TEST_TMPDIR}/pasta" rev-parse --short=7 HEAD)
+assert_equals "pasta returns 1:<today dotted>~git<sha>" \
+    "1:$(date +%Y.%m.%d)~git${pasta_sha}" "${result}"
+assert_matches "pasta nightly format" "^1:[0-9]{4}\.[0-9]{2}\.[0-9]{2}~git[0-9a-f]{7}$" "${result}"
+if command -v dpkg >/dev/null 2>&1; then
+    _ord="no"
+    dpkg --compare-versions "20261103~git6aa4f88~ubuntu24.04.podman3" lt \
+        "1:2026.11.02~git6aa4f88~ubuntu24.04.podman3" && _ord="yes"
+    assert_equals "dpkg: pre-epoch nightly < epoch nightly" "yes" "${_ord}"
+    _ord="no"
+    dpkg --compare-versions "1:2026.11.02~git6aa4f88~ubuntu24.04.podman3" lt \
+        "1:2026.11.02~ubuntu24.04.podman3" && _ord="yes"
+    assert_equals "dpkg: same-day nightly < release" "yes" "${_ord}"
+fi
 
 echo ""
 echo "Test 2b: pasta maps to the passt clone dir (else nightly yields ~gitunknown)"
