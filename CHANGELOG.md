@@ -10,12 +10,6 @@ in the APT repository, not here; this file tracks the **pipeline** itself.
 
 Work landed since `v1.2`, slated for the next release, `v1.3`.
 
-### Security
-- **Repository signing key replaced (2026-11-11)** — the previous key
-  `B7F2FD0509240BDACD92B1D1E56CE5A0B9702F11` is considered compromised. All
-  suites are now signed by `1C93692FE1498A4DCFFE11D3F5519D2D6171DB3F`; users
-  must re-download `podman-ubuntu.gpg` (see the README notice).
-
 ### Added
 - **Debian packaging** — every component built into a `podman-*` `.deb` via nFPM,
   with `Conflicts`/`Replaces`/`Provides` against the official Ubuntu packages and
