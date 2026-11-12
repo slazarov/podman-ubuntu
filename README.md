@@ -1,5 +1,22 @@
 # podman-ubuntu
 
+> [!IMPORTANT]
+> **The repository signing key was rotated on 2026-11-11.** Existing users must
+> replace their copy of the key, otherwise `apt update` fails with
+> `NO_PUBKEY F5519D2D6171DB3F`:
+>
+> ```bash
+> wget -qO /tmp/podman-ubuntu.gpg https://slazarov.github.io/podman-ubuntu/podman-ubuntu.gpg
+> gpg --show-keys /tmp/podman-ubuntu.gpg   # must show 1C93692FE1498A4DCFFE11D3F5519D2D6171DB3F
+> sudo install -m 0644 /tmp/podman-ubuntu.gpg /etc/apt/keyrings/podman-ubuntu.gpg
+> rm /tmp/podman-ubuntu.gpg
+> sudo apt update
+> ```
+>
+> New key fingerprint: `1C93 692F E149 8A4D CFFE  11D3 F551 9D2D 6171 DB3F`
+<!-- REVOCATION-CERT-PLACEHOLDER: link the public revocation certificate for the
+     old key B7F2FD0509240BDACD92B1D1E56CE5A0B9702F11 here once available -->
+
 Compile and install the latest Podman container stack from source on Debian/Ubuntu, or install pre-built packages from the hosted APT repository.
 
 📦 **APT repository:** <https://slazarov.github.io/podman-ubuntu/> — browse tracks, suites, and per-package versions, or jump straight to [Install via APT](#install-via-apt-recommended).

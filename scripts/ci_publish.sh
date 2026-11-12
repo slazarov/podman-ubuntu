@@ -74,6 +74,13 @@ OUTPUT_DIR="$5"
 
 REPO_CONF="${toolpath}/packaging/repo"
 
+# Public key this publish ships (repo_manage.sh copies packaging/repo/pubkey.gpg
+# to podman-ubuntu.gpg). A non-target suite is served verbatim only if its live
+# signatures verify against it; otherwise it is re-exported and re-signed. After
+# a signing-key rotation this re-signs every suite in one run instead of
+# re-serving old-key signatures that the integrity gate (Step 4c) then rejects.
+VERBATIM_KEYRING="${REPO_KEYRING:-${REPO_CONF}/pubkey.gpg}"
+
 # ============================================
 # Validate Arguments
 # ============================================
@@ -192,6 +199,9 @@ total_other_count=0
 #      match its signed hash. The caller falls back to re-export.
 #   2  a download failed (see fetch_url). The caller must stop: the live
 #      state is unknown, so neither "absent" nor "verbatim" is safe to assume.
+#   3  the suite is published, but its signatures do not verify with
+#      VERBATIM_KEYRING (e.g. still signed by a retired key after a rotation).
+#      The caller re-exports and re-signs it, like a HEAL demotion.
 # Nothing is placed in the output unless it returns 0.
 #
 # T-20-17 fix history: the previous `wget -r` crawl broke two ways against
@@ -244,6 +254,37 @@ mirror_suite_verbatim() {
             return 2
         fi
     done
+
+    # The signatures must be by the key this publish ships. A suite still
+    # signed by a retired key (after a key rotation) cannot be served
+    # verbatim: fall back to the re-export path, which re-signs it.
+    # VERBATIM_KEYRING unset skips the check (unit tests use dummy signatures).
+    if [[ -n "${VERBATIM_KEYRING:-}" ]]; then
+        local lgh lsig_ok=false
+        lgh=$(mktemp -d)
+        chmod 700 "${lgh}"
+        if [[ -s "${VERBATIM_KEYRING}" ]]; then
+            if LC_ALL=C grep -q -- '-----BEGIN PGP' "${VERBATIM_KEYRING}"; then
+                gpg --batch --quiet --homedir "${lgh}" --dearmor \
+                    -o "${lgh}/keyring.gpg" "${VERBATIM_KEYRING}" 2>/dev/null || true
+            else
+                cp "${VERBATIM_KEYRING}" "${lgh}/keyring.gpg"
+            fi
+        fi
+        if [[ -s "${lgh}/keyring.gpg" ]] \
+            && gpgv --homedir "${lgh}" --keyring "${lgh}/keyring.gpg" \
+                "${ldist}/InRelease" >/dev/null 2>&1 \
+            && gpgv --homedir "${lgh}" --keyring "${lgh}/keyring.gpg" \
+                "${ldist}/Release.gpg" "${ldist}/Release" >/dev/null 2>&1; then
+            lsig_ok=true
+        fi
+        rm -rf "${lgh}"
+        if [[ "${lsig_ok}" != "true" ]]; then
+            echo "  WARNING: ${lsuite}: live signature does not verify with the current repository key — not serving verbatim (re-export + re-sign)" >&2
+            rm -rf "${lmirror}"
+            return 3
+        fi
+    fi
 
     # Fetch every checksummed index the Release lists (same "<hash> <size>
     # <relpath>" section parser as repo_byhash.sh), verify it against the
@@ -360,6 +401,14 @@ for other_suite in "${OTHER_SUITES[@]}"; do
     elif [[ "${mirror_rc}" -eq 1 ]]; then
         IS_VERBATIM["${other_suite}"]=false
         echo ">>> No verbatim live tree for '${other_suite}' (not published, or incomplete) — re-export path"
+    elif [[ "${mirror_rc}" -eq 3 ]]; then
+        # Published but signed by a key this publish no longer ships (key
+        # rotation): re-export and re-sign it. Treat it like a HEAL demotion so
+        # the no-drop gate covers it and its previous by-hash generation is kept.
+        IS_VERBATIM["${other_suite}"]=false
+        HEALED_SUITES+=("${other_suite}")
+        MIRRORED_SUITES+=("${other_suite}")
+        echo ">>> RE-SIGN: '${other_suite}' is not signed by the current repository key — re-export path"
     else
         echo "ERROR: could not read the live '${other_suite}' suite; refusing to publish without it." >&2
         exit 1
