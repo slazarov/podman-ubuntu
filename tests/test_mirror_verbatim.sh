@@ -331,6 +331,74 @@ else
 fi
 
 # ============================================
+# Test 8: signatures must verify with VERBATIM_KEYRING (key rotation)
+# ============================================
+# After a signing-key rotation the live suites are still signed by the retired
+# key. Serving them verbatim would publish signatures the new keyring rejects,
+# so the function returns 3 (re-export + re-sign) instead.
+
+echo ""
+echo "Test 8: a suite signed by a key other than VERBATIM_KEYRING returns 3"
+
+if command -v gpg >/dev/null 2>&1 && command -v gpgv >/dev/null 2>&1; then
+    SIGNED="${TMP}/signed/podman-ubuntu"
+    mkdir -p "${SIGNED}"
+    cp -R "${WWW}/dists" "${SIGNED}/dists"
+    SDIST="${SIGNED}/dists/${SUITE}"
+    for k in current retired; do
+        mkdir -p "${TMP}/gh-${k}"
+        chmod 700 "${TMP}/gh-${k}"
+        gpg --homedir "${TMP}/gh-${k}" --batch --quiet --passphrase '' \
+            --quick-gen-key "Test ${k} <test@invalid>" ed25519 sign never 2>/dev/null
+        gpg --homedir "${TMP}/gh-${k}" --batch --export > "${TMP}/${k}.gpg"
+    done
+    gpg --homedir "${TMP}/gh-current" --batch --yes --clearsign \
+        -o "${SDIST}/InRelease" "${SDIST}/Release" 2>/dev/null
+    gpg --homedir "${TMP}/gh-current" --batch --yes -abs \
+        -o "${SDIST}/Release.gpg" "${SDIST}/Release" 2>/dev/null
+    gpgconf --homedir "${TMP}/gh-current" --kill all >/dev/null 2>&1 || true
+    gpgconf --homedir "${TMP}/gh-retired" --kill all >/dev/null 2>&1 || true
+
+    rc=0
+    VERBATIM_KEYRING="${TMP}/current.gpg" \
+        mirror_suite_verbatim "${SUITE}" "file://${TMP}/signed/podman-ubuntu" "${TMP}/out8a" || rc=$?
+    assert_equals "signed by the current key: returns 0" "0" "${rc}"
+    assert_file_identical "signed by the current key: InRelease served verbatim" \
+        "${SDIST}/InRelease" "${TMP}/out8a/dists/${SUITE}/InRelease"
+
+    gpg --homedir "${TMP}/gh-current" --batch --quiet --enarmor \
+        -o "${TMP}/current.asc" "${TMP}/current.gpg" 2>/dev/null || true
+    if [[ -s "${TMP}/current.asc" ]]; then
+        rc=0
+        VERBATIM_KEYRING="${TMP}/current.asc" \
+            mirror_suite_verbatim "${SUITE}" "file://${TMP}/signed/podman-ubuntu" "${TMP}/out8b" || rc=$?
+        assert_equals "armored keyring is accepted: returns 0" "0" "${rc}"
+    fi
+
+    rc=0
+    VERBATIM_KEYRING="${TMP}/retired.gpg" \
+        mirror_suite_verbatim "${SUITE}" "file://${TMP}/signed/podman-ubuntu" "${TMP}/out8c" 2>/dev/null || rc=$?
+    assert_equals "signed by another key: returns 3" "3" "${rc}"
+    assert_absent "signed by another key: nothing placed in output" "${TMP}/out8c/dists/${SUITE}"
+
+    rc=0
+    VERBATIM_KEYRING="${TMP}/no-such-keyring.gpg" \
+        mirror_suite_verbatim "${SUITE}" "file://${TMP}/signed/podman-ubuntu" "${TMP}/out8d" 2>/dev/null || rc=$?
+    assert_equals "missing keyring: returns 3 (never serve unverified)" "3" "${rc}"
+
+    rc=0
+    VERBATIM_KEYRING="${TMP}/current.gpg" \
+        mirror_suite_verbatim "${SUITE}" "${REPO_URL_TEST}" "${TMP}/out8e" 2>/dev/null || rc=$?
+    assert_equals "unsigned (dummy) signatures: returns 3" "3" "${rc}"
+else
+    skip "signature checks (gpg/gpgv not available)"
+    if [[ "${REQUIRE_INTEGRATION_DEPS:-0}" == "1" ]]; then
+        echo "  FAIL: REQUIRE_INTEGRATION_DEPS=1 but gpg/gpgv is missing."
+        FAIL_COUNT=$((FAIL_COUNT + 1))
+    fi
+fi
+
+# ============================================
 # Summary
 # ============================================
 

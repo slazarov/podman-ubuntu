@@ -240,7 +240,10 @@ checksums *that* file. Two mechanisms enforce it and one verifies it:
 **Signing.** `GPG_PRIVATE_KEY` is imported with ultimate ownertrust; reprepro
 signs each suite; `repo_byhash.sh` re-signs after injecting `Acquire-By-Hash`
 (editing `Release` invalidates reprepro's signature). `packaging/repo/pubkey.gpg`
-is published as `podman-ubuntu.gpg`.
+is published as `podman-ubuntu.gpg`. A non-target suite is served verbatim only
+if its live signatures verify with that key; a suite still signed by a retired
+key (after a key rotation) is re-exported and re-signed instead, so one publish
+moves every suite to the new key.
 
 **Republish gating.** stable/v5 runs (cron or manual dispatch) run
 `check_republish_needed.sh`, which compares would-build versions against what's
