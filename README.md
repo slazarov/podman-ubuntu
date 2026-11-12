@@ -14,8 +14,9 @@
 > ```
 >
 > New key fingerprint: `1C93 692F E149 8A4D CFFE  11D3 F551 9D2D 6171 DB3F`
-<!-- REVOCATION-CERT-PLACEHOLDER: link the public revocation certificate for the
-     old key B7F2FD0509240BDACD92B1D1E56CE5A0B9702F11 here once available -->
+>
+> The previous key (`B7F2 FD05 0924 0BDA CD92  B1D1 E56C E5A0 B970 2F11`) is revoked:
+> [revocation certificate](packaging/repo/revocations/B7F2FD0509240BDACD92B1D1E56CE5A0B9702F11.asc).
 
 Compile and install the latest Podman container stack from source on Debian/Ubuntu, or install pre-built packages from the hosted APT repository.
 
