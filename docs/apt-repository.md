@@ -65,7 +65,18 @@ The signing key is the same for every Ubuntu version and every track -- download
 sudo mkdir -p /etc/apt/keyrings
 sudo wget -qO /etc/apt/keyrings/podman-ubuntu.gpg \
   https://slazarov.github.io/podman-ubuntu/podman-ubuntu.gpg
+
+# Check the fingerprint
+gpg --show-keys /etc/apt/keyrings/podman-ubuntu.gpg
 ```
+
+The key must be `Podman Ubuntu <noreply@github.com>` with fingerprint
+`1C93 692F E149 8A4D CFFE  11D3 F551 9D2D 6171 DB3F`.
+
+The signing key was replaced on 2026-11-11 because the previous key
+(`B7F2 FD05 0924 0BDA CD92  B1D1 E56C E5A0 B970 2F11`) was compromised. If
+`apt update` reports `NO_PUBKEY F5519D2D6171DB3F`, you still have the old key:
+re-run the commands above (see the notice in the [README](../README.md)).
 
 ## Track Selection
 

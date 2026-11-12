@@ -48,8 +48,10 @@ rotation is done with a transition window rather than a hard swap:
 1. Generate the new keypair; add its public key to `packaging/repo/pubkey.gpg`
    **alongside** the current one so the published `podman-ubuntu.gpg` carries
    both.
-2. Publish once with the combined keyring so every user's next `apt update`
-   picks up the new public key while the old signature is still trusted.
+2. Publish once with the combined keyring and announce it. `apt` never
+   refreshes `/etc/apt/keyrings/podman-ubuntu.gpg` by itself: users must
+   re-download the key file during the window, while the old signature is
+   still trusted.
 3. After a transition window (announce it in the README/release notes), replace
    the `GPG_PRIVATE_KEY` secret with the new private key so suites are signed by
    the new key only.
@@ -57,6 +59,21 @@ rotation is done with a transition window rather than a hard swap:
 
 Rotate promptly (skipping the window) if the private key is believed
 compromised, and disclose via the channel above. Never commit a private key.
+
+Generate the new key off any machine that held the old one, in a throwaway
+`GNUPGHOME` (e.g. under `/dev/shm`), with no passphrase (CI imports it with
+`gpg --batch`). Pipe the export straight into the secret and delete the
+`GNUPGHOME` afterwards:
+`gpg --export-secret-keys --armor FPR | base64 -w0 | gh secret set GPG_PRIVATE_KEY`.
+Write the public half with `gpg --export FPR > packaging/repo/pubkey.gpg`
+(binary, not armored).
+
+### Key history
+
+| Fingerprint | Status |
+|---|---|
+| `1C93 692F E149 8A4D CFFE  11D3 F551 9D2D 6171 DB3F` (`Podman Ubuntu`) | Current, since 2026-11-11 |
+| `B7F2 FD05 0924 0BDA CD92  B1D1 E56C E5A0 B970 2F11` (`Podman Debian`) | **Compromised** 2026-11-11, retired without a transition window. Revocation certificate: _pending_ |
 
 ## Supported versions
 

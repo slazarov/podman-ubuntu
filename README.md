@@ -16,6 +16,33 @@ Compile and install the latest Podman container stack from source on Debian/Ubun
 
 Forked from [luckylinux/podman-debian](https://github.com/luckylinux/podman-debian) with significant additions: arm64 support, fully non-interactive builds, a hosted APT repository, CI/CD pipelines, 12 packaged components, opt-in build caching, and three release tracks (stable, v5, nightly).
 
+> [!IMPORTANT]
+> **Repository signing key changed on 2026-11-11 for security reasons.**
+> The previous signing key must be considered compromised and is no longer used.
+>
+> | | Fingerprint |
+> |---|---|
+> | **New key** (`Podman Ubuntu <noreply@github.com>`) | `1C93 692F E149 8A4D CFFE  11D3 F551 9D2D 6171 DB3F` |
+> | Old key, **do not trust** (`Podman Debian <noreply@github.com>`) | `B7F2 FD05 0924 0BDA CD92  B1D1 E56C E5A0 B970 2F11` |
+>
+> Existing users must replace the key file — `apt` does not update it for you,
+> and `apt update` fails with `NO_PUBKEY F5519D2D6171DB3F` until you do:
+>
+> ```bash
+> wget -qO /tmp/podman-ubuntu.gpg https://slazarov.github.io/podman-ubuntu/podman-ubuntu.gpg
+> gpg --show-keys /tmp/podman-ubuntu.gpg   # must show 1C93692FE1498A4DCFFE11D3F5519D2D6171DB3F
+> sudo install -m 0644 /tmp/podman-ubuntu.gpg /etc/apt/keyrings/podman-ubuntu.gpg
+> rm /tmp/podman-ubuntu.gpg
+> sudo apt update
+> ```
+>
+> If you also imported the old key anywhere else (for example into
+> `/etc/apt/trusted.gpg.d/` or a personal keyring), remove it there too.
+>
+> **Revocation certificate for the old key:** _to be published here._
+> <!-- REVOCATION-CERT-PLACEHOLDER: add the public revocation certificate for
+>      B7F2FD0509240BDACD92B1D1E56CE5A0B9702F11 (as a committed .asc file and link) -->
+
 ---
 
 ## Install via APT (Recommended)
