@@ -460,6 +460,13 @@ get_required_go_version() {
 }
 
 get_required_rust_version() {
+    # Netavark HEAD can lock dependencies that need a newer compiler than
+    # the manifest declares.
+    if [[ "${NIGHTLY_BUILD:-false}" == "true" && -z "${1:-}" ]]; then
+        printf '%s\n' stable
+        return
+    fi
+
     # Auto-detect Rust MSRV from Netavark's Cargo.toml (upstream source of truth)
     # Parameter: optional git ref (tag like "v1.17.2" or empty for "main")
     # Returns version like "1.86" or "stable"
