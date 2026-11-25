@@ -71,7 +71,7 @@ source versions-nightly.env && ./setup.sh                                  # lat
 | `CONTAINER_LIBS_TAG` | Optional | empty | containers/container-libs tag for config files and `seccomp.json`. Uses namespaced tags such as `common/v0.67.0`. |
 | `SCCACHE_TAG` | Optional | empty | sccache release tag (e.g. `v0.14.0`), used by the stable track. |
 | `GOVERSION` | Optional | Auto-detected from Podman's `go.mod` via `get_required_go_version` | Go toolchain version. Sets `GOPATH` and `GOROOT` under `/opt/go/${GOVERSION}`. |
-| `RUST_VERSION` | Optional | Auto-detected from Netavark's `Cargo.toml` via `get_required_rust_version` | Rust toolchain version. |
+| `RUST_VERSION` | Optional | `stable` for nightly HEAD, otherwise the minimum from Netavark's `Cargo.toml` with a `stable` fallback | Rustup toolchain version or channel. |
 
 For the resolver-driven stable/v5 tracks, the policy files declare
 anchored-prefix caps and a soak window instead of exact tags. `resolve_versions.sh`
@@ -300,7 +300,7 @@ Defaults are defined in `config.sh` using the `${VAR:-default}` pattern. Notable
 | `GOGC_BUILD` | `off` | `config.sh` |
 | `BUILD_ROOT` | `${toolpath}/build` | `config.sh` |
 | `GOVERSION` | from Podman `go.mod` | `config.sh` (`get_required_go_version`) |
-| `RUST_VERSION` | from Netavark `Cargo.toml` | `config.sh` (`get_required_rust_version`) |
+| `RUST_VERSION` | `stable` for nightly HEAD, otherwise from Netavark `Cargo.toml` | `config.sh` (`get_required_rust_version`) |
 | `OUTPUT_DIR` | `${toolpath}/output` | `scripts/package_all.sh` |
 | `OUTPUT_DIR` | `${toolpath}/repo-output` | `scripts/repo_manage.sh` (3rd argument) |
 

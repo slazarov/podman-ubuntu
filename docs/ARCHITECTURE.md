@@ -95,8 +95,10 @@ moves through the system as follows:
 
 2. **Pre-flight + configuration.** `setup.sh` sources `config.sh` (which sources
    `functions.sh`), detecting the architecture via `detect_architecture()` and
-   resolving the Go version from Podman's `go.mod` and the Rust version from
-   Netavark's `Cargo.toml`. `scripts/preflight_check.sh` validates the host
+   resolving the Go version from Podman's `go.mod`. Nightly Netavark builds
+   from HEAD use the stable Rust channel. Other builds read the Rust minimum
+   from `Cargo.toml` at the configured Netavark tag or at `main` if no tag
+   was supplied. `scripts/preflight_check.sh` validates the host
    before any build work begins.
 
 3. **Toolchain install.** `setup.sh` runs `install_dependencies.sh`,
@@ -172,7 +174,7 @@ before releasing the group, so the next publish starts from what was deployed.
    26.04 cells bootstrap the bare container then set `SKIP_FUSE_CHECK=true`; Go
    caches are keyed per distro+arch; artifacts are named `debs-<distro>-<arch>`.
    Rust (sccache) and C (ccache) compiler output is cached per distro, arch,
-   track, Rust version and sccache version, with size caps; `CACHE_STRICT=true`
+   track, Rust toolchain and sccache version, with size caps; `CACHE_STRICT=true`
    and a usage report fail a cell whose enabled cache was not used, and the
    cache is saved only when the build added to it. After packaging, each cell
    runs `verify_depends.sh`: the library packages detected from the built
@@ -260,8 +262,8 @@ config conventions. The most significant are:
 - **`detect_architecture()`** — `functions.sh`. Normalizes `uname -m` to
   `amd64`/`arm64` and drives all vendor-specific arch strings set in `config.sh`.
 - **`get_required_go_version()` / `get_required_rust_version()`** —
-  `functions.sh`. Auto-detect the exact toolchain version from upstream
-  `go.mod` (Podman) and `Cargo.toml` (Netavark) so build tooling tracks upstream.
+  `functions.sh`. Select toolchains using upstream `go.mod` (Podman) and
+  `Cargo.toml` (Netavark). Nightly Netavark builds from HEAD use stable Rust.
 - **`git_clone_update()` / `git_checkout()`** — `functions.sh`. Shared
   clone/checkout logic used by every `build_*.sh`; honor `SHALLOW_CLONE` and
   `NIGHTLY_BUILD` to switch between tagged and HEAD builds.
