@@ -112,11 +112,29 @@ moves through the system as follows:
    (via `git_checkout`), compiles, and installs the resulting binaries into the
    shared `DESTDIR` staging tree (e.g. `${DESTDIR}/usr/bin/podman`).
 
-5. **Packaging.** `scripts/package_all.sh` iterates the component list, derives
-   each package version (from the git tag, or from source files for nightly via
-   `extract_version_nightly`), expands the matching `packaging/nfpm/*.yaml`
-   config with `envsubst`, and runs `nfpm pkg` to emit a `.deb` into `output/`.
-   It also builds the `podman-suite` meta-package.
+5. **Packaging.** `scripts/package_all.sh` first strips every staged ELF
+   executable and shared object in `DESTDIR` with `strip --strip-unneeded`
+   (`strip_staged_binaries` in `functions.sh`, the equivalent of Debian's
+   `dh_strip`; debug symbols are dropped, there are no `-dbgsym` packages), then
+   fails if any staged ELF still has a `.symtab` or `.debug_*` section
+   (`verify_binaries_stripped`). Scripts, configs, `.o`/`.a` files and symlinks
+   are left alone. Doing this once, centrally, covers the Go, C, Rust and meson
+   components alike, whatever their own build systems do. It then iterates the
+   component list, derives each package version (from the git tag, or from
+   source files for nightly via `extract_version_nightly`), expands the matching
+   `packaging/nfpm/*.yaml` config with `envsubst`, and runs `nfpm pkg` to emit a
+   `.deb`. Every manifest sets `deb.compression: xz`, but nFPM's xz has no
+   level setting, so each `.deb` nFPM writes is then repacked with
+   `dpkg-deb --root-owner-group -Zxz -z9` (`repack_deb_xz9` in
+   `functions.sh`) under the same filename and moved into `output/`. xz -9's
+   64 MiB dictionary also dedups the code `podman` and `podman-remote` share.
+   The repack must not change the package: the file listing (mode, owner,
+   size, path, link target), the control fields and every control member are
+   compared first. If they differ or `dpkg-deb` fails, packaging fails and
+   nothing reaches `output/` for that package. A repack that would grow a
+   `.deb` (the near-empty `podman-suite`) is dropped. Stripping plus xz -9
+   keep the published site under the GitHub Pages size limit. It also builds
+   the `podman-suite` meta-package.
 
 6. **Publishing.** `scripts/ci_publish.sh` downloads the other suites' existing
    packages from the live repository, then calls `scripts/repo_manage.sh` to

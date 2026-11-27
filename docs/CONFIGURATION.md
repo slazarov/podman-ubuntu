@@ -125,7 +125,7 @@ shows up as a failure rather than as a slow build.
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `GO_GCFLAGS` | Optional | `-c=16` | Go compiler flags for parallel compilation (~25% faster). |
-| `GO_LDFLAGS` | Optional | `-s -w` | Go linker flags; strips debug symbols for smaller binaries. |
+| `GO_LDFLAGS` | Optional | `-s -w` | Go linker flags; strips debug symbols for smaller binaries. Passed to the podman, buildah and skopeo Makefiles as `EXTRA_LDFLAGS`. `package_all.sh` strips every staged ELF executable and shared library anyway, whatever this is set to. |
 | `GOGC_BUILD` | Optional | `off` | Disable Go GC during compilation (~30% faster, uses ~2.5x RAM). Set to empty to re-enable. |
 | `GOCACHE` | Optional | `/var/cache/go-build` | Go build cache, shared across component builds (20x faster rebuilds). |
 | `GOMODCACHE` | Optional | `/var/cache/go-mod` | Go module cache. |

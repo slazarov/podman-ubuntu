@@ -14,5 +14,6 @@
 # History: 1 = initial; 2 = uidmap dep, helpers in /usr/libexec/podman,
 # containers-image conflict, tmpfiles, netavark iptables dep,
 # podman-toolbox -> podman-toolbx; 3 = podman-fuse-overlayfs Depends ->
-# Recommends (podman-podman, podman-suite).
-export PACKAGE_REVISION="${PACKAGE_REVISION:-3}"
+# Recommends (podman-podman, podman-suite); 4 = shipped ELF binaries stripped
+# (package_all.sh) and .debs xz-compressed, to fit the GitHub Pages size limit.
+export PACKAGE_REVISION="${PACKAGE_REVISION:-4}"
