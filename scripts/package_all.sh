@@ -288,6 +288,18 @@ echo ""
 # if any is still unstripped. Central, so it covers every component and any
 # future one regardless of its build system. Stripping leaves DT_NEEDED intact,
 # so detect_runtime_depends below is unaffected.
+#
+# The strip runs on a private copy of the staging tree, never on DESTDIR
+# itself: setup.sh runs as root (CI's 24.04 cells use sudo), so the tree is
+# root-owned, while packaging may run as an unprivileged user who cannot
+# rewrite those files. The copy is also what nFPM packages from, and the
+# caller's DESTDIR is left untouched.
+PACKAGING_ROOT="$(mktemp -d)"
+trap '[[ -n "${PACKAGING_ROOT:-}" && -d "${PACKAGING_ROOT}" ]] && rm -rf -- "${PACKAGING_ROOT}"' EXIT
+echo ">>> Copying staging tree ${DESTDIR} to a private packaging copy"
+copy_staging_tree "${DESTDIR}" "${PACKAGING_ROOT}/destdir"
+DESTDIR="${PACKAGING_ROOT}/destdir"
+export DESTDIR
 echo ">>> Stripping staged binaries"
 strip_staged_binaries "${DESTDIR}"
 verify_binaries_stripped "${DESTDIR}"

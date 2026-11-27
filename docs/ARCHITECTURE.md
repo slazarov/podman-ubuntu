@@ -112,8 +112,12 @@ moves through the system as follows:
    (via `git_checkout`), compiles, and installs the resulting binaries into the
    shared `DESTDIR` staging tree (e.g. `${DESTDIR}/usr/bin/podman`).
 
-5. **Packaging.** `scripts/package_all.sh` first strips every staged ELF
-   executable and shared object in `DESTDIR` with `strip --strip-unneeded`
+5. **Packaging.** `scripts/package_all.sh` packages from a private copy of
+   `DESTDIR` (`copy_staging_tree`), so it never modifies the caller's staging
+   tree and works when that tree is root-owned but packaging runs unprivileged,
+   as in CI's 24.04 cells (`sudo setup.sh`, then `package_all.sh` as the runner
+   user). It first strips every staged ELF executable and shared object in
+   that copy with `strip --strip-unneeded`
    (`strip_staged_binaries` in `functions.sh`, the equivalent of Debian's
    `dh_strip`; debug symbols are dropped, there are no `-dbgsym` packages), then
    fails if any staged ELF still has a `.symtab` or `.debug_*` section
