@@ -248,12 +248,39 @@ _elf_has_symbols() {
     return 1
 }
 
+# copy_staging_tree <src> <dest> -> copy the staging tree <src> into <dest>
+# (created if missing) so packaging can strip it without write access to
+# <src>. Modes, timestamps and symlinks are kept (symlinks are copied, not
+# followed); ownership is not, since a non-root packager cannot chown and
+# nFPM sets file owners itself. Directories in the copy get owner write so
+# strip can create its temporary file next to each binary; file modes are
+# left exactly as staged, because nFPM packages them.
+copy_staging_tree() {
+    local lsrc="$1" ldest="$2"
+    if [[ ! -d "${lsrc}" ]]; then
+        echo "ERROR: copy_staging_tree: not a directory: ${lsrc}" >&2
+        return 1
+    fi
+    if ! mkdir -p "${ldest}"; then
+        echo "ERROR: copy_staging_tree: cannot create ${ldest}" >&2
+        return 1
+    fi
+    if ! cp -R -P --preserve=mode,timestamps,links "${lsrc}/." "${ldest}/"; then
+        echo "ERROR: could not copy staging tree ${lsrc} to ${ldest}" >&2
+        return 1
+    fi
+    if ! find "${ldest}" -type d ! -perm -u=w -exec chmod u+w {} +; then
+        echo "ERROR: could not make directories under ${ldest} writable" >&2
+        return 1
+    fi
+}
+
 # strip_staged_binaries <dir> -> strip --strip-unneeded every unstripped ELF
 # EXEC/DYN file under <dir>, in place. Symlinks are not followed. Returns 1
 # (naming the file) on the first strip failure; an empty tree is a no-op.
 strip_staged_binaries() {
     local ldir="$1"
-    local lfile lrc lcount=0
+    local lfile lrc lmode lcount=0
     if [[ ! -d "${ldir}" ]]; then
         echo "ERROR: strip_staged_binaries: not a directory: ${ldir}" >&2
         return 1
@@ -263,8 +290,23 @@ strip_staged_binaries() {
         lrc=0
         _elf_has_symbols "${lfile}" || lrc=$?
         [[ "${lrc}" -eq 1 ]] && continue
+        # A non-root strip cannot rewrite a file without owner write (e.g.
+        # 0555): add it for the strip, then restore the exact staged mode,
+        # which nFPM packages.
+        lmode=""
+        if [[ ! -w "${lfile}" ]]; then
+            if ! lmode="$(stat -c %a "${lfile}")" || ! chmod u+w "${lfile}"; then
+                echo "ERROR: cannot make ${lfile} writable to strip it" >&2
+                return 1
+            fi
+        fi
         if ! strip --strip-unneeded "${lfile}"; then
+            [[ -n "${lmode}" ]] && chmod "${lmode}" "${lfile}"
             echo "ERROR: strip failed: ${lfile}" >&2
+            return 1
+        fi
+        if [[ -n "${lmode}" ]] && ! chmod "${lmode}" "${lfile}"; then
+            echo "ERROR: cannot restore mode ${lmode} on ${lfile}" >&2
             return 1
         fi
         lcount=$((lcount + 1))

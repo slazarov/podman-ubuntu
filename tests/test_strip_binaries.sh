@@ -103,7 +103,7 @@ echo "Test: strip_staged_binaries / verify_binaries_stripped"
 echo "========================================"
 echo ""
 
-for fn in _elf_is_strippable _elf_has_symbols strip_staged_binaries verify_binaries_stripped; do
+for fn in _elf_is_strippable _elf_has_symbols strip_staged_binaries verify_binaries_stripped copy_staging_tree; do
     if ! grep -q "^${fn}()" "${FUNCTIONS_SH}"; then
         echo "FATAL: ${fn}() not found in ${FUNCTIONS_SH}"
         exit 1
@@ -122,7 +122,8 @@ if [[ -n "${missing}" ]]; then
 fi
 
 WORK="$(mktemp -d)"
-trap 'rm -rf "${WORK}"' EXIT
+# Test 7 makes directories read-only; restore write before removing.
+trap 'chmod -R u+w "${WORK}" 2> /dev/null; rm -rf "${WORK}"' EXIT
 SRC="${WORK}/src"
 TREE="${WORK}/tree"
 mkdir -p "${SRC}" "${TREE}/usr/bin" "${TREE}/usr/lib/x" "${TREE}/usr/share/man/man1"
@@ -246,5 +247,47 @@ assert_true "strip on non-ELF tree succeeds" strip_staged_binaries "${WORK}/noel
 assert_true "verify on non-ELF tree succeeds" verify_binaries_stripped "${WORK}/noelf"
 assert_false "strip on missing dir fails" strip_staged_binaries "${WORK}/does-not-exist"
 assert_false "verify on missing dir fails" verify_binaries_stripped "${WORK}/does-not-exist"
+
+echo ""
+echo "Test 7: read-only staging tree is stripped through a private copy"
+# CI's 24.04 cells run setup.sh through sudo, so DESTDIR is root-owned, then
+# run package_all.sh as the runner user. Read-only directories reproduce that
+# for a non-root test run: strip cannot create its temporary file.
+RO="${WORK}/ro-tree"
+mkdir -p "${RO}/usr/bin" "${RO}/etc/x"
+cc -g -O0 -o "${RO}/usr/bin/hello" "${SRC}/hello.c"
+cc -g -O0 -o "${RO}/usr/bin/ro-hello" "${SRC}/hello.c"
+chmod 0555 "${RO}/usr/bin/ro-hello"
+printf 'key=value\n' > "${RO}/etc/x/conf"
+chmod 0640 "${RO}/etc/x/conf"
+ln -s hello "${RO}/usr/bin/hello-link"
+sum_ro_hello="$(sum_of "${RO}/usr/bin/hello")"
+sum_ro_ro_hello="$(sum_of "${RO}/usr/bin/ro-hello")"
+mode_ro_hello="$(stat -c %a "${RO}/usr/bin/hello")"
+find "${RO}" -type d -exec chmod 0555 {} +
+if [[ "${EUID}" -ne 0 ]]; then
+    assert_false "strip in place fails on the read-only tree (the CI failure)" \
+        bash -c "$(declare -f _elf_is_strippable _elf_has_symbols strip_staged_binaries); strip_staged_binaries '${RO}'"
+else
+    echo "  (running as root: read-only directories do not block root, in-place failure not reproducible)"
+fi
+COPY="${WORK}/pkg/destdir"
+assert_true "copy_staging_tree succeeds from the read-only tree" copy_staging_tree "${RO}" "${COPY}"
+assert_true "strip_staged_binaries succeeds on the copy" strip_staged_binaries "${COPY}"
+assert_true "verify_binaries_stripped passes on the copy" verify_binaries_stripped "${COPY}"
+assert_false "0755 binary in the copy is stripped" has_symbols "${COPY}/usr/bin/hello"
+assert_false "0555 binary in the copy is stripped" has_symbols "${COPY}/usr/bin/ro-hello"
+assert_true "stripped copy still runs" bash -c "[[ \"\$('${COPY}/usr/bin/ro-hello')\" == 'hello 42' ]]"
+assert_true "copy keeps the staged file mode" test "$(stat -c %a "${COPY}/usr/bin/hello")" == "${mode_ro_hello}"
+assert_true "copy keeps 0555 file mode after strip" test "$(stat -c %a "${COPY}/usr/bin/ro-hello")" == "555"
+assert_true "copy keeps 0640 file mode" test "$(stat -c %a "${COPY}/etc/x/conf")" == "640"
+assert_true "copy keeps the symlink" test -L "${COPY}/usr/bin/hello-link"
+assert_true "copy keeps the symlink target" test "$(readlink "${COPY}/usr/bin/hello-link")" == "hello"
+assert_true "copied directories are owner-writable" test -z "$(find "${COPY}" -type d ! -perm -u=w)"
+assert_true "source tree binary untouched" test "$(sum_of "${RO}/usr/bin/hello")" == "${sum_ro_hello}"
+assert_true "source tree 0555 binary untouched" test "$(sum_of "${RO}/usr/bin/ro-hello")" == "${sum_ro_ro_hello}"
+assert_true "source tree still unstripped" has_symbols "${RO}/usr/bin/hello"
+assert_true "source directories still read-only" test "$(stat -c %a "${RO}/usr/bin")" == "555"
+assert_false "copy_staging_tree on missing source fails" copy_staging_tree "${WORK}/does-not-exist" "${WORK}/pkg2"
 
 summary
