@@ -316,8 +316,8 @@ run_grep_assertions() {
 
     # 1. single build job, no build-amd64/build-arm64
     local has_build no_split
-    has_build=$(printf '%s\n' "${NOCOMMENT}" | grep -Eqc '^[[:space:]]+build:' && echo 1 || echo 0)
-    if printf '%s\n' "${NOCOMMENT}" | grep -Eq '^[[:space:]]+build-(amd64|arm64):'; then
+    has_build=$(grep -Eqc '^[[:space:]]+build:' <<< "${NOCOMMENT}" && echo 1 || echo 0)
+    if grep -Eq '^[[:space:]]+build-(amd64|arm64):' <<< "${NOCOMMENT}"; then
         no_split=0
     else
         no_split=1
@@ -327,20 +327,20 @@ run_grep_assertions() {
 
     # 2. fail-fast: false
     local ff
-    ff=$(printf '%s\n' "${NOCOMMENT}" | grep -Eqc 'fail-fast:[[:space:]]*false' && echo 1 || echo 0)
+    ff=$(grep -Eqc 'fail-fast:[[:space:]]*false' <<< "${NOCOMMENT}" && echo 1 || echo 0)
     assert_true "grep: fail-fast: false present" "${ff}"
 
     # 3. exactly four matrix cells (count '- distro:' lines)
     local cells
-    cells=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '^[[:space:]]*-[[:space:]]*distro:')
+    cells=$(grep -Ec '^[[:space:]]*-[[:space:]]*distro:' <<< "${NOCOMMENT}")
     assert_equals "grep: exactly 4 matrix '- distro:' cells" "4" "${cells}"
 
     # 4. two 2404 + two 2604, two amd64 + two arm64 among cells
     local d2404 d2604 aamd aarm
-    d2404=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec "distro:[[:space:]]*'?2404'?")
-    d2604=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec "distro:[[:space:]]*'?2604'?")
-    aamd=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '^[[:space:]]*arch:[[:space:]]*amd64')
-    aarm=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec '^[[:space:]]*arch:[[:space:]]*arm64')
+    d2404=$(grep -Ec "distro:[[:space:]]*'?2404'?" <<< "${NOCOMMENT}")
+    d2604=$(grep -Ec "distro:[[:space:]]*'?2604'?" <<< "${NOCOMMENT}")
+    aamd=$(grep -Ec '^[[:space:]]*arch:[[:space:]]*amd64' <<< "${NOCOMMENT}")
+    aarm=$(grep -Ec '^[[:space:]]*arch:[[:space:]]*arm64' <<< "${NOCOMMENT}")
     assert_equals "grep: two distro 2404 cells" "2" "${d2404}"
     assert_equals "grep: two distro 2604 cells" "2" "${d2604}"
     assert_equals "grep: two amd64 cells" "2" "${aamd}"
@@ -348,7 +348,7 @@ run_grep_assertions() {
 
     # 5. ubuntu:26.04 container at least twice
     local cont
-    cont=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec 'container:[[:space:]]*ubuntu:26\.04')
+    cont=$(grep -Ec 'container:[[:space:]]*ubuntu:26\.04' <<< "${NOCOMMENT}")
     assert_true "grep: container ubuntu:26.04 appears >= 2 times" \
         "$([[ "${cont}" -ge 2 ]] && echo 1 || echo 0)"
 
@@ -366,9 +366,9 @@ run_grep_assertions() {
 
     # 9. no cross-distro merge: both per-distro patterns, no bare debs-*
     local p2404 p2604 pbare
-    p2404=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec 'pattern:[[:space:]]*debs-2404-\*')
-    p2604=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec 'pattern:[[:space:]]*debs-2604-\*')
-    if printf '%s\n' "${NOCOMMENT}" | grep -Eq 'pattern:[[:space:]]*debs-\*[[:space:]]*$'; then
+    p2404=$(grep -Ec 'pattern:[[:space:]]*debs-2404-\*' <<< "${NOCOMMENT}")
+    p2604=$(grep -Ec 'pattern:[[:space:]]*debs-2604-\*' <<< "${NOCOMMENT}")
+    if grep -Eq 'pattern:[[:space:]]*debs-\*[[:space:]]*$' <<< "${NOCOMMENT}"; then
         pbare=1
     else
         pbare=0
@@ -397,21 +397,21 @@ run_grep_assertions() {
     assert_contains "grep: smoke test runs per published distro" \
         "${NOCOMMENT}" './scripts/smoke_repo_install.sh "${distro}"'
     assert_true "grep: no step continues past an error" \
-        "$(printf '%s\n' "${NOCOMMENT}" | grep -q 'continue-on-error' && echo 0 || echo 1)"
+        "$(grep -q 'continue-on-error' <<< "${NOCOMMENT}" && echo 0 || echo 1)"
     assert_true "grep: no download merges artifacts" \
-        "$(printf '%s\n' "${NOCOMMENT}" | grep -q 'merge-multiple: true' && echo 0 || echo 1)"
+        "$(grep -q 'merge-multiple: true' <<< "${NOCOMMENT}" && echo 0 || echo 1)"
     assert_contains "grep: integrity gate checks signatures" "${NOCOMMENT}" 'verify_repo_integrity.sh --keyring'
     assert_contains "grep: propagation is checked after deploy" "${NOCOMMENT}" 'wait_for_propagation "${REPO_URL}"'
 
     # 10c. resolver once, queues, credentials
     assert_equals "grep: the resolver runs exactly once (resolve-track)" "1" \
-        "$(printf '%s\n' "${NOCOMMENT}" | grep -c 'resolve_track_versions\|resolve_versions.sh')"
+        "$(grep -c 'resolve_track_versions\|resolve_versions.sh' <<< "${NOCOMMENT}")"
     assert_contains "grep: workflow runs queue per track" "${NOCOMMENT}" 'group: build-packages-${{'
     assert_contains "grep: publish has its own deploy queue" "${NOCOMMENT}" 'group: pages-deploy'
     assert_equals "grep: both concurrency groups use queue: max" "2" \
-        "$(printf '%s\n' "${NOCOMMENT}" | grep -cE '^[[:space:]]*queue: max$')"
+        "$(grep -cE '^[[:space:]]*queue: max$' <<< "${NOCOMMENT}")"
     assert_true "grep: no concurrency group cancels in-progress runs" \
-        "$(printf '%s\n' "${NOCOMMENT}" | grep -q 'cancel-in-progress: true' && echo 0 || echo 1)"
+        "$(grep -q 'cancel-in-progress: true' <<< "${NOCOMMENT}" && echo 0 || echo 1)"
     local nocomment_lint
     nocomment_lint="$(grep -v '^[[:space:]]*#' "${LINT_WORKFLOW}")"
     assert_equals "grep: every checkout drops its credentials" \
@@ -426,7 +426,7 @@ run_grep_assertions() {
     assert_contains "grep: ccache counters are zeroed before the build" "${NOCOMMENT}" 'ccache --zero-stats'
     assert_contains "grep: compiler cache is saved only when it changed" "${NOCOMMENT}" "if: steps.ccreport.outputs.changed == 'true'"
     assert_true "grep: the compiler cache is not saved on every run by actions/cache" \
-        "$(printf '%s\n' "${NOCOMMENT}" | grep -B3 '~/.cache/sccache' | grep -q 'uses: actions/cache@' && echo 0 || echo 1)"
+        "$(grep -B3 '~/.cache/sccache' <<< "${NOCOMMENT}" | grep 'uses: actions/cache@' > /dev/null && echo 0 || echo 1)"
     assert_contains "grep: build cells record nightly revisions per cell" "${NOCOMMENT}" \
         'nightly_record_revisions build "${{ matrix.distro }}-${{ matrix.arch }}"'
 
@@ -436,14 +436,14 @@ run_grep_assertions() {
 
     # 11. three schedule crons (nightly/stable/v5) + resolve-track job
     local ncron
-    ncron=$(printf '%s\n' "${NOCOMMENT}" | grep -Ec "cron:[[:space:]]*'30 [456] \* \* \*'")
+    ncron=$(grep -Ec "cron:[[:space:]]*'30 [456] \* \* \*'" <<< "${NOCOMMENT}")
     assert_equals "grep: three schedule crons (30 4/5/6)" "3" "${ncron}"
     assert_contains "grep: resolve-track job present" "${NOCOMMENT}" "resolve-track:"
 
     # 12. dispatch offers v5, never the retired edge track
     assert_contains "grep: dispatch build_track offers v5" "${NOCOMMENT}" "- v5"
     local has_edge
-    if printf '%s\n' "${NOCOMMENT}" | grep -Eq '^[[:space:]]*-[[:space:]]*edge[[:space:]]*$'; then
+    if grep -Eq '^[[:space:]]*-[[:space:]]*edge[[:space:]]*$' <<< "${NOCOMMENT}"; then
         has_edge=0
     else
         has_edge=1

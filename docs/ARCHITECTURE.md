@@ -212,7 +212,10 @@ before releasing the group, so the next publish starts from what was deployed.
    then 2604), the integrity gate with signature checks against
    `podman-ubuntu.gpg`, `smoke_repo_install.sh` for the published distros, and
    the atomic deploy via `configure-pages` → `upload-pages-artifact` →
-   `deploy-pages`. Afterwards it waits until every suite's live `InRelease`
+   `deploy-pages`. Between upload and deploy it waits until the run's artifact
+   list shows `github-pages` (`wait_for_run_artifact`): that list can lag the
+   upload by a few seconds, and `deploy-pages` then fails with "No artifacts
+   named github-pages" although the upload worked. Afterwards it waits until every suite's live `InRelease`
    matches the deployed one, and (nightly) saves the revision checkpoint.
 
 Every download from the live repository goes through `fetch_url`
