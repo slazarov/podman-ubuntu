@@ -20,7 +20,7 @@ Work landed since `v1.2`, slated for the next release, `v1.3`.
   (`scripts/resolve_versions.sh`) materializes concrete component tags from a
   per-track policy file (`versions-stable.env` / `versions-v5.env`): exact-tag
   freeze > `*_SERIES` anchored-major cap > float, with buildah derived from
-  podman's `go.mod` and a soak window (`STABLE_SOAK_DAYS`, default 7) that defers
+  podman's `go.mod` and a soak window (`STABLE_SOAK_DAYS`, default 3) that defers
   brand-new upstream tags. **stable** tracks Podman **6.x**; the former `edge`
   track is retired and replaced by **v5**, a Podman **5.x** maintenance line
   (held on the netavark/aardvark 1.x + buildah 1.43.x set that Podman 5.x

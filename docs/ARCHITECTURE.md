@@ -88,7 +88,7 @@ moves through the system as follows:
    `6.x` tag); otherwise the tag floats to the latest upstream release. Buildah
    is *derived* from Podman's `go.mod` at the resolved Podman tag rather than
    resolved independently. Every non-frozen tag is subject to a **soak window**
-   (`STABLE_SOAK_DAYS`, default 7): a new upstream tag is only adopted once its
+   (`STABLE_SOAK_DAYS`, default 3): a new upstream tag is only adopted once its
    commit is at least that many days old, so a same-day bad release is never
    picked up. For `nightly`, `NIGHTLY_BUILD=true` and `SHALLOW_CLONE=false` are
    set to build from upstream HEAD.

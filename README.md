@@ -206,7 +206,7 @@ The project builds and packages the following 12 components from upstream source
 
 ### Track Versions
 
-Versions are not hand-pinned. The **stable** track follows the Podman 6.x line and the **v5** track follows the Podman 5.x maintenance line; each auto-updates within its series. [`scripts/resolve_versions.sh`](scripts/resolve_versions.sh) reads a policy file ([`versions-stable.env`](versions-stable.env) / [`versions-v5.env`](versions-v5.env)) declaring per-component series caps and a soak window (a new upstream tag is only adopted once its commit is at least `STABLE_SOAK_DAYS`, default 7, old), then materializes the concrete tags — with Buildah derived from Podman's `go.mod`. The concrete versions currently published are shown in the package-versions table on the repository's [`index.html`](https://slazarov.github.io/podman-ubuntu/). The **nightly** track builds from upstream HEAD daily.
+Versions are not hand-pinned. The **stable** track follows the Podman 6.x line and the **v5** track follows the Podman 5.x maintenance line; each auto-updates within its series. [`scripts/resolve_versions.sh`](scripts/resolve_versions.sh) reads a policy file ([`versions-stable.env`](versions-stable.env) / [`versions-v5.env`](versions-v5.env)) declaring per-component series caps and a soak window (a new upstream tag is only adopted once its commit is at least `STABLE_SOAK_DAYS`, default 3, days old), then materializes the concrete tags — with Buildah derived from Podman's `go.mod`. The concrete versions currently published are shown in the package-versions table on the repository's [`index.html`](https://slazarov.github.io/podman-ubuntu/). The **nightly** track builds from upstream HEAD daily.
 
 ---
 
