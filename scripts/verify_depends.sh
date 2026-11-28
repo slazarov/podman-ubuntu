@@ -235,7 +235,7 @@ render_one() {
     local yaml="$1" comp="$2" detected_fragment="$3"
     local rendered="${tmp_render_dir}/nfpm-${comp}.yaml"
 
-    # Mirror package_all.sh: export the same five vars and allowlist them.
+    # Mirror package_all.sh: export the same six vars and allowlist them.
     # EPOCH is pasta's Debian epoch (functions.sh:PASTA_EPOCH), empty otherwise.
     export VERSION="0.0.0~ubuntu${DISTRO_VERSION_ID}.podman1"
     if [[ "${comp}" == "pasta" ]]; then
@@ -246,8 +246,9 @@ render_one() {
     export ARCH="${ARCH}"
     export DESTDIR="${DESTDIR}"
     export DETECTED_DEPENDS="${detected_fragment}"
+    export NFPM_DIR
 
-    envsubst '${VERSION} ${EPOCH} ${ARCH} ${DESTDIR} ${DETECTED_DEPENDS}' < "${yaml}" > "${rendered}"
+    envsubst '${VERSION} ${EPOCH} ${ARCH} ${DESTDIR} ${DETECTED_DEPENDS} ${NFPM_DIR}' < "${yaml}" > "${rendered}"
 
     # `nfpm pkg` parses+validates the config; a YAML error or garbled depends
     # block makes it exit non-zero. Target a throwaway dir.

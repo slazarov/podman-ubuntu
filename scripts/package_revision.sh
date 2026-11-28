@@ -15,5 +15,7 @@
 # containers-image conflict, tmpfiles, netavark iptables dep,
 # podman-toolbox -> podman-toolbx; 3 = podman-fuse-overlayfs Depends ->
 # Recommends (podman-podman, podman-suite); 4 = shipped ELF binaries stripped
-# (package_all.sh) and .debs xz-compressed, to fit the GitHub Pages size limit.
-export PACKAGE_REVISION="${PACKAGE_REVISION:-4}"
+# (package_all.sh) and .debs xz-compressed, to fit the GitHub Pages size limit;
+# 5 = podman-toolbx ships tmpfiles.d/toolbox.conf (/run/host link) with a
+# postinst applying it, podman-fuse-overlayfs Depends fuse3.
+export PACKAGE_REVISION="${PACKAGE_REVISION:-5}"
