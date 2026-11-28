@@ -98,6 +98,16 @@ Work landed since `v1.2`, slated for the next release, `v1.3`.
 - CI: the republish guard also compares `podman-suite`.
 
 ### Fixed
+
+- `toolbox` failed to start on the host with "cannot execute: required file not
+  found". Upstream links it with its dynamic loader under `/run/host` so the
+  binary also runs inside toolbox containers, and relies on
+  `tmpfiles.d/toolbox.conf` to link `/run/host` to `/` on the host.
+  `podman-toolbx` now ships that file and applies it in its `postinst`, as
+  Debian's and Ubuntu's own `podman-toolbox` do.
+- `podman-fuse-overlayfs` declared no dependencies, because the binary is linked
+  statically and library detection finds nothing. It now depends on `fuse3` for
+  `fusermount3`, as Debian's and Ubuntu's `fuse-overlayfs` do.
 - toolbox builds again on Ubuntu 24.04. The `CC="ccache gcc"` a C component
   turns on no longer carries over into later components, and the toolbox build
   links with `-z lazy`. Before this, the completion step failed with

@@ -442,6 +442,9 @@ for component in "${COMPONENTS[@]}"; do
     export VERSION="${local_version}"
     export ARCH="${ARCH}"
     export DESTDIR="${DESTDIR}"
+    # Maintainer scripts are referenced as ${NFPM_DIR}/scripts/... (nFPM
+    # resolves a relative script path against its working directory).
+    export NFPM_DIR
 
     # Derive this component's system-library depends from its shipped binaries.
     # detect_runtime_depends prints owning package names one-per-line; sed turns
@@ -475,7 +478,7 @@ for component in "${COMPONENTS[@]}"; do
     export DETECTED_DEPENDS
 
     nfpm_config="$(mktemp)"
-    envsubst '${VERSION} ${EPOCH} ${ARCH} ${DESTDIR} ${DETECTED_DEPENDS}' < "${NFPM_DIR}/${component}.yaml" > "${nfpm_config}"
+    envsubst '${VERSION} ${EPOCH} ${ARCH} ${DESTDIR} ${DETECTED_DEPENDS} ${NFPM_DIR}' < "${NFPM_DIR}/${component}.yaml" > "${nfpm_config}"
 
     # pasta ships the x86_64-only AVX2 fast-path variants when the build staged
     # them. They can't live in the arch-shared manifest — nFPM aborts on a src
