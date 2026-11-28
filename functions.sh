@@ -523,6 +523,36 @@ get_latest_tag() {
     git tag --list --sort -creatordate | _rank_upstream_tags "" "" | head -n1
 }
 
+# _git_remote_retry <git args...> -- run `git <git args...>` that talks to a remote,
+# retrying a failure up to GIT_REMOTE_ATTEMPTS times (default 4), waiting
+# GIT_REMOTE_RETRY_DELAY seconds (default 3) times the attempt number in between.
+# Smaller upstream hosts (passt.top) drop a single ls-remote or fetch now and
+# then; the resolver makes several such calls per component and one dropped call
+# used to abort the whole track. A stalled transfer counts as a failure after
+# 30s below 1 KB/s instead of hanging. Only the successful attempt's stdout is
+# printed; git's stderr is discarded, as the callers did before. Returns git's
+# last exit code.
+_git_remote_retry() {
+    local lattempts="${GIT_REMOTE_ATTEMPTS:-4}"
+    local ldelay="${GIT_REMOTE_RETRY_DELAY:-3}"
+    local lattempt=1 lrc lout
+    while true; do
+        # Buffer stdout so a failed attempt's partial output is never emitted.
+        lrc=0
+        lout=$(git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=30 "$@" 2>/dev/null) || lrc=$?
+        if [[ "${lrc}" -eq 0 ]]; then
+            [[ -z "${lout}" ]] || printf '%s\n' "${lout}"
+            return 0
+        fi
+        if [[ "${lattempt}" -ge "${lattempts}" ]]; then
+            return "${lrc}"
+        fi
+        echo "  retrying git $* (rc=${lrc}, attempt ${lattempt} of ${lattempts})" >&2
+        sleep $((ldelay * lattempt))
+        lattempt=$((lattempt + 1))
+    done
+}
+
 # list_upstream_tags <repo-url> <component> [series] -- highest-version-first list of
 # an upstream repo's tags WITHOUT cloning (over `git ls-remote`), filtered/ranked by
 # _rank_upstream_tags. Returns non-zero (and prints nothing) if the remote yields no
@@ -532,7 +562,7 @@ list_upstream_tags() {
     local lcomponent="$2"
     local lseries="${3:-}"
     local lrefs
-    lrefs=$(git ls-remote --tags --refs "${lurl}" 2>/dev/null | awk '{print $2}' | sed 's|refs/tags/||') || return 1
+    lrefs=$(_git_remote_retry ls-remote --tags --refs "${lurl}" | awk '{print $2}' | sed 's|refs/tags/||') || return 1
     [[ -n "${lrefs}" ]] || return 1
     printf '%s\n' "${lrefs}" | _rank_upstream_tags "${lcomponent}" "${lseries}"
 }
@@ -548,7 +578,7 @@ tag_commit_epoch() {
     local ltmp lepoch=""
     ltmp=$(mktemp -d) || return 1
     if git init -q "${ltmp}" 2>/dev/null \
-       && git -C "${ltmp}" fetch -q --depth 1 "${lurl}" tag "${ltag}" 2>/dev/null; then
+       && _git_remote_retry -C "${ltmp}" fetch -q --depth 1 "${lurl}" tag "${ltag}"; then
         lepoch=$(git -C "${ltmp}" log -1 --format=%ct FETCH_HEAD 2>/dev/null) || lepoch=""
     fi
     rm -rf "${ltmp}"

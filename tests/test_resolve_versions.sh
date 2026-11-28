@@ -34,6 +34,9 @@ assert_equals() {
 cleanup() { [[ -n "${TEST_TMPDIR}" && -d "${TEST_TMPDIR}" ]] && rm -rf "${TEST_TMPDIR}"; }
 trap cleanup EXIT
 
+# Unreachable-remote cases must not sleep between git remote retries.
+export GIT_REMOTE_RETRY_DELAY=0
+
 # Fixed "now" and relative tag ages (days -> epoch offsets). SOAK is 7 days.
 NOW_EPOCH=2000000000
 day() { echo $(( NOW_EPOCH - ($1 * 86400) )); }   # epoch $1 days before NOW
@@ -229,6 +232,28 @@ _bad_rc=0
 ( export PODMAN_SERIES="6 ; rm -rf /" STABLE_SOAK_DAYS=7
   resolve_component podman PODMAN_TAG PODMAN_SERIES "${P}" ) >/dev/null 2>&1 || _bad_rc=$?
 assert_equals "malformed series -> rc=2 (uncertain/surfaced)" "2" "${_bad_rc}"
+
+echo "=== git remote calls retry transient failures ==="
+# git shim: fails the first N remote calls (ls-remote/fetch, counted in a file),
+# then runs the real git. Local calls (init, log) always pass through.
+_RETRY_COUNT="${TEST_TMPDIR}/git-calls"
+_flaky_git() {
+    local lfail="$1"; shift
+    [[ " $* " == *" ls-remote "* || " $* " == *" fetch "* ]] || { command git "$@"; return; }
+    local ln; ln=$(( $(cat "${_RETRY_COUNT}" 2>/dev/null || echo 0) + 1 ))
+    echo "${ln}" > "${_RETRY_COUNT}"
+    [[ "${ln}" -gt "${lfail}" ]] || return 128
+    command git "$@"
+}
+rm -f "${_RETRY_COUNT}"
+assert_equals "list_upstream_tags: two dropped ls-remote calls -> still lists tags, no duplicates" \
+    "v6.0.2 v6.0.1 v6.0.0" "$( git() { _flaky_git 2 "$@"; }; list_upstream_tags "${P}" podman 6.0 | tr '\n' ' ' | sed 's/ $//' )"
+rm -f "${_RETRY_COUNT}"
+assert_equals "tag_commit_epoch: two dropped fetches -> still returns the commit date" \
+    "$(day 40)" "$( git() { _flaky_git 2 "$@"; }; tag_commit_epoch "${P}" v6.0.1 )"
+rm -f "${_RETRY_COUNT}"
+assert_equals "_git_remote_retry: persistent failure -> fails after GIT_REMOTE_ATTEMPTS tries" \
+    "rc=128 calls=3" "$( git() { _flaky_git 99 "$@"; }; GIT_REMOTE_ATTEMPTS=3 _git_remote_retry ls-remote "${P}" >/dev/null 2>&1; echo "rc=$? calls=$(cat "${_RETRY_COUNT}")" )"
 
 echo ""
 echo "Results: ${PASS_COUNT} passed, ${FAIL_COUNT} failed"

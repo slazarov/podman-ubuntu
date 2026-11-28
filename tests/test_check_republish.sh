@@ -60,6 +60,8 @@ assert_equals "guard COMPONENT_ROWS compares pasta (podman-pasta via PASTA_TAG)"
 # sha order is the REVERSE of their commit order (older commit = fff1111).
 TEST_TMPDIR="$(mktemp -d)"
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+# Unreachable-remote cases must not sleep between git remote retries.
+export GIT_REMOTE_RETRY_DELAY=0
 PASST="${TEST_TMPDIR}/passt"
 git init -q "${PASST}"
 _epoch=1900000000
