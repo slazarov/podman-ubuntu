@@ -82,7 +82,7 @@ honours these when materializing each `*_TAG`:
 | `PODMAN_SERIES` | Optional | empty | Major-series cap for Podman (e.g. `6` in `versions-stable.env`, `5` in `versions-v5.env`). Resolver picks the highest tag whose version starts with this prefix. An exact `PODMAN_TAG` freeze overrides it. |
 | `NETAVARK_SERIES` | Optional | empty | Major-series cap for Netavark (`1` on v5, since netavark 2.0 requires Podman 6.0). |
 | `AARDVARK_DNS_SERIES` | Optional | empty | Major-series cap for aardvark-dns (`1` on v5, paired with netavark 1.x). |
-| `STABLE_SOAK_DAYS` | Optional | `7` | Soak window in days. A non-frozen upstream tag is only adopted once its commit is at least this old, so a same-day bad release is never picked up. |
+| `STABLE_SOAK_DAYS` | Optional | `3` | Soak window in days. A non-frozen upstream tag is only adopted once its commit is at least this old, so a same-day bad release is never picked up. |
 | `GIT_REMOTE_ATTEMPTS` | Optional | `4` | How many times each upstream `git ls-remote` / tag fetch is tried (resolver, republish guard, pasta versioning). A transfer stalled below 1 KB/s for 30s counts as a failed try. Only after every try fails does the component HOLD as uncertain. |
 | `GIT_REMOTE_RETRY_DELAY` | Optional | `3` | Seconds between those tries, multiplied by the attempt number. The tests set it to `0`. |
 
